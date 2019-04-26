@@ -1,16 +1,29 @@
+############################################################################
+# This file defines a class that reads the raw ASCII files from
+# CAEN's wavedump software and puts them into Pandas dataframes 
+# for analysis purposes.
+#
+#    - Brian L.
+############################################################################
+
 import pandas as pd
 import numpy as np
 
+
 class WavedumpFile:
 
-	def __init__( self ):
+        ####################################################################
+	def __init__( self, filename=None ):
 		print('WavedumpFile object constructed.')
+		if filename is not None:
+			self.LoadFile( filename )
 
-
+        ####################################################################
 	def LoadFile( self, filename ):
 		self.infile = open(filename,'r')
 		print('Input file: {}'.format(self.infile.name))
 
+        ####################################################################
 	def ReadEvent( self ):
 		try:
 			self.infile
@@ -24,7 +37,7 @@ class WavedumpFile:
 			raise Exception('End of file.')
 
 		self.current_evt['BoardID'] = self.infile.readline().split()[-1]
-		self.current_evt['Channel'] = self.infile.readline().split()[-1]
+		self.current_evt['Channel'] = int(self.infile.readline().split()[-1])
 		self.current_evt['Event Number'] = int(self.infile.readline().split()[-1])
 		if self.current_evt['Event Number'] % 500 == 0:
 			print('Processing event {}...'.format(self.current_evt['Event Number']))
@@ -50,8 +63,8 @@ class WavedumpFile:
 		self.current_evt['Data'] = dat_array
 
 		return self.current_evt
-
-
+	
+        ####################################################################
 	def ConvertFileToHDF5( self ):
 		try:
 			self.infile
@@ -71,7 +84,7 @@ class WavedumpFile:
 		output_filename = '{}.h5'.format(self.GetFileTitle(self.infile.name))
 		output_df.to_hdf(output_filename,key='raw')
 		
-
+        ####################################################################
 	def GetFileTitle( self, filepath ):
 		filename = filepath.split('/')[-1]
 		filetitle = filename.split('.')[0]

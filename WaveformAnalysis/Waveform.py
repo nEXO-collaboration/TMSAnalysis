@@ -4,10 +4,16 @@
 # detectors will be written in separate files.
 #   
 #    - Brian L.
+#
+# Note: the waveform processings stuff will need to change based on the
+# type of detector that we're recording data from; i.e. an NaI signal
+# will need a different processing framework than a simple PMT signal
+# looking for cherenkov light. 
 ########################################################################
 
 import pandas as pd
 import numpy as np
+
 
 
 class Waveform:
@@ -15,6 +21,9 @@ class Waveform:
 	def __init__( self, input_data=None, detector_type=None, sampling_rate=None ):
 		self.data = input_data
 		self.detetor_type = detector_type
+		# Make the default detector type a simple PMT
+		if detector_type == None:
+			self.detector_type = 'PMT'
 		self.sampling_rate = sampling_rate
 		self.analysis_quantities = pd.Series()
 
@@ -36,7 +45,13 @@ class Waveform:
 
 		threshold = 10*baseline_rms
 		pre_nsamps = 10
-		post_nsamps = 70
+		post_nsamps = 10
+		if self.detector_type = 'NaI':
+			pre_nsamps = 20
+			post_nsamps = 100
+		if sefl.detector_type = 'PMT':
+			pre_nsamps = 5
+			post_nsamps = 10
 		
 		pulse_idx = np.where( (self.data-baseline)**2 > threshold**2 )
 		# First, check if there are no pulses
@@ -45,7 +60,7 @@ class Waveform:
 		# Next, check if there are multiple pulses
 		elif (pulse_idx[0][-1] - pulse_idx[0][0]) > \
 		   (len(pulse_idx[0])-1 + pre_nsamps + post_nsamps):
-			print('Multiple pulses found. This is not yet supported.')
+			print('Multiple pulses found in {} detector. This is not yet supported.'.format(self.detector_type))
 			return
 		# Finally, find the interesting characteristics of the pulse
 		else:

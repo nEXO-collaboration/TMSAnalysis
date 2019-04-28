@@ -1,9 +1,7 @@
 import pandas as pd
 import numpy as np
-import sys
-sys.path.append("..")
 
-from WaveformAnalysis import Waveform
+from TMSAnalysis.WaveformAnalysis import Waveform
 
 def ReduceH5File( filename, num_events=-1 ):
 
@@ -29,7 +27,9 @@ def ReduceH5File( filename, num_events=-1 ):
 			output_series[col] = thisrow[col]
 		# Loop through channels, do the analysis, put this into the output series
 		for ch_num in thisrow['Channels']:
-			w = Waveform.Waveform(input_data=thisrow['Data'][ch_num],detector_type='N/A',sampling_rate=10.)
+			w = Waveform.Waveform(input_data=thisrow['Data'][ch_num],\
+						detector_type=thisrow['DetectorType'][ch_num],\
+						sampling_rate=10.)
 			w.FindPulsesAndComputeArea()
 			for key in w.analysis_quantities.keys():
 				output_series['Ch{} {}'.format(ch_num,key)] = w.analysis_quantities[key]

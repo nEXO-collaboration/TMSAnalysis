@@ -9,6 +9,8 @@
 import pandas as pd
 import numpy as np
 import uproot as up
+import sys
+import time
 
 
 class NGMRootFile:
@@ -18,18 +20,19 @@ class NGMRootFile:
 		print('NGMFile object constructed.')
 		if filename is not None:
 			self.LoadFile( filename )
+		self.h5_file = None
 
         ####################################################################
-	def LoadFile( self, filename ):
+	def LoadRootFile( self, filename ):
 		self.infile = up.open(filename)
-		print('Input file: {}'.format(self.infile.name))
+		self.filename = filename
+		print('Input file: {}'.format(self.filename))
 		try:
-			self.intree = self.infile['HitTree'].pandas.df()
-		except:
+			self.intree = self.infile['HitTree'].pandas.df(flatten=False)
+		except ValueError as e:
 			print('Some problem getting the HitTree out of the file.')
-			self.infile.close()
+			print('{}'.format(e))
 			return
-		self.infile.close()
 		print('Got HitTree.')
 		
 
@@ -40,9 +43,10 @@ class NGMRootFile:
 			self.infile
 		except NameError:
 			self.LoadFile()
-			
+	
+		start_time = time.time()		
 		self.current_evt = pd.Series()
-		self.outputdf = pd.DataFrame()
+		self.outputdf = pd.DataFrame(columns=['Timestamp','Channels','Data'])
 		this_event_timestamp = -1
 		channels = []
 		data = []
@@ -50,43 +54,33 @@ class NGMRootFile:
 		for index,thisrow in self.intree.iterrows():
 			# If the timestamp has changed (and it's not the first line), write the output
 			# to the output dataframe.
-			if (index not this_event_timestamp) and (this_event_index > 0):
+			if (thisrow['_rawclock'] != this_event_timestamp) and (this_event_timestamp > 0):
 				self.current_evt['Channels'] = channels
 				self.current_evt['Data'] = data
 				self.outputdf = self.outputdf.append( self.current_evt, ignore_index=True )
 				channels = []
 				data = []
-			else:
-				self.current_evt['Timestamp'] = thisrow['_rawclock']
-				channels.append( thisrow['_channel'] + thisrow['_slot']*16 )
-				data.append( thisrow['_waveform'] )
+			self.current_evt['Timestamp'] = thisrow['_rawclock']
+			channels.append( thisrow['_channel'] + thisrow['_slot']*16 )
+			data.append( thisrow['_waveform'] )
+			this_event_timestamp = thisrow['_rawclock']
+		self.current_evt['Channels'] = channels
+		self.current_evt['Data'] = data
+		self.outputdf = self.outputdf.append( self.current_evt, ignore_index=True )
 
-		output_filename = '{}.h5'.format(self.GetFileTitle(self.infile.name))
+		output_filename = '{}.h5'.format(self.GetFileTitle(self.filename))
 		self.outputdf.to_hdf(output_filename,key='raw')
-	
-        ####################################################################
-	def ConvertFileToHDF5( self ):
-		try:
-			self.infile
-		except NameError:
-			self.LoadFile()
-		
-		output_df = pd.DataFrame(columns=['Record Length','BoardID','Channel',\
-						'Event Number','Pattern','Trigger Time Stamp',\
-						'DC Offset (DAC)','Data'])
-		while True:
-			try:
-				self.ReadEvent()
-			except:
-				break
-			output_df = output_df.append(self.current_evt,ignore_index=True)
-		
-		output_filename = '{}.h5'.format(self.GetFileTitle(self.infile.name))
-		output_df.to_hdf(output_filename,key='raw')
+		end_time=time.time()
+		print('{:.2} seconds elapsed. {:3.3} seconds per event.'.format( \
+					end_time-start_time,\
+					float( (end_time-start_time)/len(self.outputdf) ) ) )
+		self.h5_file = pd.read_hdf(output_filename)
 		
         ####################################################################
 	def GetFileTitle( self, filepath ):
 		filename = filepath.split('/')[-1]
 		filetitle = filename.split('.')[0]
 		return filetitle
-			
+		
+	
+	

@@ -34,7 +34,7 @@ class NGMRootFile:
 		
 
         ####################################################################
-	def GroupEventsAndWriteToHDF5( self ):
+	def GroupEventsAndWriteToHDF5( self, nevents = -1 ):
 		
 		try:
 			self.infile
@@ -46,8 +46,12 @@ class NGMRootFile:
 		this_event_timestamp = -1
 		channels = []
 		data = []
+		counter = 0
 
 		for index,thisrow in self.intree.iterrows():
+			if nevents > 0:
+				if counter > nevents:
+					break
 			# If the timestamp has changed (and it's not the first line), write the output
 			# to the output dataframe.
 			if (index not this_event_timestamp) and (this_event_index > 0):
@@ -60,6 +64,7 @@ class NGMRootFile:
 				self.current_evt['Timestamp'] = thisrow['_rawclock']
 				channels.append( thisrow['_channel'] + thisrow['_slot']*16 )
 				data.append( thisrow['_waveform'] )
+			counter += 1
 
 		output_filename = '{}.h5'.format(self.GetFileTitle(self.infile.name))
 		self.outputdf.to_hdf(output_filename,key='raw')

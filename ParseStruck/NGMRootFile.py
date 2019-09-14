@@ -11,6 +11,8 @@ import numpy as np
 import uproot as up
 import time
 import os
+import sys
+
 
 class NGMRootFile:
 
@@ -27,15 +29,18 @@ class NGMRootFile:
 		else:
 			print('WARNING: No channel map file provided. Using the default one...')
 			self.channel_map = pd.read_csv(package_directory + '/channel_map_template.txt',skiprows=9)
+		self.h5_file = None
 
         ####################################################################
-	def LoadFile( self, filename ):
+	def LoadRootFile( self, filename ):
 		self.infile = up.open(filename)
-		print('Input file: {}'.format(self.infile.name))
+		self.filename = filename
+		print('Input file: {}'.format(self.filename))
 		try:
-			self.intree = self.infile['HitTree']
-		except:
+			self.intree = self.infile['HitTree'].pandas.df(flatten=False)
+		except ValueError as e:
 			print('Some problem getting the HitTree out of the file.')
+			print('{}'.format(e))
 			return
 		print('Got HitTree.')
 		
@@ -47,9 +52,10 @@ class NGMRootFile:
 			self.infile
 		except NameError:
 			self.LoadFile()
-			
+	
+		start_time = time.time()		
 		self.current_evt = pd.Series()
-		self.outputdf = pd.DataFrame()
+		self.outputdf = pd.DataFrame(columns=['Timestamp','Channels','Data'])
 		this_event_timestamp = -1
 		file_counter = 0
 		global_evt_counter = 0
@@ -106,12 +112,12 @@ class NGMRootFile:
 			if row['Type']=='Off':
 				channel_mask[this_index] = False
 		return channel_mask, channel_types
-
-
-		
+	
         ####################################################################
 	def GetFileTitle( self, filepath ):
 		filename = filepath.split('/')[-1]
 		filetitle = filename.split('.')[0]
 		return filetitle
-			
+		
+	
+	

@@ -60,7 +60,7 @@ class NGMRootFile:
 		file_counter = 0
 		global_evt_counter = 0
 		local_evt_counter = 0
-		df = pd.DataFrame(columns=['Channels','Timestamp','Data','ChannelTypes'])
+		df = pd.DataFrame(columns=['Channels','Timestamp','Data','ChannelTypes','ChannelPositions'])
 		start_time = time.time()
 
 		for data in self.intree.iterate(['_waveform','_rawclock','_slot','_channel'],namedecode='utf-8',entrysteps=32):
@@ -70,7 +70,7 @@ class NGMRootFile:
 			# If the timestamp has changed (and it's not the first line), write the output
 			# to the output dataframe.
 			data_series = pd.Series(data)
-			channel_mask, channel_types = self.GenerateChannelMask( data['_slot'],data['_channel'] )
+			channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data['_slot'],data['_channel'] )
 			for column in data_series.items():
 				data_series[ column[0] ] = np.array(data_series[column[0]])[channel_mask]
 			output_series = pd.Series()
@@ -78,6 +78,7 @@ class NGMRootFile:
 			output_series['Timestamp'] = data_series['_rawclock']
 			output_series['Data'] = data_series['_waveform']
 			output_series['ChannelTypes'] = channel_types
+			output_series['ChannelPositions'] = channel_positions
 			df = df.append(output_series,ignore_index=True)	
 
 
@@ -103,15 +104,17 @@ class NGMRootFile:
 
 		channel_mask = np.array(np.ones(len(slot_column),dtype=bool))
 		channel_types = ['' for i in range(len(slot_column))]
+		channel_positions = np.zeros(len(slot_column),dtype=int)
 
 		for index,row in self.channel_map.iterrows():
 			slot_mask = np.where(slot_column==row['Slot'])
 			chan_mask = np.where(channel_column==row['Channel'])
 			this_index = np.intersect1d(slot_mask,chan_mask)[0]
 			channel_types[this_index] = row['Type']
+			channel_positions[this_index] = int(row['Position'])
 			if row['Type']=='Off':
 				channel_mask[this_index] = False
-		return channel_mask, channel_types
+		return channel_mask, channel_types, channel_positions
 	
         ####################################################################
 	def GetFileTitle( self, filepath ):

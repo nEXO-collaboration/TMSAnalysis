@@ -9,27 +9,34 @@
 import pandas as pd
 import numpy as np
 import uproot as up
-
+import time
+import os
 
 class NGMRootFile:
 
         ####################################################################
-	def __init__( self, filename=None ):
+	def __init__( self, filename=None, channel_map_file=None ):
 		print('NGMFile object constructed.')
+
+		package_directory = os.path.dirname(os.path.abspath(__file__))
+
 		if filename is not None:
 			self.LoadFile( filename )
+		if channel_map_file is not None:
+			self.channel_map = pd.read_csv(channel_map_file,skiprows=9)
+		else:
+			print('WARNING: No channel map file provided. Using the default one...')
+			self.channel_map = pd.read_csv(package_directory + '/channel_map_template.txt',skiprows=9)
 
         ####################################################################
 	def LoadFile( self, filename ):
 		self.infile = up.open(filename)
 		print('Input file: {}'.format(self.infile.name))
 		try:
-			self.intree = self.infile['HitTree'].pandas.df()
+			self.intree = self.infile['HitTree']
 		except:
 			print('Some problem getting the HitTree out of the file.')
-			self.infile.close()
 			return
-		self.infile.close()
 		print('Got HitTree.')
 		
 
@@ -44,50 +51,63 @@ class NGMRootFile:
 		self.current_evt = pd.Series()
 		self.outputdf = pd.DataFrame()
 		this_event_timestamp = -1
-		channels = []
-		data = []
-		counter = 0
+		file_counter = 0
+		global_evt_counter = 0
+		local_evt_counter = 0
+		df = pd.DataFrame(columns=['Channels','Timestamp','Data','ChannelTypes'])
+		start_time = time.time()
 
-		for index,thisrow in self.intree.iterrows():
+		for data in self.intree.iterate(['_waveform','_rawclock','_slot','_channel'],namedecode='utf-8',entrysteps=32):
 			if nevents > 0:
-				if counter > nevents:
+				if global_evt_counter > nevents:
 					break
 			# If the timestamp has changed (and it's not the first line), write the output
 			# to the output dataframe.
-			if (index not this_event_timestamp) and (this_event_index > 0):
-				self.current_evt['Channels'] = channels
-				self.current_evt['Data'] = data
-				self.outputdf = self.outputdf.append( self.current_evt, ignore_index=True )
-				channels = []
-				data = []
-			else:
-				self.current_evt['Timestamp'] = thisrow['_rawclock']
-				channels.append( thisrow['_channel'] + thisrow['_slot']*16 )
-				data.append( thisrow['_waveform'] )
-			counter += 1
+			data_series = pd.Series(data)
+			channel_mask, channel_types = self.GenerateChannelMask( data['_slot'],data['_channel'] )
+			for column in data_series.items():
+				data_series[ column[0] ] = np.array(data_series[column[0]])[channel_mask]
+			output_series = pd.Series()
+			output_series['Channels'] = data_series['_slot']*16+data_series['_channel']
+			output_series['Timestamp'] = data_series['_rawclock']
+			output_series['Data'] = data_series['_waveform']
+			output_series['ChannelTypes'] = channel_types
+			df = df.append(output_series,ignore_index=True)	
 
-		output_filename = '{}.h5'.format(self.GetFileTitle(self.infile.name))
-		self.outputdf.to_hdf(output_filename,key='raw')
+
+			global_evt_counter += 1
+			local_evt_counter += 1
+			if local_evt_counter > 200:
+				output_filename = '{}_{}.h5'.format( self.GetFileTitle(str(self.infile.name)),\
+									file_counter )
+				df.to_hdf(output_filename,key='raw')
+				local_evt_counter = 0
+				file_counter += 1
+				df = pd.DataFrame(columns=['_slot','_channel','_rawclock','_waveform','_channel_type'])
+				print('Written to {} at {:4.4} seconds'.format(output_filename,time.time()-start_time))	
+		
+		output_filename = '{}_{}.h5'.format( self.GetFileTitle(str(self.infile.name)),\
+									file_counter )
+		df.to_hdf(output_filename,key='raw')
+		end_time = time.time()
+		print('{} events written in {:3.3} seconds.'.format(global_evt_counter,end_time-start_time))
 	
-        ####################################################################
-	def ConvertFileToHDF5( self ):
-		try:
-			self.infile
-		except NameError:
-			self.LoadFile()
-		
-		output_df = pd.DataFrame(columns=['Record Length','BoardID','Channel',\
-						'Event Number','Pattern','Trigger Time Stamp',\
-						'DC Offset (DAC)','Data'])
-		while True:
-			try:
-				self.ReadEvent()
-			except:
-				break
-			output_df = output_df.append(self.current_evt,ignore_index=True)
-		
-		output_filename = '{}.h5'.format(self.GetFileTitle(self.infile.name))
-		output_df.to_hdf(output_filename,key='raw')
+	####################################################################
+	def GenerateChannelMask( self, slot_column, channel_column ):
+
+		channel_mask = np.array(np.ones(len(slot_column),dtype=bool))
+		channel_types = ['' for i in range(len(slot_column))]
+
+		for index,row in self.channel_map.iterrows():
+			slot_mask = np.where(slot_column==row['Slot'])
+			chan_mask = np.where(channel_column==row['Channel'])
+			this_index = np.intersect1d(slot_mask,chan_mask)[0]
+			channel_types[this_index] = row['Type']
+			if row['Type']=='Off':
+				channel_mask[this_index] = False
+		return channel_mask, channel_types
+
+
 		
         ####################################################################
 	def GetFileTitle( self, filepath ):

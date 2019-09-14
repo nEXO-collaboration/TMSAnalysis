@@ -29,7 +29,7 @@ def ReduceH5File( filename, num_events=-1, input_baseline=-1, input_baseline_rms
 		# Loop through channels, do the analysis, put this into the output series
 		for ch_num in thisrow['Channels']:
 			w = Waveform.Waveform(input_data=thisrow['Data'][ch_num],\
-						detector_type=thisrow['DetectorTypes'][ch_num].values[0],\
+						detector_type=thisrow['ChannelTypes'][ch_num].values[0],\
 						sampling_rate=10.,\
 						input_baseline=input_baseline,\
 						input_baseline_rms=input_baseline_rms,\

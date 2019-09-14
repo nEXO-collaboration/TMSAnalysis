@@ -56,14 +56,14 @@ class WavedumpDataset:
 
 			waveform_data = [f.current_evt['Data'] for f in self.wavedumpFiles]
 			channels = [f.current_evt['Channel'] for f in self.wavedumpFiles]
-			detector_types = [self.channel_map['DetectorType'].loc[ \
+			channel_types = [self.channel_map['DetectorType'].loc[ \
 							self.channel_map['Channel']==f.current_evt['Channel'] ]\
 							for f in self.wavedumpFiles]
 
 			output_row['Record Length'] = self.wavedumpFiles[0].current_evt['Record Length'] 
 			output_row['BoardID'] = self.wavedumpFiles[0].current_evt['BoardID']
 			output_row['Channels'] = channels
-			output_row['DetectorTypes'] = detector_types
+			output_row['ChannelTypes'] = channel_types
 			output_row['Event Number'] = self.wavedumpFiles[0].current_evt['Event Number']
 			output_row['Pattern'] = self.wavedumpFiles[0].current_evt['Pattern']
 			output_row['Trigger Time Stamp'] = self.wavedumpFiles[0].current_evt['Trigger Time Stamp']

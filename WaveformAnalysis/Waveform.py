@@ -105,7 +105,7 @@ class Waveform:
 	def GetPulseArea( self, dat_array ):
 		if len(dat_array) == 0: return 0,0
 		cumul_pulse = np.cumsum(dat_array)
-		pulse_area = cumul_pulse[-1]
+		pulse_area = np.mean(cumul_pulse[-10:-1])
 		if pulse_area < 0.:
 			pulse_area = pulse_area*(-1.)
 			cumul_pulse = cumul_pulse*(-1.)

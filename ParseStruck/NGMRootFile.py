@@ -23,7 +23,7 @@ class NGMRootFile:
 		package_directory = os.path.dirname(os.path.abspath(__file__))
 
 		if filename is not None:
-			self.LoadFile( filename )
+			self.LoadRootFile( filename )
 		if channel_map_file is not None:
 			self.channel_map = pd.read_csv(channel_map_file,skiprows=9)
 		else:
@@ -37,7 +37,7 @@ class NGMRootFile:
 		self.filename = filename
 		print('Input file: {}'.format(self.filename))
 		try:
-			self.intree = self.infile['HitTree'].pandas.df(flatten=False)
+			self.intree = self.infile['HitTree']
 		except ValueError as e:
 			print('Some problem getting the HitTree out of the file.')
 			print('{}'.format(e))
@@ -70,13 +70,14 @@ class NGMRootFile:
 			# If the timestamp has changed (and it's not the first line), write the output
 			# to the output dataframe.
 			data_series = pd.Series(data)
-			channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data['_slot'],data['_channel'] )
+			channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data['_slot'],data['_channel'])
 			for column in data_series.items():
-				data_series[ column[0] ] = np.array(data_series[column[0]])[channel_mask]
+				data_series[ column[0] ] = np.array(data_series[column[0]][channel_mask])
 			output_series = pd.Series()
 			output_series['Channels'] = data_series['_slot']*16+data_series['_channel']
 			output_series['Timestamp'] = data_series['_rawclock']
 			output_series['Data'] = data_series['_waveform']
+			channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data_series['_slot'],data_series['_channel'])
 			output_series['ChannelTypes'] = channel_types
 			output_series['ChannelPositions'] = channel_positions
 			df = df.append(output_series,ignore_index=True)	
@@ -90,7 +91,7 @@ class NGMRootFile:
 				df.to_hdf(output_filename,key='raw')
 				local_evt_counter = 0
 				file_counter += 1
-				df = pd.DataFrame(columns=['_slot','_channel','_rawclock','_waveform','_channel_type'])
+				df = pd.DataFrame(columns=['Channels','Timestamp','Data','ChannelTypes','ChannelPositions'])
 				print('Written to {} at {:4.4} seconds'.format(output_filename,time.time()-start_time))	
 		
 		output_filename = '{}_{}.h5'.format( self.GetFileTitle(str(self.infile.name)),\
@@ -107,9 +108,14 @@ class NGMRootFile:
 		channel_positions = np.zeros(len(slot_column),dtype=int)
 
 		for index,row in self.channel_map.iterrows():
+			
 			slot_mask = np.where(slot_column==row['Slot'])
 			chan_mask = np.where(channel_column==row['Channel'])
-			this_index = np.intersect1d(slot_mask,chan_mask)[0]
+			intersection = np.intersect1d(slot_mask,chan_mask)
+			if len(intersection) == 1:
+				this_index = intersection[0]
+			else:
+				 continue
 			channel_types[this_index] = row['Type']
 			channel_positions[this_index] = int(row['Position'])
 			if row['Type']=='Off':

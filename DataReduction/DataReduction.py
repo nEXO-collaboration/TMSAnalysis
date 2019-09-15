@@ -1,11 +1,13 @@
 import pandas as pd
 import numpy as np
+import time
 
 from TMSAnalysis.WaveformAnalysis import Waveform
 
 def ReduceH5File( filename, num_events=-1, input_baseline=-1, input_baseline_rms=-1, \
 			fixed_window=False, window_start=0, window_end=0):
 
+	start_time = time.time()
 	filetitle = filename.split('/')[-1]
 	filetitle_noext = filetitle.split('.')[0]
 	outputfile = '{}_reduced.h5'.format(filetitle_noext)
@@ -15,6 +17,7 @@ def ReduceH5File( filename, num_events=-1, input_baseline=-1, input_baseline_rms
 
 	input_df = pd.read_hdf(filename)
 	input_columns = input_df.columns
+	print(input_columns)
 	output_columns = [col for col in input_columns if (col!='Data') and (col!='Channels')]
 
 	event_counter = 0
@@ -27,9 +30,9 @@ def ReduceH5File( filename, num_events=-1, input_baseline=-1, input_baseline_rms
 		for col in output_columns:
 			output_series[col] = thisrow[col]
 		# Loop through channels, do the analysis, put this into the output series
-		for ch_num in thisrow['Channels']:
+		for ch_num in range(len(thisrow['Channels'])):
 			w = Waveform.Waveform(input_data=thisrow['Data'][ch_num],\
-						detector_type=thisrow['ChannelTypes'][ch_num].values[0],\
+						detector_type=thisrow['ChannelTypes'][ch_num],\
 						sampling_rate=10.,\
 						input_baseline=input_baseline,\
 						input_baseline_rms=input_baseline_rms,\
@@ -38,8 +41,12 @@ def ReduceH5File( filename, num_events=-1, input_baseline=-1, input_baseline_rms
 						window_end=window_end)
 			w.FindPulsesAndComputeArea()
 			for key in w.analysis_quantities.keys():
-				output_series['Ch{} {}'.format(ch_num,key)] = w.analysis_quantities[key]
+				output_series['{}{} {}'.format(\
+								thisrow['ChannelTypes'][ch_num],\
+								thisrow['ChannelPositions'][ch_num],\
+								key)] = w.analysis_quantities[key]
 		# Append this event to the output dataframe
 		output_df = output_df.append(output_series,ignore_index=True)
 		event_counter += 1
 	output_df.to_hdf(outputfile,key='df')	
+	print('Run time: {:4.4}'.format(time.time()-start_time))

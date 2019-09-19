@@ -17,10 +17,14 @@ import sys
 class NGMRootFile:
 
         ####################################################################
-	def __init__( self, filename=None, channel_map_file=None ):
+	def __init__( self, input_filename=None, output_directory=None, channel_map_file=None ):
 		print('NGMFile object constructed.')
 
 		package_directory = os.path.dirname(os.path.abspath(__file__))
+		if output_directory is None:
+			self.output_directory = './'
+		else:
+			self.output_directory = output_directory + '/'
 
 		if filename is not None:
 			self.LoadRootFile( filename )
@@ -94,8 +98,9 @@ class NGMRootFile:
 				df = pd.DataFrame(columns=['Channels','Timestamp','Data','ChannelTypes','ChannelPositions'])
 				print('Written to {} at {:4.4} seconds'.format(output_filename,time.time()-start_time))	
 		
-		output_filename = '{}_{}.h5'.format( self.GetFileTitle(str(self.infile.name)),\
-									file_counter )
+		output_filename = '{}{}_{}.h5'.format( self.output_directory,\
+								self.GetFileTitle(str(self.infile.name)),\
+								file_counter )
 		df.to_hdf(output_filename,key='raw')
 		end_time = time.time()
 		print('{} events written in {:3.3} seconds.'.format(global_evt_counter,end_time-start_time))

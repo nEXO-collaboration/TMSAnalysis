@@ -91,6 +91,7 @@ class Waveform:
 				self.analysis_quantities['Pulse Heights'] = \
 					np.append( self.analysis_quantities['Pulse Heights'], np.min(self.data[start:end]-baseline) )
 		else:
+			baseline = np.mean(self.data[self.window_start:self.window_start+10])
 			pulse_area, pulse_time = self.GetPulseArea( self.data[self.window_start:self.window_end]-baseline )
 			self.analysis_quantities['Num Pulses'] = 1
 			self.analysis_quantities['Pulse Areas'] = \
@@ -105,7 +106,7 @@ class Waveform:
 	def GetPulseArea( self, dat_array ):
 		if len(dat_array) == 0: return 0,0
 		cumul_pulse = np.cumsum(dat_array)
-		pulse_area = np.mean(cumul_pulse[-10:-1])
+		pulse_area = np.mean(cumul_pulse[-4:-1])
 		if pulse_area < 0.:
 			pulse_area = pulse_area*(-1.)
 			cumul_pulse = cumul_pulse*(-1.)

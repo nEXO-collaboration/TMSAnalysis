@@ -26,8 +26,8 @@ class NGMRootFile:
 		else:
 			self.output_directory = output_directory + '/'
 
-		if filename is not None:
-			self.LoadRootFile( filename )
+		if input_filename is not None:
+			self.LoadRootFile( input_filename )
 		if channel_map_file is not None:
 			self.channel_map = pd.read_csv(channel_map_file,skiprows=9)
 		else:
@@ -90,7 +90,8 @@ class NGMRootFile:
 			global_evt_counter += 1
 			local_evt_counter += 1
 			if local_evt_counter > 200:
-				output_filename = '{}_{}.h5'.format( self.GetFileTitle(str(self.infile.name)),\
+				output_filename = '{}{}_{}.h5'.format( self.output_directory,\
+									self.GetFileTitle(str(self.infile.name)),\
 									file_counter )
 				df.to_hdf(output_filename,key='raw')
 				local_evt_counter = 0

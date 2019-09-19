@@ -24,7 +24,7 @@ class Waveform:
 		self.data = input_data
 		self.input_baseline = input_baseline
 		self.input_baseline_rms = input_baseline_rms
-		self.detetor_type = detector_type
+		self.detector_type = detector_type
 		self.fixed_window = fixed_window
 		self.window_start = window_start
 		self.window_end = window_end
@@ -92,7 +92,10 @@ class Waveform:
 					np.append( self.analysis_quantities['Pulse Heights'], np.min(self.data[start:end]-baseline) )
 		else:
 			baseline = np.mean(self.data[self.window_start:self.window_start+10])
-			pulse_area, pulse_time = self.GetPulseArea( self.data[self.window_start:self.window_end]-baseline )
+			if 'NaI' in self.detector_type:
+				pulse_area, pulse_time = self.GetPulseArea( self.data[self.window_start-25:self.window_end+85]-baseline )
+			else:
+				pulse_area, pulse_time = self.GetPulseArea( self.data[self.window_start:self.window_end]-baseline )
 			self.analysis_quantities['Num Pulses'] = 1
 			self.analysis_quantities['Pulse Areas'] = \
 				np.append( self.analysis_quantities['Pulse Areas'], pulse_area )

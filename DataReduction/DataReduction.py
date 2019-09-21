@@ -4,7 +4,7 @@ import time
 
 from TMSAnalysis.WaveformAnalysis import Waveform
 
-def ReduceH5File( filename, num_events=-1, input_baseline=-1, input_baseline_rms=-1, \
+def ReduceH5File( filename, output_dir, num_events=-1, input_baseline=-1, input_baseline_rms=-1, \
 			fixed_window=False, window_start=0, window_end=0):
 
 	start_time = time.time()
@@ -46,7 +46,9 @@ def ReduceH5File( filename, num_events=-1, input_baseline=-1, input_baseline_rms
 								thisrow['ChannelPositions'][ch_num],\
 								key)] = w.analysis_quantities[key]
 		# Append this event to the output dataframe
+		output_series['File'] = filetitle
+		output_series['Event'] = event_counter
 		output_df = output_df.append(output_series,ignore_index=True)
 		event_counter += 1
-	output_df.to_hdf(outputfile,key='df')	
+	output_df.to_hdf(output_dir + outputfile,key='df')	
 	print('Run time: {:4.4}'.format(time.time()-start_time))

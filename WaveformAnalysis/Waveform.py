@@ -94,8 +94,12 @@ class Waveform:
 			if 'NaI' in self.detector_type:
 				baseline = np.mean(self.data[self.window_start-25:self.window_start-15])
 				baseline_rms = np.std(self.data[self.window_start-25:self.window_start+10])
-				pulse_area, pulse_time = self.GetPulseArea( self.data[self.window_start-25:self.window_end+85]-baseline )
+				pulse_area, pulse_time = self.GetPulseArea( self.data[self.window_start-25:self.window_end+90]-baseline )
 				pulse_time = pulse_time - 25
+			elif 'Cherenkov' in self.detector_type:
+				baseline = np.mean(self.data[self.window_start+2:self.window_start+12])
+				baseline_rms = np.std(self.data[self.window_start+2:self.window_start+12])
+				pulse_area, pulse_time = self.GetPulseArea( self.data[self.window_start+2:self.window_end-5]-baseline )
 			else:
 				baseline = np.mean(self.data[self.window_start:self.window_start+10])
 				baseline_rms = np.std(self.data[self.window_start:self.window_start+10])
@@ -119,11 +123,11 @@ class Waveform:
 		if pulse_area < 0.:
 			pulse_area = pulse_area*(-1.)
 			cumul_pulse = cumul_pulse*(-1.)
-		t0_5percent_samp = np.where( cumul_pulse > 0.05*pulse_area)[0][0]
+		t0_10percent_samp = np.where( cumul_pulse > 0.1*pulse_area)[0][0]
 		# The next chunk does a linear interpolation to get the pulse time more accurately.
-		t0_5percent = ( 0.05*pulse_area - cumul_pulse[t0_5percent_samp] + \
-				t0_5percent_samp * \
-				(cumul_pulse[t0_5percent_samp]-cumul_pulse[t0_5percent_samp-1]) ) /\
-				(cumul_pulse[t0_5percent_samp]-cumul_pulse[t0_5percent_samp-1])
+		t0_10percent = ( 0.1*pulse_area - cumul_pulse[t0_10percent_samp] + \
+				t0_10percent_samp * \
+				(cumul_pulse[t0_10percent_samp]-cumul_pulse[t0_10percent_samp-1]) ) /\
+				(cumul_pulse[t0_10percent_samp]-cumul_pulse[t0_10percent_samp-1])
 
-		return pulse_area, t0_5percent
+		return pulse_area, t0_10percent

@@ -99,12 +99,12 @@ class NGMRootFile:
 				df = pd.DataFrame(columns=['Channels','Timestamp','Data','ChannelTypes','ChannelPositions'])
 				print('Written to {} at {:4.4} seconds'.format(output_filename,time.time()-start_time))	
 		
-		output_filename = '{}{}_{}.h5'.format( self.output_directory,\
+		output_filename = '{}{}_{:0>3}.h5'.format( self.output_directory,\
 								self.GetFileTitle(str(self.infile.name)),\
 								file_counter )
 		df.to_hdf(output_filename,key='raw')
 		end_time = time.time()
-		print('{} events written in {:3.3} seconds.'.format(global_evt_counter,end_time-start_time))
+		print('{} events written in {:4.4} seconds.'.format(global_evt_counter,end_time-start_time))
 	
 	####################################################################
 	def GenerateChannelMask( self, slot_column, channel_column ):

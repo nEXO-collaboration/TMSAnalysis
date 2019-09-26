@@ -20,20 +20,19 @@ class Waveform:
 
 	def __init__( self, input_data=None, detector_type=None, sampling_period=None, \
 			input_baseline=-1, input_baseline_rms=-1, \
-			fixed_window=False, window_start=0, window_end=0 ):
+			fixed_trigger=False, trigger_position=0 ):
 		self.data = input_data
 		self.input_baseline = input_baseline
 		self.input_baseline_rms = input_baseline_rms
 		self.detector_type = detector_type
-		self.fixed_window = fixed_window
-		self.window_start = window_start
-		self.window_end = window_end
+		self.fixed_trigger = fixed_trigger
+		self.trigger_position = trigger_position
 		# Make the default detector type a simple PMT
 		if detector_type == None:
 			self.detector_type = 'PMT'
-		if fixed_window:
-			if window_start==window_end:
-				print('***ERROR***: You\'ve selected a fixed_window analyis, but the window has zero length.')
+		#if fixed_window:
+		#	if window_start==window_end:
+		#		print('***ERROR***: You\'ve selected a fixed_window analyis, but the window has zero length.')
 		self.sampling_period = sampling_period
 		self.analysis_quantities = pd.Series()
 
@@ -75,7 +74,7 @@ class Waveform:
 		self.analysis_quantities['Fit Heights'] = np.array([])
 		self.analysis_quantities['Fit Times'] = np.array([])
 
-		if not self.fixed_window:
+		if not self.fixed_trigger:
 			threshold = 10*baseline_rms
 			pre_nsamps = 10
 			post_nsamps = 10
@@ -111,37 +110,47 @@ class Waveform:
 			fit_height = 0.
 			fit_time = 0.
 			if 'NaI' in self.detector_type:
-				baseline = np.mean(self.data[self.window_start-25:self.window_start-15])
-				baseline_rms = np.std(self.data[self.window_start-25:self.window_start+10])
-				pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[self.window_start-25:self.window_end+90]-baseline )
+				window_start = self.trigger_position - int(800/self.sampling_period)
+				window_end = self.trigger_position + int(1600/self.sampling_period)
+				baseline = np.mean(self.data[window_start:window_start+10])
+				baseline_rms = np.std(self.data[window_start:window_start+10])
+				pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[window_start:window_end]-baseline )
 				if fit_pulse_flag == True:
-					xwfm = np.linspace(0.,(self.window_end-self.window_start)+115-1,(self.window_end-self.window_start)+115)
-					popt,pcov = opt.curve_fit( self.NaIPulseTemplate, xwfm, self.data[self.window_start-25:self.window_end+90]-baseline,\
+					xwfm = np.linspace(0.,(window_end-window_start)-1,(window_end-window_start))
+					popt,pcov = opt.curve_fit( self.NaIPulseTemplate, xwfm, self.data[window_start:window_end]-baseline,\
 									p0=(pulse_height*7.,pulse_time),xtol=0.05,ftol=0.05)
 					fit_height = popt[0]
 					fit_time = popt[1]
-				pulse_time = pulse_time - 25
-				fit_time = fit_time-25
+				pulse_time = pulse_time - int(800/self.sampling_period)
+				fit_time = fit_time - int(800/self.sampling_period)
 			elif 'Cherenkov' in self.detector_type:
-				baseline = np.mean(self.data[self.window_start+2:self.window_start+12])
-				baseline_rms = np.std(self.data[self.window_start+2:self.window_start+12])
-				pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[self.window_start+2:self.window_end-5]-baseline )
+				window_start = self.trigger_position - int(320/self.sampling_period)
+				window_end = self.trigger_position + int(160/self.sampling_period)
+				baseline = np.mean(self.data[window_start:window_start+10])
+				baseline_rms = np.std(self.data[window_start:window_start+10])
+				pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[window_start:window_end]-baseline )
 				if (fit_pulse_flag == True) and (pulse_height < 7.):
-					xwfm = np.linspace(0.,(self.window_end-self.window_start)-1,(self.window_end-self.window_start))
-					popt,pcov = opt.curve_fit( self.CherenkovPulseTemplate, xwfm, self.data[self.window_start:self.window_end]-baseline,\
+					xwfm = np.linspace(0.,(window_end-window_start)-1,(window_end-window_start))
+					popt,pcov = opt.curve_fit( self.CherenkovPulseTemplate, xwfm, self.data[window_start:window_end]-baseline,\
 									p0=(pulse_height,pulse_time),xtol=0.001,ftol=0.001)
 					fit_height = popt[0]
 					fit_time = popt[1]
+				pulse_time = pulse_time - int(320/self.sampling_period)
+				fit_time = fit_time - int(320/self.sampling_period)
 			elif 'PS' in self.detector_type:
-				baseline = np.mean(self.data[self.window_start:self.window_start+10])
-				baseline_rms = np.std(self.data[self.window_start:self.window_start+10])
-				pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[self.window_start:self.window_end]-baseline )
+				window_start = self.trigger_position - int(400/self.sampling_period)
+				window_end = self.trigger_position + int(160/self.sampling_period)
+				baseline = np.mean(self.data[window_start:window_start+10])
+				baseline_rms = np.std(self.data[window_start:window_start+10])
+				pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[window_start:window_end]-baseline )
 				if fit_pulse_flag == True:
-					xwfm = np.linspace(0.,(self.window_end-self.window_start)-1,(self.window_end-self.window_start))
-					popt,pcov = opt.curve_fit( self.PSPulseTemplate, xwfm, self.data[self.window_start:self.window_end]-baseline,\
+					xwfm = np.linspace(0.,(window_end-window_start)-1,(window_end-window_start))
+					popt,pcov = opt.curve_fit( self.PSPulseTemplate, xwfm, self.data[window_start:window_end]-baseline,\
 									p0=(pulse_height,pulse_time),xtol=0.002,ftol=0.002)
 					fit_height = popt[0]
 					fit_time = popt[1]
+				pulse_time = pulse_time - int(400/self.sampling_period)
+				fit_time = fit_time - int(400/self.sampling_period)
 			else:
 				pulse_area = 0.
 				pulse_time = 0.
@@ -152,13 +161,13 @@ class Waveform:
 			self.analysis_quantities['Pulse Areas'] = \
 				np.append( self.analysis_quantities['Pulse Areas'], pulse_area )
 			self.analysis_quantities['Pulse Times'] = \
-				np.append( self.analysis_quantities['Pulse Times'], pulse_time+self.window_start )
+				np.append( self.analysis_quantities['Pulse Times'], pulse_time + self.trigger_position )
 			self.analysis_quantities['Pulse Heights'] = \
 				np.append( self.analysis_quantities['Pulse Heights'], pulse_height )
 			self.analysis_quantities['Fit Heights'] = \
 				np.append( self.analysis_quantities['Fit Heights'], fit_height )
 			self.analysis_quantities['Fit Times'] = \
-				np.append( self.analysis_quantities['Fit Times'], fit_time )
+				np.append( self.analysis_quantities['Fit Times'], fit_time + self.trigger_position )
 				
 
 

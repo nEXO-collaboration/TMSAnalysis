@@ -4,8 +4,8 @@ import time
 
 from TMSAnalysis.WaveformAnalysis import Waveform
 
-def ReduceH5File( filename, output_dir, num_events=-1, input_baseline=-1, input_baseline_rms=-1, \
-			fixed_window=False, window_start=0, window_end=0):
+def ReduceH5File( filename, output_dir, num_events=-1, sampling_period=16., input_baseline=-1, input_baseline_rms=-1, \
+			fixed_window=False, window_start=0, window_end=0, fit_pulse_flag=False):
 
 	start_time = time.time()
 	filetitle = filename.split('/')[-1]
@@ -33,13 +33,13 @@ def ReduceH5File( filename, output_dir, num_events=-1, input_baseline=-1, input_
 		for ch_num in range(len(thisrow['Channels'])):
 			w = Waveform.Waveform(input_data=thisrow['Data'][ch_num],\
 						detector_type=thisrow['ChannelTypes'][ch_num],\
-						sampling_rate=10.,\
+						sampling_period=sampling_period,\
 						input_baseline=input_baseline,\
 						input_baseline_rms=input_baseline_rms,\
 						fixed_window=fixed_window,\
 						window_start=window_start,\
 						window_end=window_end)
-			w.FindPulsesAndComputeArea()
+			w.FindPulsesAndComputeArea(fit_pulse_flag=fit_pulse_flag)
 			for key in w.analysis_quantities.keys():
 				output_series['{}{} {}'.format(\
 								thisrow['ChannelTypes'][ch_num],\

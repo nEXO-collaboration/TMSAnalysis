@@ -32,7 +32,7 @@ class NGMRootFile:
 			self.channel_map = pd.read_csv(channel_map_file,skiprows=9)
 		else:
 			print('WARNING: No channel map file provided. Using the default one...')
-			self.channel_map = pd.read_csv(package_directory + '/channel_map_template.txt',skiprows=9)
+			self.channel_map = pd.read_csv(package_directory + '/channel_map_8ns_sampling.txt',skiprows=9)
 		self.h5_file = None
 
         ####################################################################

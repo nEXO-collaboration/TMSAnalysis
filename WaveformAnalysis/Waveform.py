@@ -19,7 +19,7 @@ import scipy.optimize as opt
 class Waveform:
 
 	def __init__( self, input_data=None, detector_type=None, sampling_period=None, \
-			input_baseline=-1, input_baseline_rms=-1, \
+			input_baseline=-1, input_baseline_rms=-1, polarity=-1., \
 			fixed_trigger=False, trigger_position=0 ):
 		self.data = input_data
 		self.input_baseline = input_baseline
@@ -27,6 +27,7 @@ class Waveform:
 		self.detector_type = detector_type
 		self.fixed_trigger = fixed_trigger
 		self.trigger_position = trigger_position
+		self.polarity = polarity
 		# Make the default detector type a simple PMT
 		if detector_type == None:
 			self.detector_type = 'PMT'
@@ -173,17 +174,14 @@ class Waveform:
 
 	def GetPulseArea( self, dat_array ):
 		if len(dat_array) == 0: return 0,0
-		cumul_pulse = np.cumsum(dat_array)
+		cumul_pulse = np.cumsum( dat_array * self.polarity )
 		pulse_area = np.mean(cumul_pulse[-4:-1])
-		if pulse_area < 0.:
-			pulse_area = pulse_area*(-1.)
-			cumul_pulse = cumul_pulse*(-1.)
 		t0_10percent_samp = np.where( cumul_pulse > 0.1*pulse_area)[0][0]
 		# The next chunk does a linear interpolation to get the pulse time more accurately.
 		t0_10percent = ( 0.1*pulse_area - cumul_pulse[t0_10percent_samp] + \
 				t0_10percent_samp * \
 				(cumul_pulse[t0_10percent_samp]-cumul_pulse[t0_10percent_samp-1]) ) /\
 				(cumul_pulse[t0_10percent_samp]-cumul_pulse[t0_10percent_samp-1])
-		pulse_height = np.min( dat_array )
+		pulse_height = self.polarity * np.max( np.abs(dat_array) )
 
 		return pulse_area, t0_10percent, pulse_height

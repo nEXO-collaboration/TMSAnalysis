@@ -28,10 +28,10 @@ def DoubleExpGaussConv(x,A,B,mu,sig,t1,t2):
 
     x = x - mu
     y = A * \
-        ( B/(2*t1)*np.exp(sig**2/(2*t1)) * np.exp(-x/t1) * \
-          (1 + erf( (x-sig**2/t1)/(sig*np.sqrt(2)) )) + \
-          (1-B)/(2*t2)*np.exp(sig**2/(2*t2)) * np.exp(-x/t2) * \
-          (1 + erf( (x-sig**2/t2)/(sig*np.sqrt(2)) )) \
+        ( B/(2.*t1)*np.exp(sig**2/(2.*t1**2)) * np.exp(-x/t1) * \
+          (1. + erf( (x-sig**2./t1)/(sig*np.sqrt(2.)) )) + \
+          (1.-B)/(2.*t2)*np.exp(sig**2/(2.*t2**2)) * np.exp(-x/t2) * \
+          (1. + erf( (x-sig**2./t2)/(sig*np.sqrt(2.)) )) \
         )
     return y
 

@@ -37,16 +37,16 @@ class Waveform:
 		self.analysis_quantities = pd.Series()
 
 	def NaIPulseTemplate( self, x, amp, time):
-		return ufun.TwoExpConv(x, amp*2.5, time+40./self.sampling_period, 58./self.sampling_period, 200.5/self.sampling_period)
+		return ufun.TwoExpConv(x, amp*30., time-40./self.sampling_period, 58./self.sampling_period, 200.5/self.sampling_period)
 
 	def PSPulseTemplate( self, x, amp, time):
-		return ufun.DoubleExpGaussConv( x, amp*10.5, 0.76, time, \
+		return ufun.DoubleExpGaussConv( x, amp*2., 0.80, time + 5./sampling_period, \
 						2./self.sampling_period, \
 						6.5/self.sampling_period, \
 						37.3/self.sampling_period )
 
 	def CherenkovPulseTemplate( self, x, amp, time ):
-		return ufun.DoubleExpGaussConv( x, amp * 6.7, 0.88, time, \
+		return ufun.DoubleExpGaussConv( x, amp * 6.7, 0.90, time, \
 						1.8/self.sampling_period, \
 						4.1/self.sampling_period, \
 						49./self.sampling_period )  

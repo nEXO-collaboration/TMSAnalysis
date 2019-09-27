@@ -19,7 +19,7 @@ import scipy.optimize as opt
 class Waveform:
 
 	def __init__( self, input_data=None, detector_type=None, sampling_period=None, \
-			input_baseline=-1, input_baseline_rms=-1, polarity=-1. \
+			input_baseline=-1, input_baseline_rms=-1, polarity=-1., \
 			fixed_trigger=False, trigger_position=0 ):
 		self.data = input_data
 		self.input_baseline = input_baseline

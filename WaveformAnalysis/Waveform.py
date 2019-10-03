@@ -35,13 +35,13 @@ class Waveform:
 		#	if window_start==window_end:
 		#		print('***ERROR***: You\'ve selected a fixed_window analyis, but the window has zero length.')
 		self.sampling_period = sampling_period
-		self.analysis_quantities = pd.Series()
+		self.analysis_quantities = dict()
 
 	def NaIPulseTemplate( self, x, amp, time):
 		return ufun.TwoExpConv(x, amp*30., time-40./self.sampling_period, 58./self.sampling_period, 200.5/self.sampling_period)
 
 	def PSPulseTemplate( self, x, amp, time):
-		return ufun.DoubleExpGaussConv( x, amp*2., 0.80, time + 5./sampling_period, \
+		return ufun.DoubleExpGaussConv( x, amp*2., 0.80, time + 5./self.sampling_period, \
 						2./self.sampling_period, \
 						6.5/self.sampling_period, \
 						37.3/self.sampling_period )
@@ -116,7 +116,7 @@ class Waveform:
 				baseline = np.mean(self.data[window_start:window_start+10])
 				baseline_rms = np.std(self.data[window_start:window_start+10])
 				pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[window_start:window_end]-baseline )
-				if fit_pulse_flag == True:
+				if fit_pulse_flag == True and np.abs(pulse_height)>10.*baseline_rms:
 					xwfm = np.linspace(0.,(window_end-window_start)-1,(window_end-window_start))
 					popt,pcov = opt.curve_fit( self.NaIPulseTemplate, xwfm, self.data[window_start:window_end]-baseline,\
 									p0=(pulse_height*7.,pulse_time),xtol=0.05,ftol=0.05)
@@ -130,7 +130,7 @@ class Waveform:
 				baseline = np.mean(self.data[window_start:window_start+10])
 				baseline_rms = np.std(self.data[window_start:window_start+10])
 				pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[window_start:window_end]-baseline )
-				if (fit_pulse_flag == True) and (pulse_height < 7.):
+				if (fit_pulse_flag == True) and (pulse_height < 7.) and np.abs(pulse_height)>10.*baseline_rms:
 					xwfm = np.linspace(0.,(window_end-window_start)-1,(window_end-window_start))
 					popt,pcov = opt.curve_fit( self.CherenkovPulseTemplate, xwfm, self.data[window_start:window_end]-baseline,\
 									p0=(pulse_height,pulse_time),xtol=0.001,ftol=0.001)
@@ -144,7 +144,7 @@ class Waveform:
 				baseline = np.mean(self.data[window_start:window_start+10])
 				baseline_rms = np.std(self.data[window_start:window_start+10])
 				pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[window_start:window_end]-baseline )
-				if fit_pulse_flag == True:
+				if fit_pulse_flag == True and np.abs(pulse_height>10.*baseline_rms):
 					xwfm = np.linspace(0.,(window_end-window_start)-1,(window_end-window_start))
 					popt,pcov = opt.curve_fit( self.PSPulseTemplate, xwfm, self.data[window_start:window_end]-baseline,\
 									p0=(pulse_height,pulse_time),xtol=0.002,ftol=0.002)

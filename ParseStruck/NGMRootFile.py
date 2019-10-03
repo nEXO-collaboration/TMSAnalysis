@@ -30,6 +30,9 @@ class NGMRootFile:
 			self.LoadRootFile( input_filename )
 		if channel_map_file is not None:
 			self.channel_map = pd.read_csv(channel_map_file,skiprows=9)
+			print('Channel map loaded:')
+			print(self.channel_map)
+			print('\n{} active channels.'.format(len(self.channel_map)))
 		else:
 			print('WARNING: No channel map file provided. Using the default one...')
 			self.channel_map = pd.read_csv(package_directory + '/channel_map_8ns_sampling.txt',skiprows=9)
@@ -67,7 +70,7 @@ class NGMRootFile:
 		df = pd.DataFrame(columns=['Channels','Timestamp','Data','ChannelTypes','ChannelPositions'])
 		start_time = time.time()
 
-		for data in self.intree.iterate(['_waveform','_rawclock','_slot','_channel'],namedecode='utf-8',entrysteps=32):
+		for data in self.intree.iterate(['_waveform','_rawclock','_slot','_channel'],namedecode='utf-8',entrysteps=len(self.channel_map)):
 			if nevents > 0:
 				if global_evt_counter > nevents:
 					break

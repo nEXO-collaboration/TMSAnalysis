@@ -13,7 +13,8 @@
 
 import pandas as pd
 import numpy as np
-from TMSAnalysis.tms_utilities import useful_function_shapes as ufun
+from TMSAnalysis.TMSUtilities import UsefulFunctionShapes as Ufun
+from TMSAnalysis.TMSUtilities import TMSWireFiltering as Filter
 import scipy.optimize as opt
 
 class Waveform:
@@ -38,16 +39,16 @@ class Waveform:
 		self.analysis_quantities = dict()
 
 	def NaIPulseTemplate( self, x, amp, time):
-		return ufun.TwoExpConv(x, amp*30., time-40./self.sampling_period, 58./self.sampling_period, 200.5/self.sampling_period)
+		return Ufun.TwoExpConv(x, amp*30., time-40./self.sampling_period, 58./self.sampling_period, 200.5/self.sampling_period)
 
 	def PSPulseTemplate( self, x, amp, time):
-		return ufun.DoubleExpGaussConv( x, amp*2., 0.80, time + 5./self.sampling_period, \
+		return Ufun.DoubleExpGaussConv( x, amp*2., 0.80, time + 5./self.sampling_period, \
 						2./self.sampling_period, \
 						6.5/self.sampling_period, \
 						37.3/self.sampling_period )
 
 	def CherenkovPulseTemplate( self, x, amp, time ):
-		return ufun.DoubleExpGaussConv( x, amp * 6.7, 0.90, time, \
+		return Ufun.DoubleExpGaussConv( x, amp * 6.7, 0.90, time, \
 						1.8/self.sampling_period, \
 						4.1/self.sampling_period, \
 						49./self.sampling_period )  
@@ -152,7 +153,37 @@ class Waveform:
 					fit_time = popt[1]
 				pulse_time = pulse_time - int(400/self.sampling_period)
 				fit_time = fit_time - int(400/self.sampling_period)
-			else:
+			elif 'Xwire' in self.detector_type:
+				self.polarity = (-1.)*self.polarity		
+				window_start = self.trigger_position - int(2400/self.sampling_period) # 2.4us pretrigger
+				window_end = self.trigger_position + int(10000/self.sampling_period)  # 10us posttrigger
+
+				baseline = np.mean(self.data[0:250])
+				fft_wfm = Filter.WaveformFFT( self.data-baseline, 8. )
+				filtered_wfm = Filter.WaveformFFTAndFilter( wfm - baseline , 8. )	
+				self.analysis_quantities['RawEnergy'] = np.mean( fft_wfm[window_end:window_end+300] ) - \
+									np.mean( fft_wfm[window_start-200:window_start] )
+				baseline = np.mean(filtered_wfm[-500:-1])
+				baseline_rms = np.std(filtered_wfm[-500:-1])
+				# Pulse time, area, height, position are derived from the filtered waveform.
+				pulse_area, pulse_time, pulse_height = self.GetPulseArea( filtered_wfm[window_start:window_end] )
+				pulse_time = pulse_time - int(2400/self.sampling_period)
+			elif 'Ywire' in self.detector_type:
+				self.polarity = (-1.)*self.polarity		
+				window_start = self.trigger_position - int(2400/self.sampling_period) # 2.4us pretrigger
+				window_end = self.trigger_position + int(10000/self.sampling_period)  # 10us posttrigger
+
+				baseline = np.mean(self.data[0:250])
+				fft_wfm = Filter.WaveformFFT( self.data-baseline, 8. )
+				filtered_wfm = Filter.WaveformFFTAndFilter( wfm - baseline , 8. )	
+				self.analysis_quantities['RawEnergy'] = np.mean( fft_wfm[window_end:window_end+300] ) - \
+									np.mean( fft_wfm[window_start-200:window_start] )
+				baseline = np.mean(filtered_wfm[-500:-1])
+				baseline_rms = np.std(filtered_wfm[-500:-1])
+				# Pulse time, area, height, position are derived from the filtered waveform.
+				pulse_area, pulse_time, pulse_height = self.GetPulseArea( filtered_wfm[window_start:window_end] )
+				pulse_time = pulse_time - int(2400/self.sampling_period)
+			else:								
 				pulse_area = 0.
 				pulse_time = 0.
 				pulse_height = 0.

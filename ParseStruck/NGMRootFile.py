@@ -69,6 +69,7 @@ class NGMRootFile:
 		local_evt_counter = 0
 		df = pd.DataFrame(columns=['Channels','Timestamp','Data','ChannelTypes','ChannelPositions'])
 		start_time = time.time()
+		print('{} entries per event.'.format(len(self.channel_map)))
 
 		for data in self.intree.iterate(['_waveform','_rawclock','_slot','_channel'],namedecode='utf-8',entrysteps=len(self.channel_map)):
 			if nevents > 0:

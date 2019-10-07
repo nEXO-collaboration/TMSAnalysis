@@ -160,7 +160,7 @@ class Waveform:
 
 				baseline = np.mean(self.data[0:250])
 				fft_wfm = Filter.WaveformFFT( self.data-baseline, 8. )
-				filtered_wfm = Filter.WaveformFFTAndFilter( wfm - baseline , 8. )	
+				filtered_wfm = Filter.WaveformFFTAndFilter( self.data - baseline , 8. )	
 				self.analysis_quantities['RawEnergy'] = np.mean( fft_wfm[window_end:window_end+300] ) - \
 									np.mean( fft_wfm[window_start-200:window_start] )
 				baseline = np.mean(filtered_wfm[-500:-1])
@@ -175,7 +175,7 @@ class Waveform:
 
 				baseline = np.mean(self.data[0:250])
 				fft_wfm = Filter.WaveformFFT( self.data-baseline, 8. )
-				filtered_wfm = Filter.WaveformFFTAndFilter( wfm - baseline , 8. )	
+				filtered_wfm = Filter.WaveformFFTAndFilter( self.data - baseline , 8. )	
 				self.analysis_quantities['RawEnergy'] = np.mean( fft_wfm[window_end:window_end+300] ) - \
 									np.mean( fft_wfm[window_start-200:window_start] )
 				baseline = np.mean(filtered_wfm[-500:-1])
@@ -190,16 +190,21 @@ class Waveform:
 			self.analysis_quantities['Baseline'] = baseline
 			self.analysis_quantities['Baseline RMS'] = baseline_rms
 			self.analysis_quantities['Num Pulses'] = 1
-			self.analysis_quantities['Pulse Areas'] = \
-				np.append( self.analysis_quantities['Pulse Areas'], pulse_area )
-			self.analysis_quantities['Pulse Times'] = \
-				np.append( self.analysis_quantities['Pulse Times'], pulse_time + self.trigger_position )
-			self.analysis_quantities['Pulse Heights'] = \
-				np.append( self.analysis_quantities['Pulse Heights'], pulse_height )
-			self.analysis_quantities['Fit Heights'] = \
-				np.append( self.analysis_quantities['Fit Heights'], fit_height )
-			self.analysis_quantities['Fit Times'] = \
-				np.append( self.analysis_quantities['Fit Times'], fit_time + self.trigger_position )
+			self.analysis_quantities['Pulse Areas'] = pulse_area
+			#self.analysis_quantities['Pulse Areas'] = \
+				#np.append( self.analysis_quantities['Pulse Areas'], pulse_area )
+			self.analysis_quantities['Pulse Times'] = pulse_time + self.trigger_position
+			#self.analysis_quantities['Pulse Times'] = \
+				#np.append( self.analysis_quantities['Pulse Times'], pulse_time + self.trigger_position )
+			self.analysis_quantities['Pulse Heights'] = pulse_height 
+			#self.analysis_quantities['Pulse Heights'] = \
+				#np.append( self.analysis_quantities['Pulse Heights'], pulse_height )
+			self.analysis_quantities['Fit Heights'] = fit_height
+			#self.analysis_quantities['Fit Heights'] = \
+				#np.append( self.analysis_quantities['Fit Heights'], fit_height )
+			self.analysis_quantities['Fit Times'] = fit_time + self.trigger_position
+			#self.analysis_quantities['Fit Times'] = \
+				#np.append( self.analysis_quantities['Fit Times'], fit_time + self.trigger_position )
 				
 
 

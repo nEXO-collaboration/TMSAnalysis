@@ -212,7 +212,10 @@ class Waveform:
 		if len(dat_array) == 0: return 0,0
 		cumul_pulse = np.cumsum( dat_array * self.polarity )
 		pulse_area = np.mean(cumul_pulse[-4:-1])
-		t0_10percent_samp = np.where( cumul_pulse > 0.1*pulse_area)[0][0]
+		try:
+			t0_10percent_samp = np.where( cumul_pulse > 0.1*pulse_area)[0][0]
+		except IndexError:
+			t0_10percent_samp = 1
 		# The next chunk does a linear interpolation to get the pulse time more accurately.
 		t0_10percent = ( 0.1*pulse_area - cumul_pulse[t0_10percent_samp] + \
 				t0_10percent_samp * \

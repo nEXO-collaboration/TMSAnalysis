@@ -183,6 +183,55 @@ class Waveform:
 				# Pulse time, area, height, position are derived from the filtered waveform.
 				pulse_area, pulse_time, pulse_height = self.GetPulseArea( filtered_wfm[window_start:window_end] )
 				pulse_time = pulse_time - int(2400/self.sampling_period)
+			elif 'SiPM' in self.detector_type:
+                                window_start = self.trigger_position - int(800/self.sampling_period)
+                                window_end = self.trigger_position + int(1600/self.sampling_period)
+                                baseline = np.mean(self.data[window_start:window_start+10])
+                                baseline_rms = np.std(self.data[window_start:window_start+10])
+                                pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[window_start:window_end]-baseline )
+                                pulse_time = pulse_time - int(800/self.sampling_period)
+
+			elif 'XTileStrip' in self.detector_type:
+				maw_length = 125 # Moving average over XX samples, corresponding to XX*0.008 us
+				baseline = np.mean(self.data[0:950])
+				smooth_wfm = np.convolve(self.data-baseline,np.ones(maw_length))[0:-(maw_length-1)]/maw_length
+				baseline_rms = np.std(smooth_wfm[0:950])
+				if np.sum(smooth_wfm[12000:])**2 > (5.*smooth_baseline_rms)**2:
+					samps_above_threshold = np.where( smooth_wfm**2 > (5.*smooth_baseline_rms)**2 )[0]
+					diff_above_threshold = samps_above_threshold[1:] - samps_above_threshold[0:-1]
+					if np.sum( diff_above_threshold > 125. ):   # Effectively cuts out waveforms with large baseline fluctuations
+						pulse_area = 0.
+						pulse_time = 0.
+						fit_height = 0.
+						pulse_height = 0.
+					else:
+						pulse_area = np.mean(smooth_wfm[12000:])
+						pulse_time = np.where(smooth_wfm < 0.9*np.min(smooth_wfm))[0][0]
+						pulse_height = 0.
+						fit_height = 0.
+				if '2' in self.detector_type:
+					pulse_area = pulse_area * 2.
+			elif 'YTileStrip' in self.detector_type:
+				maw_length = 125 # Moving average over XX samples, corresponding to XX*0.008 us
+				baseline = np.mean(self.data[0:950])
+				smooth_wfm = np.convolve(self.data-baseline,np.ones(maw_length))[0:-(maw_length-1)]/maw_length
+				baseline_rms = np.std(smooth_wfm[0:950])
+				if np.sum(smooth_wfm[12000:])**2 > (5.*smooth_baseline_rms)**2:
+					samps_above_threshold = np.where( smooth_wfm**2 > (5.*smooth_baseline_rms)**2 )[0]
+					diff_above_threshold = samps_above_threshold[1:] - samps_above_threshold[0:-1]
+					if np.sum( diff_above_threshold > 125. ):   # Effectively cuts out waveforms with large baseline fluctuations
+						pulse_area = 0.
+						pulse_time = 0.
+						fit_height = 0.
+						pulse_height = 0.
+					else:
+						pulse_area = np.mean(smooth_wfm[12000:])
+						pulse_time = np.where(smooth_wfm < 0.9*np.min(smooth_wfm))[0][0]
+						pulse_height = 0.
+						fit_height = 0.
+				if '2' in self.detector_type:
+					pulse_area = pulse_area * 2.	
+
 			else:								
 				pulse_area = 0.
 				pulse_time = 0.

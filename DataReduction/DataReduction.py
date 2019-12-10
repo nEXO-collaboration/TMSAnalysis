@@ -29,6 +29,9 @@ def ReduceH5File( filename, output_dir, num_events=-1, sampling_period=16., inpu
 		# Set all the values that are not the waveform/channel values
 		for col in output_columns:
 			output_series[col] = thisrow[col]
+
+		output_series['TotalEnergy'] = 0.
+		output_series['NumChannelsHit'] = 0
 		# Loop through channels, do the analysis, put this into the output series
 		for ch_num in range(len(thisrow['Channels'])):
 			w = Waveform.Waveform(input_data=thisrow['Data'][ch_num],\
@@ -45,6 +48,9 @@ def ReduceH5File( filename, output_dir, num_events=-1, sampling_period=16., inpu
 								thisrow['ChannelTypes'][ch_num],\
 								thisrow['ChannelPositions'][ch_num],\
 								key)] = w.analysis_quantities[key]
+			if w.analysis_quantities['Pulse Areas'] > 0. and ('TileStrip' in thisrow['ChannelTypes']):
+				output_series['NumTileChannelsHit'] += 1
+				output_series['TotalTileEnergy'] += w.analysis_quantities['Pulse Areas']
 		# Append this event to the output dataframe
 		output_series['File'] = filetitle
 		output_series['Event'] = event_counter

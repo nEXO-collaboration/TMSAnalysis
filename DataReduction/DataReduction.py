@@ -30,8 +30,14 @@ def ReduceH5File( filename, output_dir, num_events=-1, sampling_period=16., inpu
 		for col in output_columns:
 			output_series[col] = thisrow[col]
 
-		output_series['TotalEnergy'] = 0.
-		output_series['NumChannelsHit'] = 0
+		output_series['TotalTileEnergy'] = 0.
+		output_series['TotalSiPMEnergy'] = 0.
+		output_series['NumTileChannelsHit'] = 0
+		output_series['NumXTileChannelsHit'] = 0
+		output_series['NumYTileChannelsHit'] = 0
+		output_series['NumSiPMChannelsHit'] = 0
+		output_series['TimeOfMaxChannel'] = 0
+		max_channel_val = 0.
 		# Loop through channels, do the analysis, put this into the output series
 		for ch_num in range(len(thisrow['Channels'])):
 			w = Waveform.Waveform(input_data=thisrow['Data'][ch_num],\
@@ -44,13 +50,23 @@ def ReduceH5File( filename, output_dir, num_events=-1, sampling_period=16., inpu
 						trigger_position=trigger_position)
 			w.FindPulsesAndComputeArea(fit_pulse_flag=fit_pulse_flag)
 			for key in w.analysis_quantities.keys():
-				output_series['{}{} {}'.format(\
+				output_series['{} {} {}'.format(\
 								thisrow['ChannelTypes'][ch_num],\
 								thisrow['ChannelPositions'][ch_num],\
 								key)] = w.analysis_quantities[key]
-			if w.analysis_quantities['Pulse Areas'] > 0. and ('TileStrip' in thisrow['ChannelTypes']):
+			if w.analysis_quantities['Pulse Areas']**2 > 0. and ('TileStrip' in thisrow['ChannelTypes'][ch_num]):
 				output_series['NumTileChannelsHit'] += 1
+				if 'X' in thisrow['ChannelTypes'][ch_num]:
+					output_series['NumXTileChannelsHit'] += 1
+				if 'Y' in thisrow['ChannelTypes'][ch_num]:
+					output_series['NumYTileChannelsHit'] += 1
 				output_series['TotalTileEnergy'] += w.analysis_quantities['Pulse Areas']
+				if w.analysis_quantities['Pulse Areas']**2 > max_channel_val**2:
+					max_channel_val = w.analysis_quantities['Pulse Areas']
+					output_series['TimeOfMaxChannel'] = w.analysis_quantities['Pulse Times']
+			if w.analysis_quantities['Pulse Areas']**2 > 0. and ('SiPM' in thisrow['ChannelTypes']):
+				output_series['NumSiPMChannelsHit'] += 1
+				output_series['TotalSiPMEnergy'] += w.analysis_quantities['Pulse Areas']
 		# Append this event to the output dataframe
 		output_series['File'] = filetitle
 		output_series['Event'] = event_counter

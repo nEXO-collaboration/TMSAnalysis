@@ -185,14 +185,15 @@ class Waveform:
 				pulse_area, pulse_time, pulse_height = self.GetPulseArea( filtered_wfm[window_start:window_end] )
 				pulse_time = pulse_time - int(2400/self.sampling_period)
 			elif 'SiPM' in self.detector_type:
-				self.data = gaussian_filter( self.data, 60./self.sampling_period ) # Gaussian smoothing with a 60ns width (1sig)
+				self.data = gaussian_filter( self.data.astype(float), 60./self.sampling_period ) # Gaussian smoothing with a 60ns width (1sig)
 				window_start = self.trigger_position - int(1600/self.sampling_period)
 				window_end = self.trigger_position + int(2400/self.sampling_period)
 				baseline_calc_end = window_start + int(800/self.sampling_period)
 				baseline = np.mean(self.data[window_start:baseline_calc_end])
 				baseline_rms = np.std(self.data[window_start:baseline_calc_end])
-				pulse_area, pulse_height, t10, t20, t80, t90 = self.GetPulseAreaAndTimingParameters( self.data[window_start:window_end]-baseline )
+				pulse_area, pulse_height, t5, t10, t20, t80, t90 = self.GetPulseAreaAndTimingParameters( self.data[window_start:window_end]-baseline )
 				pulse_time = t10 - int(1600/self.sampling_period)
+				self.analysis_quantities['T5'] = t5
 				self.analysis_quantities['T10'] = t10
 				self.analysis_quantities['T20'] = t20
 				self.analysis_quantities['T80'] = t80
@@ -207,7 +208,7 @@ class Waveform:
 				#smooth_wfm = np.convolve(self.data-baseline,np.ones(maw_length))[0:-(maw_length-1)]/maw_length
 				smooth_wfm = self.RunningMean( self.data-baseline, maw_length )
 				baseline_rms = np.std(smooth_wfm[0:950])
-				if np.mean(smooth_wfm[12000:])**2 > (5.*baseline_rms)**2:
+				if np.mean(smooth_wfm[6000:])**2 > (5.*baseline_rms)**2:
 					samps_above_threshold = np.where( smooth_wfm**2 > (5.*baseline_rms)**2 )[0]
 					diff_above_threshold = samps_above_threshold[1:] - samps_above_threshold[0:-1]
 					if np.sum( diff_above_threshold > 125. ) > 0:   # Effectively cuts out waveforms with large baseline fluctuations
@@ -216,7 +217,7 @@ class Waveform:
 						fit_height = 0.
 						pulse_height = 0.
 					else:
-						pulse_area = np.mean(smooth_wfm[12000:])
+						pulse_area = np.mean(smooth_wfm[6000:])
 						pulse_time = np.where(smooth_wfm < 0.9*np.min(smooth_wfm))[0][0]
 						pulse_height = 0.
 						fit_height = 0.
@@ -271,6 +272,10 @@ class Waveform:
 		area_window_length = int(800./self.sampling_period) # average over 800ns
 		pulse_area = np.mean(cumul_pulse[-area_window_length:])
 		try:
+			t5 = np.where( cumul_pulse > 0.05*pulse_area )[0][0]
+		except IndexError:
+			t5 = 1
+		try:
 			t10 = np.where( cumul_pulse > 0.1*pulse_area )[0][0]
 		except IndexError:
 			t10 = 1
@@ -288,7 +293,7 @@ class Waveform:
 			t90 = 1
 		pulse_height = self.polarity * np.max( np.abs(dat_array) )
 		
-		return pulse_area, pulse_height, t10, t20, t80, t90
+		return pulse_area, pulse_height, t5, t10, t20, t80, t90
 
 	def RunningMean( self, dat_array, window_length ):
 		cumsum = np.cumsum(np.insert(dat_array, 0, 0)) 

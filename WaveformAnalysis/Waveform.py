@@ -16,6 +16,7 @@ import numpy as np
 from TMSAnalysis.TMSUtilities import UsefulFunctionShapes as Ufun
 from TMSAnalysis.TMSUtilities import TMSWireFiltering as Filter
 import scipy.optimize as opt
+from scipy.ndimage import gaussian_filter
 
 class Waveform:
 
@@ -184,12 +185,18 @@ class Waveform:
 				pulse_area, pulse_time, pulse_height = self.GetPulseArea( filtered_wfm[window_start:window_end] )
 				pulse_time = pulse_time - int(2400/self.sampling_period)
 			elif 'SiPM' in self.detector_type:
-                                window_start = self.trigger_position - int(800/self.sampling_period)
-                                window_end = self.trigger_position + int(1600/self.sampling_period)
-                                baseline = np.mean(self.data[window_start:window_start+10])
-                                baseline_rms = np.std(self.data[window_start:window_start+10])
-                                pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[window_start:window_end]-baseline )
-                                pulse_time = pulse_time - int(800/self.sampling_period)
+				self.data = gaussian_filter( self.data, 60./self.sampling_period ) # Gaussian smoothing with a 60ns width (1sig)
+				window_start = self.trigger_position - int(1600/self.sampling_period)
+				window_end = self.trigger_position + int(2400/self.sampling_period)
+				baseline_calc_end = window_start + int(800/self.sampling_period)
+				baseline = np.mean(self.data[window_start:baseline_calc_end])
+				baseline_rms = np.std(self.data[window_start:baseline_calc_end])
+				pulse_area, pulse_height, t10, t20, t80, t90 = self.GetPulseAreaAndTimingParameters( self.data[window_start:window_end]-baseline )
+				pulse_time = t10 - int(1600/self.sampling_period)
+				self.analysis_quantities['T10'] = t10
+				self.analysis_quantities['T20'] = t20
+				self.analysis_quantities['T80'] = t80
+				self.analysis_quantities['T90'] = t90
 
 			elif 'TileStrip' in self.detector_type:
 				pulse_area = 0.
@@ -241,7 +248,7 @@ class Waveform:
 
 
 	def GetPulseArea( self, dat_array ):
-		if len(dat_array) == 0: return 0,0
+		if len(dat_array) == 0: return 0,0,0
 		cumul_pulse = np.cumsum( dat_array * self.polarity )
 		pulse_area = np.mean(cumul_pulse[-4:-1])
 		try:
@@ -256,6 +263,32 @@ class Waveform:
 		pulse_height = self.polarity * np.max( np.abs(dat_array) )
 
 		return pulse_area, t0_10percent, pulse_height
+
+
+	def GetPulseAreaAndTimingParameters( self, dat_array ):
+		if len(dat_array) == 0: return 0, 0, 0, 0
+		cumul_pulse = np.cumsum( dat_array * self.polarity )
+		area_window_length = int(800./self.sampling_period) # average over 800ns
+		pulse_area = np.mean(cumul_pulse[-area_window_length:])
+		try:
+			t10 = np.where( cumul_pulse > 0.1*pulse_area )[0][0]
+		except IndexError:
+			t10 = 1
+		try:
+			t20 = np.where( cumul_pulse > 0.2*pulse_area )[0][0]
+		except IndexError:
+			t20 = 1
+		try:
+			t80 = np.where( cumul_pulse > 0.8*pulse_area )[0][0]
+		except IndexError:
+			t80 = 1
+		try:
+			t90 = np.where( cumul_pulse > 0.9*pulse_area )[0][0]
+		except IndexError:
+			t90 = 1
+		pulse_height = self.polarity * np.max( np.abs(dat_array) )
+		
+		return pulse_area, pulse_height, t10, t20, t80, t90
 
 	def RunningMean( self, dat_array, window_length ):
 		cumsum = np.cumsum(np.insert(dat_array, 0, 0)) 

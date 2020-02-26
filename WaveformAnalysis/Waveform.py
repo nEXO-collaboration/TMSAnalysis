@@ -185,7 +185,7 @@ class Waveform:
 				pulse_area, pulse_time, pulse_height = self.GetPulseArea( filtered_wfm[window_start:window_end] )
 				pulse_time = pulse_time - int(2400/self.sampling_period)
 			elif 'SiPM' in self.detector_type:
-				self.data = gaussian_filter( self.data.astype(float), 60./self.sampling_period ) # Gaussian smoothing with a 60ns width (1sig)
+				self.data = gaussian_filter( self.data.astype(float), 80./self.sampling_period ) # Gaussian smoothing with a 60ns width (1sig)
 				window_start = self.trigger_position - int(1600/self.sampling_period)
 				window_end = self.trigger_position + int(2400/self.sampling_period)
 				baseline_calc_end = window_start + int(800/self.sampling_period)

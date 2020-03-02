@@ -22,7 +22,8 @@ class Waveform:
 
 	def __init__( self, input_data=None, detector_type=None, sampling_period=None, \
 			input_baseline=-1, input_baseline_rms=-1, polarity=-1., \
-			fixed_trigger=False, trigger_position=0, decay_time=1.e9 ):
+			fixed_trigger=False, trigger_position=0, decay_time=1.e9,
+			store_processed_wfm=False ):
 		self.data = input_data
 		self.input_baseline = input_baseline
 		self.input_baseline_rms = input_baseline_rms
@@ -31,6 +32,7 @@ class Waveform:
 		self.trigger_position = trigger_position
 		self.polarity = polarity
 		self.decay_time = decay_time
+		self.store_processed_wfm = store_processed_wfm
 		# Make the default detector type a simple PMT
 		if detector_type == None:
 			self.detector_type = 'PMT'
@@ -71,17 +73,12 @@ class Waveform:
 			baseline_rms = self.input_baseline_rms		
 		self.analysis_quantities['Baseline'] = baseline
 		self.analysis_quantities['Baseline RMS'] = baseline_rms
-		self.analysis_quantities['Num Pulses'] = 0
-		self.analysis_quantities['Pulse Areas'] = np.array([])
-		self.analysis_quantities['Pulse Heights'] = np.array([])
-		self.analysis_quantities['Pulse Times'] = np.array([])
-		self.analysis_quantities['Fit Heights'] = np.array([])
-		self.analysis_quantities['Fit Times'] = np.array([])
 
 		# NOTE: almost all analyses are fixed_trigger analyses, so you can skip
 		#       right to the "else" statement below
-
 		if not self.fixed_trigger:
+			print('WARNING: the not-fixed-trigger analysis has not been tested, and may give' + \
+				' spurious results.')
 			threshold = 10*baseline_rms
 			pre_nsamps = 10
 			post_nsamps = 10
@@ -114,11 +111,7 @@ class Waveform:
 				self.analysis_quantities['Pulse Heights'] = \
 					np.append( self.analysis_quantities['Pulse Heights'], np.min(self.data[start:end]-baseline) )
 		else:
-			fit_height = 0.
-			fit_time = 0.
-			pulse_time = 0.
-			pulse_height = 0.
-			pulse_area = 0.
+			# Here we have different processing algorithms for different detectors.
 			if 'NaI' in self.detector_type:
 				window_start = self.trigger_position - int(800/self.sampling_period)
 				window_end = self.trigger_position + int(1600/self.sampling_period)
@@ -127,12 +120,22 @@ class Waveform:
 				pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[window_start:window_end]-baseline )
 				if fit_pulse_flag == True and np.abs(pulse_height)>10.*baseline_rms:
 					xwfm = np.linspace(0.,(window_end-window_start)-1,(window_end-window_start))
-					popt,pcov = opt.curve_fit( self.NaIPulseTemplate, xwfm, self.data[window_start:window_end]-baseline,\
+					popt,pcov = opt.curve_fit( self.NaIPulseTemplate, \
+									xwfm, \
+									self.data[window_start:window_end]-baseline,\
 									p0=(pulse_height*7.,pulse_time),xtol=0.05,ftol=0.05)
 					fit_height = popt[0]
 					fit_time = popt[1]
 				pulse_time = pulse_time - int(800/self.sampling_period)
 				fit_time = fit_time - int(800/self.sampling_period)
+				self.analysis_quantities['Baseline'] = baseline
+				self.analysis_quantities['Baseline RMS'] = baseline_rms
+				self.analysis_quantities['Pulse Area'] = pulse_area
+				self.analysis_quantities['Pulse Time'] = pulse_time
+				self.analysis_quantities['Pulse Height'] = pulse_height
+				if fit_pulse_flag:
+					self.analysis_quantities['Fit Time'] = fit_time
+
 			elif 'Cherenkov' in self.detector_type:
 				window_start = self.trigger_position - int(320/self.sampling_period)
 				window_end = self.trigger_position + int(160/self.sampling_period)
@@ -147,6 +150,14 @@ class Waveform:
 					fit_time = popt[1]
 				pulse_time = pulse_time - int(320/self.sampling_period)
 				fit_time = fit_time - int(320/self.sampling_period)
+				self.analysis_quantities['Baseline'] = baseline
+				self.analysis_quantities['Baseline RMS'] = baseline_rms
+				self.analysis_quantities['Pulse Area'] = pulse_area
+				self.analysis_quantities['Pulse Time'] = pulse_time
+				self.analysis_quantities['Pulse Height'] = pulse_height
+				if fit_pulse_flag:
+					self.analysis_quantities['Fit Time'] = fit_time
+
 			elif 'PS' in self.detector_type:
 				window_start = self.trigger_position - int(400/self.sampling_period)
 				window_end = self.trigger_position + int(160/self.sampling_period)
@@ -161,6 +172,14 @@ class Waveform:
 					fit_time = popt[1]
 				pulse_time = pulse_time - int(400/self.sampling_period)
 				fit_time = fit_time - int(400/self.sampling_period)
+				self.analysis_quantities['Baseline'] = baseline
+				self.analysis_quantities['Baseline RMS'] = baseline_rms
+				self.analysis_quantities['Pulse Area'] = pulse_area
+				self.analysis_quantities['Pulse Time'] = pulse_time
+				self.analysis_quantities['Pulse Height'] = pulse_height
+				if fit_pulse_flag:
+					self.analysis_quantities['Fit Time'] = fit_time
+
 			elif 'Xwire' in self.detector_type:
 				self.polarity = (-1.)*self.polarity		
 				window_start = self.trigger_position - int(2400/self.sampling_period) # 2.4us pretrigger
@@ -176,6 +195,12 @@ class Waveform:
 				# Pulse time, area, height, position are derived from the filtered waveform.
 				pulse_area, pulse_time, pulse_height = self.GetPulseArea( filtered_wfm[window_start:window_end] )
 				pulse_time = pulse_time - int(2400/self.sampling_period)
+				self.analysis_quantities['Baseline'] = baseline
+				self.analysis_quantities['Baseline RMS'] = baseline_rms
+				self.analysis_quantities['Pulse Area'] = pulse_area
+				self.analysis_quantities['Pulse Time'] = pulse_time
+				self.analysis_quantities['Pulse Height'] = pulse_height
+
 			elif 'Ywire' in self.detector_type:
 				self.polarity = (-1.)*self.polarity		
 				window_start = self.trigger_position - int(2400/self.sampling_period) # 2.4us pretrigger
@@ -191,6 +216,12 @@ class Waveform:
 				# Pulse time, area, height, position are derived from the filtered waveform.
 				pulse_area, pulse_time, pulse_height = self.GetPulseArea( filtered_wfm[window_start:window_end] )
 				pulse_time = pulse_time - int(2400/self.sampling_period)
+				self.analysis_quantities['Baseline'] = baseline
+				self.analysis_quantities['Baseline RMS'] = baseline_rms
+				self.analysis_quantities['Pulse Area'] = pulse_area
+				self.analysis_quantities['Pulse Time'] = pulse_time
+				self.analysis_quantities['Pulse Height'] = pulse_height
+
 			elif 'SiPM' in self.detector_type:
 				self.data = gaussian_filter( self.data.astype(float), 80./self.sampling_period ) 
 					# ^Gaussian smoothing with a 80ns width (1sig)
@@ -202,6 +233,11 @@ class Waveform:
 				pulse_area, pulse_height, t5, t10, t20, t80, t90 = \
 					self.GetPulseAreaAndTimingParameters( self.data[window_start:window_end]-baseline )
 				pulse_time = t10 - int(1600/self.sampling_period)
+				self.analysis_quantities['Baseline'] = baseline
+				self.analysis_quantities['Baseline RMS'] = baseline_rms
+				self.analysis_quantities['Pulse Time'] = pulse_time
+				self.analysis_quantities['Pulse Area'] = pulse_area
+				self.analysis_quantities['Pulse Height'] = pulse_height
 				self.analysis_quantities['T5'] = t5
 				self.analysis_quantities['T10'] = t10
 				self.analysis_quantities['T20'] = t20
@@ -209,13 +245,15 @@ class Waveform:
 				self.analysis_quantities['T90'] = t90
 
 			elif 'TileStrip' in self.detector_type:
-				self.data = gaussian_filter( self.data.astype(float), 1000./self.sampling_period ) * \
+				self.data = gaussian_filter( self.data.astype(float), 500./self.sampling_period ) * \
 						self.polarity
-					# ^Gaussian smoothing with a 1us width, also, flip polarity if necessary
+					# ^Gaussian smoothing with a 0.5us width, also, flip polarity if necessary
 				baseline = np.mean(self.data[0:int(5000./self.sampling_period)])
 				baseline_rms = np.std(self.data[0:int(5000./self.sampling_period)])
 					# ^Baseline and RMS calculated from first 5us of smoothed wfm
 				corrected_wfm = self.DecayTimeCorrection( self.data - baseline, self.decay_time )
+				if self.store_processed_wfm:
+					self.processed_wfm = corrected_wfm
 				charge_energy = np.mean( corrected_wfm[-int(5000./self.sampling_period):] )
 					# ^Charge energy calculated from the last 5us of the smoothed, corrected wfm 
 				t10 = -1.
@@ -247,14 +285,14 @@ class Waveform:
 				pulse_area = 0.
 				pulse_time = 0.
 				pulse_height = 0.
-			self.analysis_quantities['Baseline'] = baseline
-			self.analysis_quantities['Baseline RMS'] = baseline_rms
-			self.analysis_quantities['Num Pulses'] = 1
-			self.analysis_quantities['Pulse Areas'] = pulse_area
-			self.analysis_quantities['Pulse Times'] = pulse_time + self.trigger_position
-			self.analysis_quantities['Pulse Heights'] = pulse_height 
-			self.analysis_quantities['Fit Heights'] = fit_height
-			self.analysis_quantities['Fit Times'] = fit_time + self.trigger_position
+			#self.analysis_quantities['Baseline'] = baseline
+			#self.analysis_quantities['Baseline RMS'] = baseline_rms
+			#self.analysis_quantities['Num Pulses'] = 1
+			#self.analysis_quantities['Pulse Areas'] = pulse_area
+			#self.analysis_quantities['Pulse Times'] = pulse_time + self.trigger_position
+			#self.analysis_quantities['Pulse Heights'] = pulse_height 
+			#self.analysis_quantities['Fit Heights'] = fit_height
+			#self.analysis_quantities['Fit Times'] = fit_time + self.trigger_position
 				
 
 

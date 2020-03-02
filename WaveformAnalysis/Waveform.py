@@ -116,6 +116,9 @@ class Waveform:
 		else:
 			fit_height = 0.
 			fit_time = 0.
+			pulse_time = 0.
+			pulse_height = 0.
+			pulse_area = 0.
 			if 'NaI' in self.detector_type:
 				window_start = self.trigger_position - int(800/self.sampling_period)
 				window_end = self.trigger_position + int(1600/self.sampling_period)

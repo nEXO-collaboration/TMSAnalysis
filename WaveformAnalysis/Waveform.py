@@ -22,7 +22,7 @@ class Waveform:
 
 	def __init__( self, input_data=None, detector_type=None, sampling_period=None, \
 			input_baseline=-1, input_baseline_rms=-1, polarity=-1., \
-			fixed_trigger=False, trigger_position=0 ):
+			fixed_trigger=False, trigger_position=0, decay_time=1.e9 ):
 		self.data = input_data
 		self.input_baseline = input_baseline
 		self.input_baseline_rms = input_baseline_rms
@@ -30,6 +30,7 @@ class Waveform:
 		self.fixed_trigger = fixed_trigger
 		self.trigger_position = trigger_position
 		self.polarity = polarity
+		self.decay_time = decay_time
 		# Make the default detector type a simple PMT
 		if detector_type == None:
 			self.detector_type = 'PMT'
@@ -76,6 +77,9 @@ class Waveform:
 		self.analysis_quantities['Pulse Times'] = np.array([])
 		self.analysis_quantities['Fit Heights'] = np.array([])
 		self.analysis_quantities['Fit Times'] = np.array([])
+
+		# NOTE: almost all analyses are fixed_trigger analyses, so you can skip
+		#       right to the "else" statement below
 
 		if not self.fixed_trigger:
 			threshold = 10*baseline_rms
@@ -185,13 +189,15 @@ class Waveform:
 				pulse_area, pulse_time, pulse_height = self.GetPulseArea( filtered_wfm[window_start:window_end] )
 				pulse_time = pulse_time - int(2400/self.sampling_period)
 			elif 'SiPM' in self.detector_type:
-				self.data = gaussian_filter( self.data.astype(float), 80./self.sampling_period ) # Gaussian smoothing with a 60ns width (1sig)
+				self.data = gaussian_filter( self.data.astype(float), 80./self.sampling_period ) 
+					# ^Gaussian smoothing with a 80ns width (1sig)
 				window_start = self.trigger_position - int(1600/self.sampling_period)
 				window_end = self.trigger_position + int(2400/self.sampling_period)
 				baseline_calc_end = window_start + int(800/self.sampling_period)
 				baseline = np.mean(self.data[window_start:baseline_calc_end])
 				baseline_rms = np.std(self.data[window_start:baseline_calc_end])
-				pulse_area, pulse_height, t5, t10, t20, t80, t90 = self.GetPulseAreaAndTimingParameters( self.data[window_start:window_end]-baseline )
+				pulse_area, pulse_height, t5, t10, t20, t80, t90 = \
+					self.GetPulseAreaAndTimingParameters( self.data[window_start:window_end]-baseline )
 				pulse_time = t10 - int(1600/self.sampling_period)
 				self.analysis_quantities['T5'] = t5
 				self.analysis_quantities['T10'] = t10
@@ -200,29 +206,40 @@ class Waveform:
 				self.analysis_quantities['T90'] = t90
 
 			elif 'TileStrip' in self.detector_type:
-				pulse_area = 0.
-				pulse_time = 0.
-				pulse_height = 0.
-				maw_length = 125 # Moving average over XX samples, corresponding to XX*0.008 us
-				baseline = np.mean(self.data[0:950])
-				#smooth_wfm = np.convolve(self.data-baseline,np.ones(maw_length))[0:-(maw_length-1)]/maw_length
-				smooth_wfm = self.RunningMean( self.data-baseline, maw_length )
-				baseline_rms = np.std(smooth_wfm[0:950])
-				if np.mean(smooth_wfm[6000:])**2 > (5.*baseline_rms)**2:
-					samps_above_threshold = np.where( smooth_wfm**2 > (5.*baseline_rms)**2 )[0]
-					diff_above_threshold = samps_above_threshold[1:] - samps_above_threshold[0:-1]
-					if np.sum( diff_above_threshold > 125. ) > 0:   # Effectively cuts out waveforms with large baseline fluctuations
-						pulse_area = 0.
-						pulse_time = 0.
-						fit_height = 0.
-						pulse_height = 0.
-					else:
-						pulse_area = np.mean(smooth_wfm[6000:])
-						pulse_time = np.where(smooth_wfm < 0.9*np.min(smooth_wfm))[0][0]
-						pulse_height = 0.
-						fit_height = 0.
+				self.data = gaussian_filter( self.data.astype(float), 1000./self.sampling_period ) * \
+						self.polarity
+					# ^Gaussian smoothing with a 1us width, also, flip polarity if necessary
+				baseline = np.mean(self.data[0:int(5000./self.sampling_period)])
+				baseline_rms = np.std(self.data[0:int(5000./self.sampling_period)])
+					# ^Baseline and RMS calculated from first 5us of smoothed wfm
+				corrected_wfm = self.DecayTimeCorrection( self.data - baseline, self.decay_time )
+				charge_energy = np.mean( corrected_wfm[-int(5000./self.sampling_period):] )
+					# ^Charge energy calculated from the last 5us of the smoothed, corrected wfm 
+				t10 = -1.
+				t25 = -1.
+				t50 = -1.
+				t90 = -1.
+				drift_time = -1.
+				if charge_energy < 5.*baseline_rms:
+					charge_energy = 0. # if it's not above 5-sigma threshold, set energy to 0
+				else:
+					t10 = float( np.where( corrected_wfm > 0.1*charge_energy)[0][0] )
+					t25 = float( np.where( corrected_wfm > 0.25*charge_energy)[0][0] )
+					t50 = float( np.where( corrected_wfm > 0.5*charge_energy)[0][0] )
+					t90 = float( np.where( corrected_wfm > 0.9*charge_energy)[0][0] )
+					# Compute drift time in microseconds (sampling is given in ns)
+					drift_time = (t90 - self.trigger_position) * (self.sampling_period / 1.e3)
+				self.analysis_quantities['Baseline'] = baseline
+				self.analysis_quantities['Baseline RMS'] = baseline_rms
+				self.analysis_quantities['Charge Energy'] = charge_energy
+				self.analysis_quantities['T10'] = t10
+				self.analysis_quantities['T25'] = t25
+				self.analysis_quantities['T50'] = t50
+				self.analysis_quantities['T90'] = t90
+				self.analysis_quantities['Drift Time'] = drift_time
 				if '2' in self.detector_type:
 					pulse_area = pulse_area * 2.
+
 			else:								
 				pulse_area = 0.
 				pulse_time = 0.
@@ -231,20 +248,10 @@ class Waveform:
 			self.analysis_quantities['Baseline RMS'] = baseline_rms
 			self.analysis_quantities['Num Pulses'] = 1
 			self.analysis_quantities['Pulse Areas'] = pulse_area
-			#self.analysis_quantities['Pulse Areas'] = \
-				#np.append( self.analysis_quantities['Pulse Areas'], pulse_area )
 			self.analysis_quantities['Pulse Times'] = pulse_time + self.trigger_position
-			#self.analysis_quantities['Pulse Times'] = \
-				#np.append( self.analysis_quantities['Pulse Times'], pulse_time + self.trigger_position )
 			self.analysis_quantities['Pulse Heights'] = pulse_height 
-			#self.analysis_quantities['Pulse Heights'] = \
-				#np.append( self.analysis_quantities['Pulse Heights'], pulse_height )
 			self.analysis_quantities['Fit Heights'] = fit_height
-			#self.analysis_quantities['Fit Heights'] = \
-				#np.append( self.analysis_quantities['Fit Heights'], fit_height )
 			self.analysis_quantities['Fit Times'] = fit_time + self.trigger_position
-			#self.analysis_quantities['Fit Times'] = \
-				#np.append( self.analysis_quantities['Fit Times'], fit_time + self.trigger_position )
 				
 
 
@@ -298,3 +305,13 @@ class Waveform:
 	def RunningMean( self, dat_array, window_length ):
 		cumsum = np.cumsum(np.insert(dat_array, 0, 0)) 
 		return (cumsum[window_length:] - cumsum[:-window_length]) / float(window_length)
+
+	def DecayTimeCorrection( self, input_wfm, decay_time ):
+		# Here I'll assume the decay time is in units of mircoseconds
+		# and the sampling period is in units of ns
+		new_wfm = np.copy( input_wfm )
+		for i in range(len(input_wfm)-1):
+			new_wfm[i+1] = new_wfm[i] - \
+					np.exp( - (self.sampling_period/1.e3) / decay_time ) * input_wfm[i] + \
+					input_wfm[i+1]
+		return new_wfm 

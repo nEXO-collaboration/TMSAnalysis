@@ -17,6 +17,8 @@ from TMSAnalysis.TMSUtilities import UsefulFunctionShapes as Ufun
 from TMSAnalysis.TMSUtilities import TMSWireFiltering as Filter
 import scipy.optimize as opt
 from scipy.ndimage import gaussian_filter
+from numba import jit
+import copy
 
 class Waveform:
 
@@ -252,7 +254,7 @@ class Waveform:
 				baseline = np.mean(self.data[0:int(5000./self.sampling_period)])
 				baseline_rms = np.std(self.data[0:int(5000./self.sampling_period)])
 					# ^Baseline and RMS calculated from first 5us of smoothed wfm
-				corrected_wfm = self.DecayTimeCorrection( self.data - baseline, self.decay_time ) * \
+				corrected_wfm = DecayTimeCorrection( self.data - baseline, self.decay_time, self.sampling_period ) * \
 						self.calibration_constant
 				#corrected_wfm = (self.data - baseline)*self.calibration_constant
 				if self.store_processed_wfm:
@@ -348,13 +350,14 @@ class Waveform:
 		cumsum = np.cumsum(np.insert(dat_array, 0, 0)) 
 		return (cumsum[window_length:] - cumsum[:-window_length]) / float(window_length)
 
-	def DecayTimeCorrection( self, input_wfm, decay_time ):
+@jit("float64[:](float64[:],float64,float64)",nopython=True)
+def DecayTimeCorrection( input_wfm, decay_time, sampling_period ):
 		# Here I'll assume the decay time is in units of mircoseconds
 		# and the sampling period is in units of ns
 		new_wfm = np.copy( input_wfm )
 		for i in range(len(input_wfm)-1):
 			new_wfm[i+1] = new_wfm[i] - \
-					np.exp( - (self.sampling_period/1.e3) / decay_time ) * input_wfm[i] + \
+					np.exp( - (sampling_period/1.e3) / decay_time ) * input_wfm[i] + \
 					input_wfm[i+1]
 		#sub_term = np.exp( - (self.sampling_period/1.e3) / decay_time ) * input_wfm
 		#new_wfm[1:] = new_wfm[0:-1] - sub_term[0:-1] + input_wfm[1:]

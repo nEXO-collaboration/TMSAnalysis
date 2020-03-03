@@ -352,10 +352,10 @@ class Waveform:
 		# Here I'll assume the decay time is in units of mircoseconds
 		# and the sampling period is in units of ns
 		new_wfm = np.copy( input_wfm )
-		#for i in range(len(input_wfm)-1):
-		#	new_wfm[i+1] = new_wfm[i] - \
-		#			np.exp( - (self.sampling_period/1.e3) / decay_time ) * input_wfm[i] + \
-		#			input_wfm[i+1]
-		sub_term = np.exp( - (self.sampling_period/1.e3) / decay_time ) * input_wfm
-		new_wfm[1:] = new_wfm[0:-1] - sub_term[0:-1] + input_wfm[1:]
+		for i in range(len(input_wfm)-1):
+			new_wfm[i+1] = new_wfm[i] - \
+					np.exp( - (self.sampling_period/1.e3) / decay_time ) * input_wfm[i] + \
+					input_wfm[i+1]
+		#sub_term = np.exp( - (self.sampling_period/1.e3) / decay_time ) * input_wfm
+		#new_wfm[1:] = new_wfm[0:-1] - sub_term[0:-1] + input_wfm[1:]
 		return new_wfm 

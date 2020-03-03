@@ -5,9 +5,7 @@ import csv
 #import ROOT
 
 
-microsecond = 1.e3
-second = 1.0e9
-DEBUG = True
+DEBUG = False
 
 class StruckAnalysisConfiguration:
 

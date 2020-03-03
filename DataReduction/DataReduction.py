@@ -14,7 +14,7 @@ def ReduceH5File( filename, output_dir, run_parameters_file, calibrations_file, 
 	filetitle_noext = filetitle.split('.')[0]
 	outputfile = '{}_reduced.h5'.format(filetitle_noext)
 
-	analysis_config = StruckAnalysisConfiguration()
+	analysis_config = StruckAnalysisConfiguration.StruckAnalysisConfiguration()
 	analysis_config.GetRunParametersFromFile( run_parameters_file )
 	analysis_config.GetCalibrationConstantsFromFile( calibrations_file )
 	analysis_config.GetChannelMapFromFile( channel_map_file )
@@ -34,8 +34,8 @@ def ReduceH5File( filename, output_dir, run_parameters_file, calibrations_file, 
 	for index, thisrow in input_df.iterrows():
 		if (event_counter > num_events) and (num_events > 0):
 			break
-		if event_counter % 500 == 0:
-			print('Processing event {}...'.format(event_counter))
+		if event_counter % 50 == 0:
+			print('Processing event {} at {:4.4}s...'.format(event_counter,time.time()-start_time))
 		# Set all the values that are not the waveform/channel values
 		for col in output_columns:
 			output_series[col] = thisrow[col]
@@ -64,7 +64,7 @@ def ReduceH5File( filename, output_dir, run_parameters_file, calibrations_file, 
 						polarity=polarity,\
 						fixed_trigger=fixed_trigger,\
 						trigger_position=analysis_config.run_parameters['Pretrigger Length [samples]'],\
-						decay_constant=analysis_config.GetDecayTimeForSoftwareChannel( software_ch_num ),\
+						decay_time=analysis_config.GetDecayTimeForSoftwareChannel( software_ch_num ),\
 						calibration_constant=analysis_config.GetCalibrationConstantForSoftwareChannel( software_ch_num ) )
 			w.FindPulsesAndComputeArea(fit_pulse_flag=fit_pulse_flag)
 			for key in w.analysis_quantities.keys():
@@ -80,13 +80,13 @@ def ReduceH5File( filename, output_dir, run_parameters_file, calibrations_file, 
 					if 'Y' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ):
 						output_series['NumYTileChannelsHit'] += 1
 					output_series['TotalTileEnergy'] += w.analysis_quantities['Charge Energy']
-					if w.analysis_quantities['Pulse Areas']**2 > max_channel_val**2:
+					if w.analysis_quantities['Charge Energy']**2 > max_channel_val**2:
 						max_channel_val = w.analysis_quantities['Charge Energy']
 						output_series['TimeOfMaxChannel'] = w.analysis_quantities['T90']
 			if 'SiPM' in analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ):
 				if w.analysis_quantities['Pulse Area'] > 0.:
 					output_series['NumSiPMChannelsHit'] += 1
-					output_series['TotalSiPMEnergy'] += w.analysis_quantities['Pulse Areas']
+					output_series['TotalSiPMEnergy'] += w.analysis_quantities['Pulse Area']
 		# Append this event to the output dataframe
 		output_series['File'] = filetitle
 		output_series['Event'] = event_counter

@@ -22,17 +22,18 @@ class Waveform:
 
 	def __init__( self, input_data=None, detector_type=None, sampling_period=None, \
 			input_baseline=-1, input_baseline_rms=-1, polarity=-1., \
-			fixed_trigger=False, trigger_position=0, decay_time=1.e9,
-			store_processed_wfm=False ):
+			fixed_trigger=False, trigger_position=0, decay_time=1.e9,\
+			calibration_constant=1.,store_processed_wfm=False ):
 		self.data = input_data
 		self.input_baseline = input_baseline
 		self.input_baseline_rms = input_baseline_rms
 		self.detector_type = detector_type
 		self.fixed_trigger = fixed_trigger
-		self.trigger_position = trigger_position
+		self.trigger_position = int(trigger_position)
 		self.polarity = polarity
 		self.decay_time = decay_time
 		self.store_processed_wfm = store_processed_wfm
+		self.calibration_constant = calibration_constant
 		# Make the default detector type a simple PMT
 		if detector_type == None:
 			self.detector_type = 'PMT'
@@ -251,7 +252,9 @@ class Waveform:
 				baseline = np.mean(self.data[0:int(5000./self.sampling_period)])
 				baseline_rms = np.std(self.data[0:int(5000./self.sampling_period)])
 					# ^Baseline and RMS calculated from first 5us of smoothed wfm
-				corrected_wfm = self.DecayTimeCorrection( self.data - baseline, self.decay_time )
+				corrected_wfm = self.DecayTimeCorrection( self.data - baseline, self.decay_time ) * \
+						self.calibration_constant
+				#corrected_wfm = (self.data - baseline)*self.calibration_constant
 				if self.store_processed_wfm:
 					self.processed_wfm = corrected_wfm
 				charge_energy = np.mean( corrected_wfm[-int(5000./self.sampling_period):] )
@@ -278,8 +281,6 @@ class Waveform:
 				self.analysis_quantities['T50'] = t50
 				self.analysis_quantities['T90'] = t90
 				self.analysis_quantities['Drift Time'] = drift_time
-				if '2' in self.detector_type:
-					pulse_area = pulse_area * 2.
 
 			else:								
 				pulse_area = 0.
@@ -351,8 +352,10 @@ class Waveform:
 		# Here I'll assume the decay time is in units of mircoseconds
 		# and the sampling period is in units of ns
 		new_wfm = np.copy( input_wfm )
-		for i in range(len(input_wfm)-1):
-			new_wfm[i+1] = new_wfm[i] - \
-					np.exp( - (self.sampling_period/1.e3) / decay_time ) * input_wfm[i] + \
-					input_wfm[i+1]
+		#for i in range(len(input_wfm)-1):
+		#	new_wfm[i+1] = new_wfm[i] - \
+		#			np.exp( - (self.sampling_period/1.e3) / decay_time ) * input_wfm[i] + \
+		#			input_wfm[i+1]
+		sub_term = np.exp( - (self.sampling_period/1.e3) / decay_time ) * input_wfm
+		new_wfm[1:] = new_wfm[0:-1] - sub_term[0:-1] + input_wfm[1:]
 		return new_wfm 

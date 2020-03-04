@@ -25,7 +25,6 @@ def ReduceH5File( filename, output_dir, run_parameters_file, calibrations_file, 
 
 	input_df = pd.read_hdf(filename)
 	input_columns = input_df.columns
-	print(input_columns)
 	output_columns = [col for col in input_columns if (col!='Data') and (col!='Channels')]
 
 
@@ -35,7 +34,7 @@ def ReduceH5File( filename, output_dir, run_parameters_file, calibrations_file, 
 		if (event_counter > num_events) and (num_events > 0):
 			break
 		if event_counter % 50 == 0:
-			print('Processing event {} at {:4.4}s...'.format(event_counter,time.time()-start_time))
+			print('\tProcessing event {} at {:4.4}s...'.format(event_counter,time.time()-start_time))
 		# Set all the values that are not the waveform/channel values
 		for col in output_columns:
 			output_series[col] = thisrow[col]
@@ -66,7 +65,7 @@ def ReduceH5File( filename, output_dir, run_parameters_file, calibrations_file, 
 						trigger_position    = analysis_config.run_parameters['Pretrigger Length [samples]'],\
 						decay_time_us       = analysis_config.GetDecayTimeForSoftwareChannel( software_ch_num ),\
 						calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel( software_ch_num ) )
-			w.FindPulsesAndComputeArea(fit_pulse_flag=fit_pulse_flag)
+			w.FindPulsesAndComputeAQs(fit_pulse_flag=fit_pulse_flag)
 			for key in w.analysis_quantities.keys():
 				output_series['{} {} {}'.format(\
 								analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ),\

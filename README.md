@@ -13,8 +13,8 @@ containing pandas dataframes.
 
 What things you need to install the software and how to install them
 
-[pandas](https://pandas.pydata.org/docs/)
-[uproot](https://github.com/scikit-hep/uproot)
+* [pandas](https://pandas.pydata.org/docs/)
+* [uproot](https://github.com/scikit-hep/uproot)
 
 ### Installing
 
@@ -50,9 +50,11 @@ python /path/to/TMSAnalysis/scripts/reduce_data.py python <input_file> </path/to
 ```
 where `<input_file>` is now an HDF5 file that you made in the previous step. The new thing here is that
 now you need some configuration files. These are:
+
 * The Run Parameters table - see [Example](https://docs.google.com/spreadsheets/d/1_a5np_45Q3RD28KyxvfwPUAgzYLbc04wWJq26Fh22G4/edit?usp=sharing)
 * The Calibrations table - see [Example](https://docs.google.com/spreadsheets/d/1rXRXEe0IBWPgIpwmnd8P4OAsJjiRXsxcnnTBvuM9l0Q/edit?usp=sharing)
 * The Channel Map - see [Example](https://docs.google.com/spreadsheets/d/1kfQ1g7JiRv8LEUFZ-IhzWiNHxBoyt0SbndU7X9NW9io/edit?usp=sharing)
+
 Each of these can be downloaded as a `.csv` file and placed in a common location, at which point that location can be
 passed as an argument above. One will also need to edit the `reduce_data.py` script if the names of the files change.
 

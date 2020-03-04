@@ -251,8 +251,8 @@ class Waveform:
 				self.data = gaussian_filter( self.data.astype(float), 500./self.sampling_period ) * \
 						self.polarity
 					# ^Gaussian smoothing with a 0.5us width, also, flip polarity if necessary
-				baseline = np.mean(self.data[0:int(5000./self.sampling_period)])
-				baseline_rms = np.std(self.data[0:int(5000./self.sampling_period)])
+				baseline = np.mean(self.data[0:int(10000./self.sampling_period)])
+				baseline_rms = np.std(self.data[0:int(10000./self.sampling_period)])
 					# ^Baseline and RMS calculated from first 10us of smoothed wfm
 				corrected_wfm = DecayTimeCorrection( self.data - baseline, self.decay_time, self.sampling_period ) * \
 						self.calibration_constant
@@ -260,7 +260,7 @@ class Waveform:
 				if self.store_processed_wfm:
 					self.processed_wfm = corrected_wfm
 				charge_energy = np.mean( corrected_wfm[-int(5000./self.sampling_period):] )
-					# ^Charge energy calculated from the last 10us of the smoothed, corrected wfm 
+					# ^Charge energy calculated from the last 5us of the smoothed, corrected wfm 
 				t10 = -1.
 				t25 = -1.
 				t50 = -1.

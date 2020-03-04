@@ -57,15 +57,15 @@ def ReduceH5File( filename, output_dir, run_parameters_file, calibrations_file, 
 			if analysis_config.run_parameters['Sampling Rate [MHz]'] == 62.5:
 				polarity = 1.
 			w = Waveform.Waveform(input_data=thisrow['Data'][ch_num],\
-						detector_type=thisrow['ChannelTypes'][ch_num],\
-						sampling_period=sampling_period_ns,\
-						input_baseline=input_baseline,\
-						input_baseline_rms=input_baseline_rms,\
-						polarity=polarity,\
-						fixed_trigger=fixed_trigger,\
-						trigger_position=analysis_config.run_parameters['Pretrigger Length [samples]'],\
-						decay_time=analysis_config.GetDecayTimeForSoftwareChannel( software_ch_num ),\
-						calibration_constant=analysis_config.GetCalibrationConstantForSoftwareChannel( software_ch_num ) )
+						detector_type       = thisrow['ChannelTypes'][ch_num],\
+						sampling_period_ns  = sampling_period_ns,\
+						input_baseline      = input_baseline,\
+						input_baseline_rms  = input_baseline_rms,\
+						polarity            = polarity,\
+						fixed_trigger       = fixed_trigger,\
+						trigger_position    = analysis_config.run_parameters['Pretrigger Length [samples]'],\
+						decay_time_us       = analysis_config.GetDecayTimeForSoftwareChannel( software_ch_num ),\
+						calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel( software_ch_num ) )
 			w.FindPulsesAndComputeArea(fit_pulse_flag=fit_pulse_flag)
 			for key in w.analysis_quantities.keys():
 				output_series['{} {} {}'.format(\

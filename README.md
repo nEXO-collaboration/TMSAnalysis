@@ -46,7 +46,7 @@ you will end up with several HDF5 output files for each input ROOT file.
 Once the new HDF5 files have been created, you can run the data reduction step using the 
 `reduce_data.py` script, via the command:
 ```
-python /path/to/TMSAnalysis/scripts/reduce_data.py python <input_file> </path/to/output/directory/> </path/to/configuration/files/> 
+python /path/to/TMSAnalysis/scripts/reduce_data.py <input_file> </path/to/output/directory/> </path/to/configuration/files/> 
 ```
 where `<input_file>` is now an HDF5 file that you made in the previous step. The new thing here is that
 now you need some configuration files. These are:
@@ -63,4 +63,3 @@ We've included example configuration files in the repository, which can be found
 * NOTE: at present, the `convert_data_to_hdf5.py` script requires a channel map text file, which is 
 being deprecated in other parts of the code. I plan to fix this soon.
 
-Once the 

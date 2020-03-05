@@ -11,7 +11,7 @@ containing pandas dataframes.
 
 ### Prerequisites
 
-What things you need to install the software and how to install them
+What things you need to install:
 
 * [pandas](https://pandas.pydata.org/docs/)
 * [uproot](https://github.com/scikit-hep/uproot)

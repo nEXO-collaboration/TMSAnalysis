@@ -1,0 +1,9 @@
+Parameter,Value
+Sampling Rate [MHz],62.5
+Drift Length [mm],140
+Drift Velocity [mm/us],1.79
+Num Struck Boards,2
+Waveform Length [samples],6500
+Pretrigger Length [samples],1000
+Baseline Length [samples],500
+Strip Threshold [sigma],5

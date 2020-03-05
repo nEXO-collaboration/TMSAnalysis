@@ -15,6 +15,8 @@ What things you need to install the software and how to install them
 
 * [pandas](https://pandas.pydata.org/docs/)
 * [uproot](https://github.com/scikit-hep/uproot)
+* [scipy](https://www.scipy.org/install.html)
+* [numba](http://numba.pydata.org/)
 
 ### Installing
 

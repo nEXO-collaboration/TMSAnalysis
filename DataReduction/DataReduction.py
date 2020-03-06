@@ -9,32 +9,59 @@ def ReduceH5File( filename, output_dir, run_parameters_file, calibrations_file, 
 			num_events=-1, input_baseline=-1, input_baseline_rms=-1, \
 			fixed_trigger=False, fit_pulse_flag=False):
 
-	start_time = time.time()
 	filetitle = filename.split('/')[-1]
 	filetitle_noext = filetitle.split('.')[0]
 	outputfile = '{}_reduced.h5'.format(filetitle_noext)
+	output_df = pd.DataFrame()
 
 	analysis_config = StruckAnalysisConfiguration.StruckAnalysisConfiguration()
 	analysis_config.GetRunParametersFromFile( run_parameters_file )
 	analysis_config.GetCalibrationConstantsFromFile( calibrations_file )
 	analysis_config.GetChannelMapFromFile( channel_map_file )
-	sampling_period_ns = 1./(analysis_config.run_parameters['Sampling Rate [MHz]']/1.e3)
 
+	try:
+		input_df = pd.read_hdf(filename)
+		reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_ev,\
+					input_baseline, input_baseline_rms, fixed_trigger, fit_pulse_flag, num_events=-1)
+	except OSError:
+		from TMSAnalysis.ParseStruck import NGMRootFile
+		tree = NGMRootFile.NGMRootFile( input_filename = filename,\
+						output_directory = output_dir,\
+						channel_map_file = channel_map_file)
+		print('Channel map loaded:') 
+		print(tree.channel_map) 
+		print('\n{} active channels.'.format(len(tree.channel_map))) 
+		n_entries = tree.GetTotalEntries()
+		n_channels = analysis_config.GetNumberOfChannels()
+		n_events = n_entries/n_channels
+		chunks = np.linspace(0, n_events, 300, dtype = int)
+		start_time = time.time()
+		for i,n_ev in enumerate(chunks):
+			print('\tProcessing event {} at {:4.4}s...'.format(n_ev,time.time()-start_time))
+			try:
+				tree_chunks = NGMRootFile.NGMRootFile( input_filename = filename,\
+								output_directory = output_dir,\
+                	                                	channel_map_file = channel_map_file,\
+								start_stop = [n_ev*n_channels,chunks[i+1]*n_channels])
+			except IndexError:
+				continue
+			input_df = tree_chunks.GroupEventsAndWriteToHDF5(save = False)
+			reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_ev,\
+						input_baseline, input_baseline_rms, fixed_trigger, fit_pulse_flag, num_events=-1)
+			output_df = output_df.append(reduced_df,ignore_index=True)
+	output_df.to_hdf(output_dir + outputfile, key='df')	
+	print('Run time: {:4.4}'.format(time.time()-start_time))
+
+def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
+		input_baseline, input_baseline_rms, fixed_trigger, fit_pulse_flag, num_events=-1):
 	output_series = pd.Series()
 	output_df = pd.DataFrame()
-
-	input_df = pd.read_hdf(filename)
 	input_columns = input_df.columns
 	output_columns = [col for col in input_columns if (col!='Data') and (col!='Channels')]
-
-
-	event_counter = 0
-
+	sampling_period_ns = 1./(analysis_config.run_parameters['Sampling Rate [MHz]']/1.e3)
 	for index, thisrow in input_df.iterrows():
 		if (event_counter > num_events) and (num_events > 0):
 			break
-		if event_counter % 50 == 0:
-			print('\tProcessing event {} at {:4.4}s...'.format(event_counter,time.time()-start_time))
 		# Set all the values that are not the waveform/channel values
 		for col in output_columns:
 			output_series[col] = thisrow[col]
@@ -91,5 +118,4 @@ def ReduceH5File( filename, output_dir, run_parameters_file, calibrations_file, 
 		output_series['Event'] = event_counter
 		output_df = output_df.append(output_series,ignore_index=True)
 		event_counter += 1
-	output_df.to_hdf(output_dir + outputfile,key='df')	
-	print('Run time: {:4.4}'.format(time.time()-start_time))
+	return output_df

@@ -33,4 +33,8 @@ for component in path_components[:-1]:
 file = NGMRootFile.NGMRootFile( input_filename = input_file,\
 				output_directory = output_dir,\
 				channel_map_file = true_path + '/channel_map_8ns_sampling_LONGTPC2.txt')
+print('Channel map loaded:')
+print(file.channel_map)
+print('\n{} active channels.'.format(len(file.channel_map)))
+
 file.GroupEventsAndWriteToHDF5()

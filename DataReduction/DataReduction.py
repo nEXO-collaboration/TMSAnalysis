@@ -34,21 +34,25 @@ def ReduceH5File( filename, output_dir, run_parameters_file, calibrations_file, 
 		n_entries = tree.GetTotalEntries()
 		n_channels = analysis_config.GetNumberOfChannels()
 		n_events = n_entries/n_channels
-		chunks = np.linspace(0, n_events, 300, dtype = int)
+		n_ev = 0
 		start_time = time.time()
-		for i,n_ev in enumerate(chunks):
+		while n_ev<n_events:
 			print('\tProcessing event {} at {:4.4}s...'.format(n_ev,time.time()-start_time))
 			try:
 				tree_chunks = NGMRootFile.NGMRootFile( input_filename = filename,\
 								output_directory = output_dir,\
                 	                                	channel_map_file = channel_map_file,\
-								start_stop = [n_ev*n_channels,chunks[i+1]*n_channels])
+								start_stop = [n_ev*n_channels,(n_ev+20)*n_channels])
 			except IndexError:
-				continue
-			input_df = tree_chunks.GroupEventsAndWriteToHDF5(save = False)
+				tree_chunks = NGMRootFile.NGMRootFile( input_filename = filename,\
+								output_directory = output_dir,\
+								channel_map_file = channel_map_file,\
+								start_stop = [n_ev*n_channels,(n_events-1)*n_channels])
+			input_df = tree_chunks.GroupEventsAndWriteToHDF5(save = False)	
 			reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_ev,\
 						input_baseline, input_baseline_rms, fixed_trigger, fit_pulse_flag, num_events=-1)
 			output_df = output_df.append(reduced_df,ignore_index=True)
+			n_ev += 20
 	output_df.to_hdf(output_dir + outputfile, key='df')	
 	print('Run time: {:4.4}'.format(time.time()-start_time))
 
@@ -59,7 +63,9 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 	input_columns = input_df.columns
 	output_columns = [col for col in input_columns if (col!='Data') and (col!='Channels')]
 	sampling_period_ns = 1./(analysis_config.run_parameters['Sampling Rate [MHz]']/1.e3)
+	key_buffer = None
 	for index, thisrow in input_df.iterrows():
+		skip = False
 		if (event_counter > num_events) and (num_events > 0):
 			break
 		# Set all the values that are not the waveform/channel values
@@ -76,6 +82,8 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 		max_channel_val = 0.
 		# Loop through channels, do the analysis, put this into the output series
 		for ch_num in range(len(thisrow['Channels'])):
+			if skip:
+				continue
 			software_ch_num = thisrow['Channels'][ch_num]
 			#calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel( software_ch_num )
 			#decay_constant = analysis_config.GetDecayTimeForSoftwareChannel( software_ch_num )
@@ -92,7 +100,14 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 						trigger_position    = analysis_config.run_parameters['Pretrigger Length [samples]'],\
 						decay_time_us       = analysis_config.GetDecayTimeForSoftwareChannel( software_ch_num ),\
 						calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel( software_ch_num ) )
-			w.FindPulsesAndComputeAQs(fit_pulse_flag=fit_pulse_flag)
+			try:
+				w.FindPulsesAndComputeAQs(fit_pulse_flag=fit_pulse_flag)
+			except IndexError:
+				print('Null waveform found in channel {}, event {} skipped'.format(ch_num,event_counter))
+				for key_buf in key_buffer:
+					output_series[key_buf] = 0
+				skip = True
+				continue
 			for key in w.analysis_quantities.keys():
 				output_series['{} {} {}'.format(\
 								analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ),\
@@ -116,6 +131,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 		# Append this event to the output dataframe
 		output_series['File'] = filetitle
 		output_series['Event'] = event_counter
+		key_buffer = output_series.keys()
 		output_df = output_df.append(output_series,ignore_index=True)
 		event_counter += 1
 	return output_df

@@ -417,6 +417,7 @@ class Event:
 		self.waveform 		= {}
 		self.baseline		= []
 		self.charge_energy_ch	= []
+		self.risetime 		= []
 		self.sampling_frequency = analysis_config.run_parameters['Sampling Rate [MHz]']
 		entry_from_reduced = pd.read_hdf(reduced, start=self.event_number, stop=self.event_number+1)
 		timestamp = entry_from_reduced['Timestamp'].values[0]
@@ -447,6 +448,7 @@ class Event:
 							decay_time_us       = analysis_config.GetDecayTimeForSoftwareChannel( software_channel[i] ),\
 							calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel(software_channel[i]))
 			self.baseline.append(np.mean(ch_waveform[:200]))
+			self.risetime.append(entry_from_reduced['{} {} T90'.format(ch_type,ch_name)].values[0]/self.sampling_frequency)
 			#different cases for tile/SiPM
 			try:
 				self.charge_energy_ch.append(entry_from_reduced['{} {} Charge Energy'.format(ch_type,ch_name)].values[0])
@@ -461,12 +463,15 @@ class Event:
 		return self.waveform
 
 
-	def plot_event( self ):
+	def plot_event( self, risetime=False ):
 		import matplotlib.pyplot as plt
-
+		ch_offset = 250
 		for i,v in enumerate(self.waveform):
-			plt.plot(np.arange(len(self.waveform[v].data))/self.sampling_frequency,self.waveform[v].data-self.baseline[i]+1000*i)
-			plt.text(0,1000*i,'{} {:.1f}keV'.format(v,self.charge_energy_ch[i]))
+			plt.plot(np.arange(len(self.waveform[v].data))/self.sampling_frequency,self.waveform[v].data-self.baseline[i]+ch_offset*i)
+			plt.text(0,ch_offset*i,'{} {:.1f}keV'.format(v,self.charge_energy_ch[i]))
+			if risetime and self.charge_energy_ch[i]>0:
+				plt.vlines(self.risetime[i],ch_offset*i-ch_offset/3.0,ch_offset*i+2*ch_offset,linestyles='dashed')
+				
 		plt.xlabel('time [$\mu$s]')
 		plt.title('Event {}, Energy {:.1f}keV'.format(self.event_number,self.tot_charge_energy))
 		plt.tight_layout()

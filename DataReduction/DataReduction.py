@@ -104,6 +104,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 				w.FindPulsesAndComputeAQs(fit_pulse_flag=fit_pulse_flag)
 			except IndexError:
 				print('Null waveform found in channel {}, event {} skipped'.format(ch_num,event_counter))
+				key_buffer = output_df.keys()
 				for key_buf in key_buffer:
 					output_series[key_buf] = 0
 				skip = True
@@ -131,7 +132,6 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 		# Append this event to the output dataframe
 		output_series['File'] = filetitle
 		output_series['Event'] = event_counter
-		key_buffer = output_series.keys()
 		output_df = output_df.append(output_series,ignore_index=True)
 		event_counter += 1
 	return output_df

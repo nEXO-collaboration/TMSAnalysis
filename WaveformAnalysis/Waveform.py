@@ -9,6 +9,17 @@
 # type of detector that we're recording data from; i.e. an NaI signal
 # will need a different processing framework than a simple PMT signal
 # looking for cherenkov light. 
+#
+#
+# 12 March 2020
+# class Event added. Given an event number this class bundles the 
+# information from the reduced h5 file and the tier1 root file.
+# For each channel the event has a waveform object. This class 
+# is meant to plot/smooth the waveforms of a specific event. 
+# Additional functionalities can be added
+#
+#   Jacopo
+#
 ########################################################################
 
 import pandas as pd
@@ -385,3 +396,79 @@ def DecayTimeCorrection( input_wfm, decay_time_us, sampling_period_ns ):
 					np.exp( - (sampling_period_ns/1.e3) / decay_time_us ) * input_wfm[i] + \
 					input_wfm[i+1]
 		return new_wfm 
+
+
+
+class Event:
+
+	def __init__( self, reduced, path_to_tier1, event_number, run_parameters_file,\
+			calibrations_file, channel_map_file, input_baseline=-1, input_baseline_rms=-1, fixed_trigger=False):
+		from TMSAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
+		import uproot
+
+		if path_to_tier1[-1] is not '/':
+			path_to_tier1 += '/'
+		analysis_config = StruckAnalysisConfiguration.StruckAnalysisConfiguration()
+		analysis_config.GetRunParametersFromFile( run_parameters_file )
+		analysis_config.GetCalibrationConstantsFromFile( calibrations_file )
+		analysis_config.GetChannelMapFromFile( channel_map_file )
+		channel_number = analysis_config.GetNumberOfChannels()
+		self.event_number 	= event_number
+		self.waveform 		= {}
+		self.baseline		= []
+		self.charge_energy_ch	= []
+		self.sampling_frequency = analysis_config.run_parameters['Sampling Rate [MHz]']
+		entry_from_reduced = pd.read_hdf(reduced, start=self.event_number, stop=self.event_number+1)
+		timestamp = entry_from_reduced['Timestamp'].values[0]
+		tier1_tree = uproot.open('{}{}'.format(path_to_tier1,entry_from_reduced['File'].values[0]))['HitTree']
+		tier1_ev = tier1_tree.arrays( entrystart=event_number*channel_number, entrystop=(event_number+1)*channel_number)
+		software_channel = tier1_ev[b'_slot']*16+tier1_ev[b'_channel']
+		self.tot_charge_energy = entry_from_reduced['TotalTileEnergy'].values[0]
+
+		if analysis_config.run_parameters['Sampling Rate [MHz]'] == 62.5:
+			polarity = 1.
+		#the events picked from the reduced file and from the tier1 root file are cross-checked with their timestamp
+		if not np.array_equal(tier1_ev[ b'_rawclock'],timestamp):
+			raise RuntimeError('Timestamps not matching')
+
+		waveform = np.array(tier1_ev[ b'_waveform'])
+		#looping through channels and fill the waveforms
+		for i,ch_waveform in enumerate(waveform):
+			ch_type = entry_from_reduced['ChannelTypes'].values[0][i]
+			ch_name = analysis_config.GetChannelNameForSoftwareChannel(software_channel[i])
+			self.waveform[ch_name] = Waveform(input_data = ch_waveform,\
+							detector_type       = ch_type,\
+							sampling_period_ns  = 1.e3/self.sampling_frequency,\
+							input_baseline      = input_baseline,\
+							input_baseline_rms  = input_baseline_rms,\
+							polarity            = polarity,\
+							fixed_trigger       = fixed_trigger,\
+							trigger_position    = analysis_config.run_parameters['Pretrigger Length [samples]'],\
+							decay_time_us       = analysis_config.GetDecayTimeForSoftwareChannel( software_channel[i] ),\
+							calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel(software_channel[i]))
+			self.baseline.append(np.mean(ch_waveform[:200]))
+			#different cases for tile/SiPM
+			try:
+				self.charge_energy_ch.append(entry_from_reduced['{} {} Charge Energy'.format(ch_type,ch_name)].values[0])
+			except KeyError:
+				self.charge_energy_ch.append(0)
+
+
+	#smoothing function, the waveform is overwritten, time_width is in us
+	def smooth( self, time_width ):
+		for k,v in self.waveform.items():
+			self.waveform[k].data = gaussian_filter( v.data.astype(float), time_width*self.sampling_frequency)
+		return self.waveform
+
+
+	def plot_event( self ):
+		import matplotlib.pyplot as plt
+
+		for i,v in enumerate(self.waveform):
+			plt.plot(np.arange(len(self.waveform[v].data))/self.sampling_frequency,self.waveform[v].data-self.baseline[i]+1000*i)
+			plt.text(0,1000*i,'{} {:.1f}keV'.format(v,self.charge_energy_ch[i]))
+		plt.xlabel('time [$\mu$s]')
+		plt.title('Event {}, Energy {:.1f}keV'.format(self.event_number,self.tot_charge_energy))
+		plt.tight_layout()
+		plt.show()
+		plt.clf()

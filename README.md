@@ -65,3 +65,44 @@ We've included example configuration files in the repository, which can be found
 * NOTE: at present, the `convert_data_to_hdf5.py` script requires a channel map text file, which is 
 being deprecated in other parts of the code. I plan to fix this soon.
 
+
+## Generating batch hdf5 databases
+
+It is also possible to generate a reduced hdf5 file straight from the tier1 root files. This can be achieved in two ways:
+
+* processing tier1 file one-by-one
+* submit a batch job for the entire run
+
+for the following scripts, all the generated files will be located in the target folder.
+
+### One-by-one
+
+by running:
+```
+python /path/to/TMSAnalysis/scripts/reduce_data.py <input_file> </path/to/output/directory/> </path/to/configuration/files/>
+```
+refer to the file header for more details
+
+### Batch submission
+by running:
+```
+python /path/to/TMSAnalysis/scripts/LLNLBatchDataReduction.py </path/to/input/tier1_directory/> </path/to/configuration/files/>
+```
+a batch job will be submitted for each file in the folder. The submission options are stored in the `cmd_options` variable. A `.out`
+file is written containing the stdout of the file with the same name of the tier1 root file. If this script is run more than once on
+a specific folder, it will automatically skip all the alredy processed tier1 root files
+Possible errors can be quickly checked by running.
+```
+python /path/to/TMSAnalysis/scripts/check_batch_output_error.py </path/to/reduced_folder/>
+```
+if there is any error, this script will produce a `.log` file with in each line the name of the tier1 root file that failed,
+along with the error, otherwise the the `.log` file will only contain the string `No errors in this folder`
+
+## Grouping all the hdf5 file
+
+In case all the reduced `.h5` files need to be stacked into one file it is possible to do so with the command
+```
+python /path/to/TMSAnalysis/scripts/add_into_one_df.py </path/to/reduced_folder/>
+```
+This will write a file called `/path/to/reduced_folder/reduced_added.h5`. Having all the data into one dataframe should be faster to load
+than dynamically load the different reduced files, in case an analysis of the entire run is required.

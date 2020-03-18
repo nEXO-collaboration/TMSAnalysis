@@ -14,8 +14,8 @@ containing pandas dataframes.
 Which python packages (and versions) you need to install:
 
 * [pandas (0.24.1+)](https://pandas.pydata.org/docs/)
-* [numpy (1.17.4+)] (https://numpy.org/)
-* [tables (3.6.1+)] (https://www.pytables.org/)
+* [numpy (1.17.4+)](https://numpy.org/)
+* [tables (3.6.1+)](https://www.pytables.org/)
 * [uproot (latest)](https://github.com/scikit-hep/uproot)
 * [scipy (1.2.1+)](https://www.scipy.org/install.html)
 * [numba (latest)](http://numba.pydata.org/)

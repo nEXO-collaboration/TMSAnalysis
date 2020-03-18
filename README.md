@@ -11,12 +11,21 @@ containing pandas dataframes.
 
 ### Prerequisites
 
-What things you need to install:
+Which python packages (and versions) you need to install:
 
-* [pandas](https://pandas.pydata.org/docs/)
-* [uproot](https://github.com/scikit-hep/uproot)
-* [scipy](https://www.scipy.org/install.html)
-* [numba](http://numba.pydata.org/)
+* [pandas (0.24.1+)](https://pandas.pydata.org/docs/)
+* [numpy (1.17.4+)] (https://numpy.org/)
+* [tables (3.6.1+)] (https://www.pytables.org/)
+* [uproot (latest)](https://github.com/scikit-hep/uproot)
+* [scipy (1.2.1+)](https://www.scipy.org/install.html)
+* [numba (latest)](http://numba.pydata.org/)
+
+All of the above should be available via `pip install`. If you already have a 
+version of these, you can use `pip install --upgrade <package_name>`.
+
+Note that if you're running on a cluster, you should create a virtual environment
+where you can install software packages locally. This is done using `virtualenv`. If you
+have questions about this, contact Brian.
 
 ### Installing
 

@@ -5,6 +5,11 @@ from TMSAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
 
 from TMSAnalysis.WaveformAnalysis import Waveform
 
+#Classes for the Clustering Stage
+from TMSAnalysis.Clustering import Signal
+from TMSAnalysis.Clustering import SignalArray
+from TMSAnalysis.Clustering import Clustering
+
 def ReduceH5File( filename, output_dir, run_parameters_file, calibrations_file, channel_map_file, \
                         num_events=-1, input_baseline=-1, input_baseline_rms=-1, \
                         fixed_trigger=False, fit_pulse_flag=False):
@@ -81,7 +86,9 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                 output_series['NumYTileChannelsHit'] = 0
                 output_series['NumSiPMChannelsHit'] = 0
                 output_series['TimeOfMaxChannel'] = 0
+                
                 max_channel_val = 0.
+                sig_array  = SignalArray.SignalArray()
                 # Loop through channels, do the analysis, put this into the output series
                 for ch_num in range(len(thisrow['Channels'])):
                         if skip:
@@ -119,6 +126,16 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                         if 'TileStrip' in analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ):
                                 if w.analysis_quantities['Charge Energy'] > 0.:
                                         output_series['NumTileChannelsHit'] += 1
+                                        ch_pos = analysis_config.GetChannelPos(software_ch_num)
+                                        
+                                        signal = Signal.Signal(w.analysis_quantities['Charge Energy'], \
+                                                        w.analysis_quantities['Drift Time'], \
+                                                        software_ch_num, \
+                                                        ch_pos,\
+                                                        analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )\
+                                                        )
+                                        sig_array.AddSignal(signal)
+
                                         if 'X' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ):
                                                 output_series['NumXTileChannelsHit'] += 1
                                         if 'Y' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ):
@@ -131,6 +148,26 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                 if w.analysis_quantities['Pulse Area'] > 0.:
                                         output_series['NumSiPMChannelsHit'] += 1
                                         output_series['TotalSiPMEnergy'] += w.analysis_quantities['Pulse Area']
+                
+                #First fill event level info
+                output_series['WeightedPosX']     = sig_array.GetPos1D('X')
+                output_series['WeightedPosY']     = sig_array.GetPos1D('Y')
+                
+                #Now cluster the signals and save number of clusters
+                cluster=Clustering.Clustering(sig_array)
+                cluster.Cluster()
+                output_series['NumberOfClusters'] = cluster.GetNumClusters()
+                output_series['IsFull3D']         = cluster.Is3DEvent()
+                output_series['Number3DClusters'] = cluster.GetNumber3D()
+
+                #print("E1: %.2f, E2: %.2f, X: %.2f, Y: %.2f, N: %i, N3D: %i, Is3D:%i"%(output_series['TotalTileEnergy'],
+                #                                 sig_array.GetEnergy(),
+                #                                 output_series['WeightedPosX'], 
+                #                                 output_series['WeightedPosY'], 
+                #                                 output_series['NumberOfClusters'],
+                #                                 output_series['Number3DClusters'],
+                #                                 output_series['IsFull3D']))
+
                 # Append this event to the output dataframe
                 output_series['File'] = filetitle
                 output_series['Event'] = event_counter

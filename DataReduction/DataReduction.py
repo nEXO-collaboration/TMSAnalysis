@@ -152,7 +152,12 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                 #First fill event level info
                 output_series['WeightedPosX']     = sig_array.GetPos1D('X')
                 output_series['WeightedPosY']     = sig_array.GetPos1D('Y')
-                
+                output_series['WeightedDriftTime']= sig_array.GetTime()
+
+                output_series['Weighted Event Size T'] = sig_array.GetTimeRMS()
+                output_series['Weighted Event Size X'] = sig_array.GetPosRMS('X')
+                output_series['Weighted Event Size Y'] = sig_array.GetPosRMS('Y')
+
                 #Now cluster the signals and save number of clusters
                 cluster=Clustering.Clustering(sig_array)
                 cluster.Cluster()
@@ -160,6 +165,12 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                 output_series['IsFull3D']         = cluster.Is3DEvent()
                 output_series['Number3DClusters'] = cluster.GetNumber3D()
 
+                output_series['Cluster Energies'] = [c.GetEnergy() for c in cluster.clusters]
+                output_series['Cluster X-Pos'] = [c.GetPos1D('X') for c in cluster.clusters]
+                output_series['Cluster Y-Pos'] = [c.GetPos1D('Y') for c in cluster.clusters]
+                output_series['Cluster Drift Time'] = [c.GetTime() for c in cluster.clusters]
+
+        
                 #print("E1: %.2f, E2: %.2f, X: %.2f, Y: %.2f, N: %i, N3D: %i, Is3D:%i"%(output_series['TotalTileEnergy'],
                 #                                 sig_array.GetEnergy(),
                 #                                 output_series['WeightedPosX'], 
@@ -174,3 +185,5 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                 output_df = output_df.append(output_series,ignore_index=True)
                 event_counter += 1
         return output_df
+
+

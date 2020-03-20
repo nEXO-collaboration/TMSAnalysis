@@ -178,6 +178,12 @@ class StruckAnalysisConfiguration:
 
 
   ###############################################################################
+  def GetChannelPos(self, software_channel_int):
+      mask = self.channel_map['SoftwareChannel'] == software_channel_int
+      #return self.channel_map['ChannelName'].loc[mask].values[0]
+      return [self.channel_map['ChannelPosX'].loc[mask].values[0], self.channel_map['ChannelPosY'].loc[mask].values[0]]
+
+  ###############################################################################
   def GetNumberOfChannels( self ):
       return len( self.channel_map )
 

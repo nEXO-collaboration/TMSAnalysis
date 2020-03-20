@@ -20,8 +20,30 @@ class SignalArray:
         time = 0
         for sig in self.GetSigArray('XY'):
             time += sig.time*sig.energy
-        return time/energy
-    
+        if energy>0: return time/energy
+        else: return 0.0
+
+    def GetTimeRMS(self):
+        event_time = self.GetTime()
+        time_sq    = 0
+        energy     = self.GetEnergy()
+        for sig in self.GetSigArray('XY'):
+            time_sq += ((sig.time-event_time)*sig.energy)**2
+        if energy>0:return np.sqrt(time_sq)/energy
+        else: return 0.0
+
+    def GetPosRMS(self,ctype):
+        energy     = self.GetEnergy()
+        event_pos  = self.GetPos1D(ctype)
+        pos_sq     = 0
+        if energy>0:
+            for sig in self.GetSigArray(ctype):
+                if sig.pos[ctype]>-900:
+                    pos_sq += ((sig.pos[ctype]-event_pos)*sig.energy)**2.0
+            return np.sqrt(pos_sq)/energy
+        else:
+            return 0.0
+
     def GetPos1D(self,ctype):
         pos = 0
         energy = self.GetEnergy(ctype)

@@ -209,6 +209,9 @@ class StruckAnalysisConfiguration:
       else:
          return True 
  
+  ###############################################################################
+  def GetDriftVelocity(self):
+      return self.run_parameters['Drift Velocity [mm/us]']
 
   ###############################################################################
   def GetRunParametersFromFile( self, input_file ):

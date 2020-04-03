@@ -25,11 +25,15 @@ name_array = []
 out_log = []
 for out_fname in glob.glob('{}tier1*.out'.format(path_to_file)):
 	with open(out_fname,'r') as f:
-		line = f.readlines()[-1]
-		if 'Error' in line:
-			with open(out_fname,'r') as f_object:
-				fname = get_line(f_object)
-				name_array.append('{}: {}'.format(fname,line))
+		try:
+			line = f.readlines()[-1]
+			if 'Error' in line:
+				with open(out_fname,'r') as f_object:
+					fname = get_line(f_object)
+					name_array.append('{}: {}'.format(fname,line))
+
+		except IndexError:
+			continue
 
 with open('{}batch_job.log'.format(path_to_file),'w') as f_out:
 	if name_array == []:

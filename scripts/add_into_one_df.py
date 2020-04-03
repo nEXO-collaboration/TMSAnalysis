@@ -1,14 +1,14 @@
 #########################################################################################
-#											#
-#	This script fetches all the reduced .h5 in the folder, producing		#
-#	one dataframe for the run. I noticed that it's faster than loading		#
-#	dynamically each file (in case of the entire run is needed)			#
-#											#
-#					Jacopo						#
-#											#
-#					Usage:						#
-#			python add_into_one_df.py path_to_reduced			#
-#											#
+#
+#	This script fetches all the reduced .h5 in the folder, producing
+#	one dataframe for the run. I noticed that it's faster than loading
+#	dynamically each file (in case of the entire run is needed)
+#
+#					Jacopo
+#
+#					Usage:
+#			python add_into_one_df.py path_to_reduced
+#
 #########################################################################################
 
 

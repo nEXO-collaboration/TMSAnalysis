@@ -220,8 +220,10 @@ class Waveform:
 				self.analysis_quantities['T90'] = t90
 
 			elif 'TileStrip' in self.detector_type:
-				self.data = gaussian_filter( self.data.astype(float), 500./self.sampling_period_ns ) * \
-						self.polarity
+				#this is the smoothing time window in ns
+				ns_smoothing_window = 500.0
+				self.data = gaussian_filter( self.data.astype(float),\
+				ns_smoothing_window/self.sampling_period_ns ) * self.polarity
 					# ^Gaussian smoothing with a 0.5us width, also, flip polarity if necessary
 				baseline = np.mean(self.data[0:int(10000./self.sampling_period_ns)])
 				baseline_rms = np.std(self.data[0:int(10000./self.sampling_period_ns)])
@@ -406,7 +408,7 @@ def DecayTimeCorrection( input_wfm, decay_time_us, sampling_period_ns ):
 class Event:
 
 	def __init__( self, reduced, path_to_tier1, event_number, run_parameters_file,\
-			calibrations_file, channel_map_file, input_baseline=-1, input_baseline_rms=-1, fixed_trigger=False):
+			calibrations_file, channel_map_file):
 		from TMSAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
 		import uproot
 
@@ -424,16 +426,17 @@ class Event:
 		self.event_number 		= event_number
 		self.waveform 			= {}
 		self.baseline			= []
-		self.charge_energy_ch	= []
+		self.charge_energy_ch		= []
 		self.risetime 			= []
 		self.sampling_frequency = analysis_config.run_parameters['Sampling Rate [MHz]']
 
 		if path_to_tier1 is not None:
-			path_to_file = path_to_tier1
-			entry_from_reduced = pd.read_hdf(reduced, start=self.event_number, stop=self.event_number+1)
-			timestamp = entry_from_reduced['Timestamp'].values[0]
-			fname = entry_from_reduced['File'].values[0]
-			self.tot_charge_energy = entry_from_reduced['TotalTileEnergy'].values[0]
+			path_to_file 		= path_to_tier1
+			entry_from_reduced 	= pd.read_hdf(reduced, start=self.event_number, stop=self.event_number+1)
+			timestamp 		= entry_from_reduced['Timestamp'].values[0]
+			fname 			= entry_from_reduced['File'].values[0]
+			self.tot_charge_energy 	= entry_from_reduced['TotalTileEnergy'].values[0]
+			self.event_number 	= entry_from_reduced['Event'][event_number]
 
 		else:
 			print('No reduced file found, charge energy and risetime information not present')
@@ -442,7 +445,7 @@ class Event:
 			self.tot_charge_energy = 0.0
 
 		tier1_tree = uproot.open('{}{}'.format(path_to_file,fname))['HitTree']
-		tier1_ev = tier1_tree.arrays( entrystart=event_number*channel_number, entrystop=(event_number+1)*channel_number)
+		tier1_ev = tier1_tree.arrays( entrystart=self.event_number*channel_number, entrystop=(self.event_number+1)*channel_number)
 
 		#the events picked from the reduced file and from the tier1 root file are cross-checked with their timestamp
 		try:
@@ -464,10 +467,10 @@ class Event:
 			self.waveform[ch_name] = Waveform(input_data = ch_waveform,\
 							detector_type       = ch_type,\
 							sampling_period_ns  = 1.e3/self.sampling_frequency,\
-							input_baseline      = input_baseline,\
-							input_baseline_rms  = input_baseline_rms,\
+							input_baseline      = -1,\
+							input_baseline_rms  = -1,\
 							polarity            = polarity,\
-							fixed_trigger       = fixed_trigger,\
+							fixed_trigger       = False,\
 							trigger_position    = analysis_config.run_parameters['Pretrigger Length [samples]'],\
 							decay_time_us       = analysis_config.GetDecayTimeForSoftwareChannel( software_channel[i] ),\
 							calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel(software_channel[i]))
@@ -492,13 +495,12 @@ class Event:
 		import matplotlib.pyplot as plt
 		ch_offset = 250
 		for i,v in enumerate(self.waveform):
-			plt.plot(np.arange(len(self.waveform[v].data))/self.sampling_frequency,self.waveform[v].data-self.baseline[i]+ch_offset*i)
-			plt.text(0,ch_offset*i,'{} {:.1f}keV'.format(v,self.charge_energy_ch[i]))
+			p = plt.plot(np.arange(len(self.waveform[v].data))/self.sampling_frequency,self.waveform[v].data-self.baseline[i]+ch_offset*i)
+			plt.text(0,ch_offset*i,'{} {:.1f}'.format(v,self.charge_energy_ch[i]))
 			if risetime and self.charge_energy_ch[i]>0:
-				plt.vlines(self.risetime[i],ch_offset*i-ch_offset/3.0,ch_offset*i+2*ch_offset,linestyles='dashed')
+				plt.vlines(self.risetime[i],ch_offset*i,ch_offset*i+2*self.charge_energy_ch[i],linestyles='dashed',colors=p[0].get_color())
 
 		plt.xlabel('time [$\mu$s]')
-		plt.title('Event {}, Energy {:.1f}keV'.format(self.event_number,self.tot_charge_energy))
+		plt.title('Event {}, Energy {:.1f} ADC counts'.format(self.event_number,self.tot_charge_energy))
 		plt.tight_layout()
-		plt.show()
-		plt.clf()
+		return(plt)

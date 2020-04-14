@@ -15,6 +15,10 @@ import sys,glob
 path_to_file = sys.argv[1]
 
 
+if path_to_file[-1] != '/':
+	path_to_file += '/'
+
+
 def get_line(f_object):
 	for l in f_object.readlines():
 		if 'file' in l:
@@ -23,7 +27,7 @@ def get_line(f_object):
 
 name_array = []
 out_log = []
-for out_fname in glob.glob('{}tier1*.out'.format(path_to_file)):
+for out_fname in glob.glob('{}*.out'.format(path_to_file)):
 	with open(out_fname,'r') as f:
 		try:
 			line = f.readlines()[-1]

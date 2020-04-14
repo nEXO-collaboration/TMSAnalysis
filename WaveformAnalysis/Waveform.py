@@ -221,7 +221,7 @@ class Waveform:
 
 			elif 'TileStrip' in self.detector_type:
 				#this is the smoothing time window in ns
-				ns_smoothing_window = 500.0
+				ns_smoothing_window = 2500.0
 				self.data = gaussian_filter( self.data.astype(float),\
 				ns_smoothing_window/self.sampling_period_ns ) * self.polarity
 					# ^Gaussian smoothing with a 0.5us width, also, flip polarity if necessary
@@ -455,6 +455,7 @@ class Event:
 		except NameError:
 			pass
 
+		global software_channel 
 		software_channel = tier1_ev[b'_slot']*16+tier1_ev[b'_channel']
 		if analysis_config.run_parameters['Sampling Rate [MHz]'] == 62.5:
 			polarity = 1.
@@ -495,10 +496,14 @@ class Event:
 		import matplotlib.pyplot as plt
 		ch_offset = 250
 		for i,v in enumerate(self.waveform):
-			p = plt.plot(np.arange(len(self.waveform[v].data))/self.sampling_frequency,self.waveform[v].data-self.baseline[i]+ch_offset*i)
-			plt.text(0,ch_offset*i,'{} {:.1f}'.format(v,self.charge_energy_ch[i]))
+			if software_channel[i] == 15:
+				software_channel[i] = 32
+			if software_channel[i] > 15:
+				software_channel[i] += -1
+			p = plt.plot(np.arange(len(self.waveform[v].data))/self.sampling_frequency,self.waveform[v].data-self.baseline[i]+ch_offset*software_channel[i])
+			plt.text(0,ch_offset*software_channel[i],'{} {:.1f}'.format(v,self.charge_energy_ch[i]))
 			if risetime and self.charge_energy_ch[i]>0:
-				plt.vlines(self.risetime[i],ch_offset*i,ch_offset*i+2*self.charge_energy_ch[i],linestyles='dashed',colors=p[0].get_color())
+				plt.vlines(self.risetime[i],ch_offset*software_channel[i],ch_offset*software_channel[i]+2*self.charge_energy_ch[i],linestyles='dashed',colors=p[0].get_color())
 
 		plt.xlabel('time [$\mu$s]')
 		plt.title('Event {}, Energy {:.1f} ADC counts'.format(self.event_number,self.tot_charge_energy))

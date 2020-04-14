@@ -24,7 +24,8 @@ if path_to_folder[-1] != '/':
 
 for i,fname in enumerate(glob.glob(path_to_folder + '*reduced.h5')):
 	if i%100 == 0:
-		print('{} files appeneded in {:.1f}'.format(i,(time.time() - start_time)))
+		print('{} files appended in {:.1f}'.format(i,(time.time() - start_time)))
 	df_list.append(pd.read_hdf(fname))
+
 df = pd.concat(df_list,ignore_index=True)
-df.to_hdf( path_to_folder + 'reduced_added.h5', key='df' )
+df.to_hdf( path_to_folder + 'reduced_added.h5', key = 'df',mode = 'w')

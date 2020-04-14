@@ -26,6 +26,14 @@ if not os.path.isdir(path_to_tier1):
    print('Not a directory! Skipping...')
    exit()
 
+if path_to_reduced[-1] != '/':
+	path_to_reduced += '/'
+
+if not os.path.exists(path_to_reduced):
+	print('No output directory found - Creating a new one')
+	os.makedirs(path_to_reduced)
+
+
 flist = glob.glob('{}tier1*.root'.format(path_to_tier1))
 
 for i,fname in enumerate(flist):

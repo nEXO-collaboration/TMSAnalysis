@@ -1,6 +1,6 @@
-import copy
-import numpy as np
 from TMSAnalysis.Clustering import Signal
+import numpy as np
+import copy
 
 class SignalArray:
     def __init__(self):

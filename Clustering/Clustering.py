@@ -1,6 +1,6 @@
-import copy
-import numpy as np
 from TMSAnalysis.Clustering import SignalArray
+import numpy as np
+import copy
 
 debug = False
 

@@ -8,10 +8,17 @@ if len(sys.argv) == 4:
 	this_file = sys.argv[1]
 	output_dir = sys.argv[2]
 	config_dir = sys.argv[3]
+
+	if output_dir[-1] != '/':
+		output_dir += '/'
+
 	if not os.path.exists(this_file):
 		sys.exit('\nERROR: input file does not exist\n')
+
 	if not os.path.exists(output_dir):
-		sys.exit('\nERROR: path to output_dir does not exist\n')
+		print('No output directory found - Creating a new one')
+		os.makedirs(output_dir)
+
 else:
 	print('\n\nERROR: reduce_data.py requires 3 arguments\n')
 	print('Usage:')

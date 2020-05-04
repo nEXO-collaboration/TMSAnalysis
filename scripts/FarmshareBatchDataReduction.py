@@ -4,15 +4,20 @@ import sys
 import time
 import glob
 
+
+script_dir = '/g/g20/lenardo1/software/TMSAnalysis/scripts/'
+config_dir = '/g/g20/lenardo1/software/TMSAnalysis/config/'
+
 #print(sys.argv[1])
 datapath = '/farmshare/user_data/blenardo/struck_data/29th_LXe/'
+datapath = '/p/lustre1/lenardo1/stanford_teststand/29th_LXe/'
 print(datapath)
 datapath = datapath + sys.argv[1] + '/'
 print(datapath)
 
 if not os.path.isdir(datapath):
    print(datapath)
-   print('Not a directory! Skipping...')
+   #print('Butt Not a directory! Skipping...')
    exit()
 
 files = os.listdir(datapath)
@@ -25,14 +30,15 @@ print('{} files found:'.format(num_files))
 #	print(thisfile)
 
 
-outdir = datapath + '/{}/Out'.format('Processing')
-subdir = datapath + '/{}/Sub'.format('Processing')
+reduceddir = datapath + '/Reduced_April162020/'
+outdir = reduceddir + 'Out/'
+subdir = reduceddir + 'Sub/'
 procdir = datapath + '/Processing/'
 
-try: 
-  os.mkdir(procdir)
-except:
-  print('{} already exists.'.format('Processing/'))
+#try: 
+#  os.mkdir(procdir)
+#except:
+#  print('{} already exists.'.format('Processing/'))
 #  exit()
 
 try:
@@ -47,6 +53,11 @@ except Exception as e:
   print(e)
   print('Submission directory exists')
 
+try: 
+  os.mkdir(reduceddir)
+except:
+  print('Reduced dir already exists.')
+#  exit()
 
 for num in range(0,num_files):
 #for num in range(0,1):
@@ -55,10 +66,10 @@ for num in range(0,num_files):
 
         rootfile_base = rootfiles[num].split('.')[0]
 
-        h5files = [f for f in glob.glob(datapath + rootfile_base + '*') if f.endswith('.h5')]
+        h5files = [f for f in glob.glob(procdir + rootfile_base + '*') if f.endswith('.h5')]
 
-        queue_list = os.popen('squeue -u blenardo').read()
-        num_jobs_in_queue = queue_list.count('\n') - 1
+        #queue_list = os.popen('squeue -u blenardo').read()
+        #num_jobs_in_queue = queue_list.count('\n') - 1
         #if num_jobs_in_queue > 20:
         #   print('Num jobs is over 20, sleeping for 30s...')
         #   time.sleep(30)
@@ -77,8 +88,8 @@ for num in range(0,num_files):
 		"export STARTTIME=`date +%s`\n" + \
 		"echo Start time $STARTTIME\n" + \
 		"source activate myenv\n" + \
-		"for h5file in $(ls " + datapath + rootfile_base + '*' + ')\n' + \
-		"do python reduce_data.py " + '$h5file ' + datapath + '\n' + \
+		"for h5file in $(ls " + procdir + rootfile_base + '*' + ')\n' + \
+		"do python " + script_dir + "reduce_data.py $h5file " + reduceddir + ' ' + config_dir + '\n' + \
 		"done\n" + \
 		"export STOPTIME=`date +%s`\n" + \
 		"echo Stop time $STOPTIME\n" + \

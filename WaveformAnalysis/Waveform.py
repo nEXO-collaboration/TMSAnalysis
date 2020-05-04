@@ -241,7 +241,7 @@ class Waveform:
 				t50 = -1.
 				t90 = -1.
 				drift_time = -1.
-				if charge_energy < 5.*baseline_rms:
+				if False: #charge_energy < 5.*baseline_rms:
 					charge_energy = 0. # if it's not above 5-sigma threshold, set energy to 0
 				else:
 					t10 = float( np.where( corrected_wfm > 0.1*charge_energy)[0][0] )

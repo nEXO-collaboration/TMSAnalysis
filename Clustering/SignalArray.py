@@ -1,6 +1,6 @@
 import copy
 import numpy as np
-import Signal
+from TMSAnalysis.Clustering import Signal
 
 class SignalArray:
     def __init__(self):

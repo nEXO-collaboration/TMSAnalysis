@@ -124,7 +124,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                                                 analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ),\
                                                                 key)] = w.analysis_quantities[key]
                         if 'TileStrip' in analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ):
-                                if w.analysis_quantities['Charge Energy'] > 0.:
+                                if w.analysis_quantities['Charge Energy'] > 5. * w.analysis_quantities['Baseline RMS']:
                                         output_series['NumTileChannelsHit'] += 1
                                         ch_pos = analysis_config.GetChannelPos(software_ch_num)
                                         

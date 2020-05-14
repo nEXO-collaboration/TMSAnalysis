@@ -1,4 +1,5 @@
 from TMSAnalysis.ParseStruck import NGMRootFile
+from TMSAnalysis.ParseSimulation import NEXOOfflineFile
 import sys
 import os
 
@@ -29,12 +30,19 @@ true_path = ''
 for component in path_components[:-1]:
 	true_path += component + '/'
 
+IS_SIMULATION = True
 
-file = NGMRootFile.NGMRootFile( input_filename = input_file,\
+if IS_SIMULATION:
+	infile = NEXOOfflineFile.NEXOOfflineFile( input_filename = input_file,\
+						output_directory = output_dir,\
+						channel_map_file = true_path + '../config/Channel_Map_Xe_Run29_MCIncluded.csv',\
+						add_noise=False)
+else:
+	infile = NGMRootFile.NGMRootFile( input_filename = input_file,\
 				output_directory = output_dir,\
 				channel_map_file = true_path + '/channel_map_8ns_sampling_LONGTPC2.txt')
 print('Channel map loaded:')
-print(file.channel_map)
-print('\n{} active channels.'.format(len(file.channel_map)))
+print(infile.channel_map)
+print('\n{} active channels.'.format(len(infile.channel_map)))
 
-file.GroupEventsAndWriteToHDF5()
+infile.GroupEventsAndWriteToHDF5()

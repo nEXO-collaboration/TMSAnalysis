@@ -59,9 +59,6 @@ class NGMRootFile:
 			self.LoadFile()
 	
 		start_time = time.time()		
-		self.current_evt = pd.Series()
-		self.outputdf = pd.DataFrame(columns=['Timestamp','Channels','Data'])
-		this_event_timestamp = -1
 		file_counter = 0
 		global_evt_counter = 0
 		local_evt_counter = 0
@@ -77,10 +74,11 @@ class NGMRootFile:
 			if nevents > 0:
 				if global_evt_counter > nevents:
 					break
-			# If the timestamp has changed (and it's not the first line), write the output
-			# to the output dataframe.
+
 			data_series = pd.Series(data)
 			channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data['_slot'],data['_channel'])
+                         
+                        # Remove 'Off' channels from the data stream
 			for column in data_series.items():
 				data_series[ column[0] ] = np.array(data_series[column[0]][channel_mask])
 			output_series = pd.Series()

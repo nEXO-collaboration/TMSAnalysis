@@ -51,13 +51,16 @@ class NGMRootFile:
 		
 
         ####################################################################
-	def GroupEventsAndWriteToHDF5( self, nevents = -1, save = True):
+	def GroupEventsAndWriteToHDF5( self, nevents = -1, save = True, start_stop = None ):
 		
 		try:
 			self.infile
 		except NameError:
 			self.LoadFile()
-	
+
+		if start_stop is not None:
+			self.start_stop = start_stop	
+
 		start_time = time.time()		
 		file_counter = 0
 		global_evt_counter = 0

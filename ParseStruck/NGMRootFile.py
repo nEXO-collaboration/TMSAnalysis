@@ -29,7 +29,7 @@ class NGMRootFile:
 
 		if input_filename is not None:
 			self.LoadRootFile( input_filename )
-		if channel_map_file is not None:
+		if config is not None:
 			self.channel_map = config.channel_map
 		else:
 			print('WARNING: No channel map file provided. Using the default one...')

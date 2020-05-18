@@ -44,12 +44,12 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                 if is_simulation:
                    input_file = NEXOOfflineFile.NEXOOfflineFile( input_filename = filename,\
                                                   output_directory = output_dir,\
-                                                  channel_map_file = channel_map_file,\
+                                                  config = analysis_config,\
                                                   add_noise = False)
                 else:
                    input_file = NGMRootFile.NGMRootFile( input_filename = filename,\
                                                   output_directory = output_dir,\
-                                                  channel_map_file = channel_map_file)
+                                                  config = analysis_config)
                 print('Channel map loaded:') 
                 print(input_file.channel_map) 
                 print('\n{} active channels.'.format(len(input_file.channel_map))) 

@@ -18,7 +18,7 @@ class NEXOOfflineFile:
 
         ####################################################################
         def __init__( self, input_filename=None, output_directory=None,\
-                      channel_map_file=None, start_stop = [None, None],\
+                      config=None, start_stop = [None, None],\
                       add_noise=True, noise_lib_directory=None):
 
             self.start_stop = start_stop
@@ -30,8 +30,8 @@ class NEXOOfflineFile:
            
             if input_filename is not None:
                self.LoadRootFile( input_filename )
-            if channel_map_file is not None:
-               self.channel_map = pd.read_csv(channel_map_file)
+            if config is not None:
+               self.channel_map = config.channel_map
             else:
                print('\nWARNING: No channel map file provided.')
                self.channel_map = pd.read_csv( package_directory + \

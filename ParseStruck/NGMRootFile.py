@@ -17,7 +17,7 @@ import sys
 class NGMRootFile:
 
         ####################################################################
-	def __init__( self, input_filename=None, output_directory=None, channel_map_file=None, start_stop = [None, None]):
+	def __init__( self, input_filename=None, output_directory=None, config=None, start_stop = [None, None]):
 		print('NGMFile object constructed.')
 
 		self.start_stop = start_stop
@@ -30,7 +30,7 @@ class NGMRootFile:
 		if input_filename is not None:
 			self.LoadRootFile( input_filename )
 		if channel_map_file is not None:
-			self.channel_map = pd.read_csv(channel_map_file)
+			self.channel_map = config.channel_map
 		else:
 			print('WARNING: No channel map file provided. Using the default one...')
 			self.channel_map = pd.read_csv(package_directory + '/channel_map_8ns_sampling.txt',skiprows=9)

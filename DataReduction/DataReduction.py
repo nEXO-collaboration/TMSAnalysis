@@ -56,6 +56,7 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                 n_entries = input_file.GetTotalEntries()
                 n_channels = analysis_config.GetNumberOfChannels()
                 n_events = n_entries/n_channels
+                if num_events < n_events: n_events = num_events
                 n_ev = 0
                 while n_ev<n_events:
                         print('\tProcessing event {} at {:4.4}s...'.format(n_ev,time.time()-start_time))
@@ -68,6 +69,7 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                         
                         reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_ev,\
                                                 input_baseline, input_baseline_rms, fixed_trigger, fit_pulse_flag, num_events=-1)
+
                         output_df_list.append(reduced_df)
                         n_ev += 20
 
@@ -81,7 +83,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                 input_baseline, input_baseline_rms, fixed_trigger, \
                 fit_pulse_flag, num_events=-1):
 
-        output_series = pd.Series()
+        output_dict = dict() #pd.Series()
         output_list = []
         input_columns = input_df.columns
         output_columns = [col for col in input_columns if (col!='Data') and (col!='Channels')]
@@ -93,15 +95,15 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                         break
                 # Set all the values that are not the waveform/channel values
                 for col in output_columns:
-                        output_series[col] = thisrow[col]
+                        output_dict[col] = thisrow[col]
 
-                output_series['TotalTileEnergy'] = 0.
-                output_series['TotalSiPMEnergy'] = 0.
-                output_series['NumTileChannelsHit'] = 0
-                output_series['NumXTileChannelsHit'] = 0
-                output_series['NumYTileChannelsHit'] = 0
-                output_series['NumSiPMChannelsHit'] = 0
-                output_series['TimeOfMaxChannel'] = 0
+                output_dict['TotalTileEnergy'] = 0.
+                output_dict['TotalSiPMEnergy'] = 0.
+                output_dict['NumTileChannelsHit'] = 0
+                output_dict['NumXTileChannelsHit'] = 0
+                output_dict['NumYTileChannelsHit'] = 0
+                output_dict['NumSiPMChannelsHit'] = 0
+                output_dict['TimeOfMaxChannel'] = 0
                 
                 max_channel_val = 0.
                 sig_array  = SignalArray.SignalArray()
@@ -131,17 +133,17 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                 print('Null waveform found in channel {}, event {} skipped'.format(ch_num,event_counter))
                                 key_buffer = output_list[index-1].keys() # Grab keys from previous event
                                 for key_buf in key_buffer:
-                                        output_series[key_buf] = 0
+                                        output_dict[key_buf] = 0
                                 skip = True
                                 continue
                         for key in w.analysis_quantities.keys():
-                                output_series['{} {} {}'.format(\
+                                output_dict['{} {} {}'.format(\
                                                                 analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ),\
                                                                 analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ),\
                                                                 key)] = w.analysis_quantities[key]
                         if 'TileStrip' in analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ):
                                 if w.analysis_quantities['Charge Energy'] > 5. * w.analysis_quantities['Baseline RMS']:
-                                        output_series['NumTileChannelsHit'] += 1
+                                        output_dict['NumTileChannelsHit'] += 1
                                         ch_pos = analysis_config.GetChannelPos(software_ch_num)
                                         
                                         signal = Signal.Signal(w.analysis_quantities['Charge Energy'], \
@@ -153,56 +155,58 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                         sig_array.AddSignal(signal)
 
                                         if 'X' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ):
-                                                output_series['NumXTileChannelsHit'] += 1
+                                                output_dict['NumXTileChannelsHit'] += 1
                                         if 'Y' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ):
-                                                output_series['NumYTileChannelsHit'] += 1
-                                        output_series['TotalTileEnergy'] += w.analysis_quantities['Charge Energy']
+                                                output_dict['NumYTileChannelsHit'] += 1
+                                        output_dict['TotalTileEnergy'] += w.analysis_quantities['Charge Energy']
                                         if w.analysis_quantities['Charge Energy']**2 > max_channel_val**2:
                                                 max_channel_val = w.analysis_quantities['Charge Energy']
-                                                output_series['TimeOfMaxChannel'] = w.analysis_quantities['T90']
+                                                output_dict['TimeOfMaxChannel'] = w.analysis_quantities['T90']
                         if 'SiPM' in analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ):
                                 if w.analysis_quantities['Pulse Area'] > 0.:
-                                        output_series['NumSiPMChannelsHit'] += 1
-                                        output_series['TotalSiPMEnergy'] += w.analysis_quantities['Pulse Area']
+                                        output_dict['NumSiPMChannelsHit'] += 1
+                                        output_dict['TotalSiPMEnergy'] += w.analysis_quantities['Pulse Area']
                 
                 #First fill event level info
-                output_series['WeightedPosX']     = sig_array.GetPos1D('X')
-                output_series['WeightedPosY']     = sig_array.GetPos1D('Y')
-                output_series['WeightedDriftTime']= sig_array.GetTime()
-                output_series['WeightedPosZ']     = sig_array.GetTime()*analysis_config.GetDriftVelocity()
+                output_dict['WeightedPosX']     = sig_array.GetPos1D('X')
+                output_dict['WeightedPosY']     = sig_array.GetPos1D('Y')
+                output_dict['WeightedDriftTime']= sig_array.GetTime()
+                output_dict['WeightedPosZ']     = sig_array.GetTime()*analysis_config.GetDriftVelocity()
 
-                output_series['Weighted Event Size Z'] = sig_array.GetTimeRMS()*analysis_config.GetDriftVelocity()
-                output_series['Weighted Event Size X'] = sig_array.GetPosRMS('X')
-                output_series['Weighted Event Size Y'] = sig_array.GetPosRMS('Y')
+                output_dict['Weighted Event Size Z'] = sig_array.GetTimeRMS()*analysis_config.GetDriftVelocity()
+                output_dict['Weighted Event Size X'] = sig_array.GetPosRMS('X')
+                output_dict['Weighted Event Size Y'] = sig_array.GetPosRMS('Y')
 
                 #Now cluster the signals and save number of clusters
                 cluster=Clustering.Clustering(sig_array)
                 cluster.Cluster()
-                output_series['NumberOfClusters'] = cluster.GetNumClusters()
-                output_series['IsFull3D']         = cluster.Is3DEvent()
-                output_series['Number3DClusters'] = cluster.GetNumber3D()
+                output_dict['NumberOfClusters'] = cluster.GetNumClusters()
+                output_dict['IsFull3D']         = cluster.Is3DEvent()
+                output_dict['Number3DClusters'] = cluster.GetNumber3D()
 
-                output_series['Cluster Energies'] = [c.GetEnergy() for c in cluster.clusters]
-                output_series['Cluster X-Pos'] = [c.GetPos1D('X') for c in cluster.clusters]
-                output_series['Cluster Y-Pos'] = [c.GetPos1D('Y') for c in cluster.clusters]
-                output_series['Cluster Drift Time'] = [c.GetTime() for c in cluster.clusters]
-                output_series['Cluster Z-Pos'] = [c.GetTime()*analysis_config.GetDriftVelocity() for c in cluster.clusters]
+                output_dict['Cluster Energies'] = [c.GetEnergy() for c in cluster.clusters]
+                output_dict['Cluster X-Pos'] = [c.GetPos1D('X') for c in cluster.clusters]
+                output_dict['Cluster Y-Pos'] = [c.GetPos1D('Y') for c in cluster.clusters]
+                output_dict['Cluster Drift Time'] = [c.GetTime() for c in cluster.clusters]
+                output_dict['Cluster Z-Pos'] = [c.GetTime()*analysis_config.GetDriftVelocity() for c in cluster.clusters]
                 
         
-                #print("E1: %.2f, E2: %.2f, X: %.2f, Y: %.2f, N: %i, N3D: %i, Is3D:%i"%(output_series['TotalTileEnergy'],
+                #print("E1: %.2f, E2: %.2f, X: %.2f, Y: %.2f, N: %i, N3D: %i, Is3D:%i"%(output_dict['TotalTileEnergy'],
                 #                                 sig_array.GetEnergy(),
-                #                                 output_series['WeightedPosX'], 
-                #                                 output_series['WeightedPosY'], 
-                #                                 output_series['NumberOfClusters'],
-                #                                 output_series['Number3DClusters'],
-                #                                 output_series['IsFull3D']))
+                #                                 output_dict['WeightedPosX'], 
+                #                                 output_dict['WeightedPosY'], 
+                #                                 output_dict['NumberOfClusters'],
+                #                                 output_dict['Number3DClusters'],
+                #                                 output_dict['IsFull3D']))
 
                 # Append this event to the output dataframe
-                output_series['File'] = filetitle
-                output_series['Event'] = event_counter
-                output_list.append(output_series)
+                output_dict['File'] = filetitle
+                output_dict['Event'] = event_counter
+                output_list.append(output_dict)
                 event_counter += 1
-        output_df = pd.concat( output_list, axis=0, ignore_index=True, sort=False )
+                #print(output_list)
+        #output_df = pd.concat( output_list, axis=1, ignore_index=True, sort=False )
+        output_df = pd.DataFrame( output_list )
         return output_df
 
 

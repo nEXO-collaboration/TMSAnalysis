@@ -1,5 +1,7 @@
 from TMSAnalysis.ParseStruck import NGMRootFile
 from TMSAnalysis.ParseSimulation import NEXOOfflineFile
+from TMSAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
+
 import sys
 import os
 
@@ -33,9 +35,14 @@ for component in path_components[:-1]:
 IS_SIMULATION = True
 
 if IS_SIMULATION:
+	config_dir = '/g/g20/lenardo1/software/TMSAnalysis/config/'
+	analysis_config = StruckAnalysisConfiguration.StruckAnalysisConfiguration()
+	analysis_config.GetRunParametersFromFile( config_dir +  'Run_Parameters_Xe_Run29_SimCompatible.csv' )
+	analysis_config.GetCalibrationConstantsFromFile( config_dir + 'Calibrations_Xe_Run11b.csv' )
+	analysis_config.GetChannelMapFromFile( config_dir + 'Channel_Map_Xe_Run29_MCIncluded.csv' )
 	infile = NEXOOfflineFile.NEXOOfflineFile( input_filename = input_file,\
 						output_directory = output_dir,\
-						channel_map_file = true_path + '../config/Channel_Map_Xe_Run29_MCIncluded.csv',\
+						config = analysis_config,\
 						add_noise=False)
 else:
 	infile = NGMRootFile.NGMRootFile( input_filename = input_file,\

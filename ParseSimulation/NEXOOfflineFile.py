@@ -28,6 +28,10 @@ class NEXOOfflineFile:
             # get the right pre-trigger and waveform lengths.
             self.wfm_sampling_ratio = self.analysis_config.run_parameters['Sampling Rate [MHz]']\
                                        / self.analysis_config.run_parameters['Simulation Sampling Rate [MHz]']
+            if self.wfm_sampling_ratio % 1 != 0:
+                 print('WARNING! The data and simulation sampling rates are not exact multiples.\n'+\
+                       '         This may cause issues, specifically with adding noise to the\n'+\
+                       '         simulated waveforms.')
             self.sim_wfm_length = int( self.analysis_config.run_parameters['Waveform Length [samples]']\
                                        / self.wfm_sampling_ratio )
             self.sim_pretrigger_length = int( self.analysis_config.run_parameters['Pretrigger Length [samples]']\
@@ -42,6 +46,7 @@ class NEXOOfflineFile:
            
             if input_filename is not None:
                self.LoadRootFile( input_filename )
+
             if config is not None:
                self.channel_map = config.channel_map
             else:
@@ -49,18 +54,62 @@ class NEXOOfflineFile:
                self.channel_map = pd.read_csv( package_directory + \
                                                '/channel_map_8ns_sampling.txt',\
                                                skiprows=9 )
-
+            # Setting up the noise library
+            self.current_noise_file = None
             if add_noise:
-               self.add_noise = True
-               if noise_lib_directory is None:
-                   print('\nERROR: add_noise is set to True, but no noise library is given.')
-                   print('Data reduction will proceed, but waveforms will be generated with no noise.')
-                   self.add_noise = False
+               self.SetUpNoiseLib( noise_lib_directory )
             else:
                self.add_noise = False
 
+
             self.h5_file = None
 
+        ####################################################################
+        def SetUpNoiseLib( self, noise_lib_directory ):
+           if noise_lib_directory is None:
+              print('\n')
+              print('ERROR: add_noise is set to True, but no noise library is given.')
+              print('Data reduction will proceed, but waveforms will be generated with no noise.')
+              self.add_noise = False
+           else:
+              self.add_noise = True
+              self.noise_file_event_counter = 0
+              self.global_noise_file_counter = 0
+              self.noise_lib_directory = noise_lib_directory
+              self.noise_library_files = [noisefile for noisefile in os.listdir(noise_lib_directory)\
+                                             if (noisefile.endswith('.h5') and 'noise' in noisefile)]
+              if len(self.noise_library_files) == 0:
+                   print('ERROR: No noise files in the noise library directory!')
+                   print('Data reduction will proceed, but waveforms will be generated with no noise.')
+                   self.add_noise = False
+              else:
+                   print('Noise library files (located at {}):'.format(self.noise_lib_directory))
+                   for filename in self.noise_library_files:
+                       print('\t{}'.format(filename))
+                   self.OpenNoiseFile()
+        
+        ####################################################################
+        def OpenNoiseFile( self ):
+            if self.global_noise_file_counter < len(self.noise_library_files):
+                  self.current_noise_file = pd.read_hdf( self.noise_lib_directory +\
+                                                         '/' + \
+                                                         self.noise_library_files[ self.global_noise_file_counter ] )
+                  self.global_noise_file_counter += 1
+                  self.noise_file_event_counter = 0
+                  self.num_noise_evts_in_file = len(self.current_noise_file)
+            else:
+                  print('WARNING: All noise events have been used already.\n'+\
+                        '         Restarting from the beginning of the library....')
+                  self.global_noise_file_counter = 0
+                  self.OpenNoiseFile()
+ 
+        ####################################################################
+        def GetNoiseEvent( self ):
+            if self.noise_file_event_counter == self.num_noise_evts_in_file:
+               self.OpenNoiseFile()
+            this_evt = self.current_noise_file.iloc[ self.noise_file_event_counter ]
+            self.noise_file_event_counter += 1
+            return this_evt
 
         ####################################################################
         def LoadRootFile( self, filename ):
@@ -159,6 +208,9 @@ class NEXOOfflineFile:
             channel_types = []
             channel_positions = []
 
+            if self.add_noise:
+               noise_waveforms = self.GetNoiseEvent()
+
             for index,row in self.channel_map.iterrows():
 
                 channel_ids.append( row['SoftwareChannel'] )
@@ -194,8 +246,16 @@ class NEXOOfflineFile:
 
                 summed_wfm = full_wfm
 
-                if self.add_noise:
-                    pointless_variable = 1 # Under construction
+                if self.add_noise and 'TileStrip' in row['ChannelType']:
+                   # Downsample the noise wfm by the sampling rate ratio between sim and data    
+                   downsampled_noise_wfm = noise_waveforms[ row['ChannelName'] ][::int(self.wfm_sampling_ratio)]
+                   if len(downsampled_noise_wfm) >= len(summed_wfm):
+                      summed_wfm = summed_wfm + downsampled_noise_wfm[0:len(summed_wfm)]
+                   else:
+                      print('WARNING! The noise waveform (length {}) is not long enough\n'.format(len(downsampled_noise_wfm))+\
+                            '         to cover the entire simulated waveform (length {}).'.format(len(summed_wfm)))
+                      summed_wfm[0:len(downsampled_noise_wfm)] = summed_wfm[0:len(downsampled_noise_wfm)] +\
+                                                                 downsampled_noise_wfm
 
                 channel_waveforms.append( summed_wfm )
 

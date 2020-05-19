@@ -43,7 +43,7 @@ if IS_SIMULATION:
 	infile = NEXOOfflineFile.NEXOOfflineFile( input_filename = input_file,\
 						output_directory = output_dir,\
 						config = analysis_config,\
-						add_noise=False)
+						add_noise=True,noise_lib_directory='/usr/workspace/nexo/jacopod/noise/')
 else:
 	infile = NGMRootFile.NGMRootFile( input_filename = input_file,\
 				output_directory = output_dir,\

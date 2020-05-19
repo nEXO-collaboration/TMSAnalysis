@@ -1,7 +1,7 @@
 Parameter,Value
 Sampling Rate [MHz],62.5
 Simulation Sampling Rate [MHz],7.8125
-Electrons/ADC [electrons],15
+Electrons/ADC [electrons],11.9
 Drift Length [mm],140
 Drift Velocity [mm/us],1.79
 Num Struck Boards,2

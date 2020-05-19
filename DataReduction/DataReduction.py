@@ -55,23 +55,24 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                 print('\n{} active channels.'.format(len(input_file.channel_map))) 
                 n_entries = input_file.GetTotalEntries()
                 n_channels = analysis_config.GetNumberOfChannels()
-                n_events = n_entries/n_channels
-                if num_events < n_events: n_events = num_events
-                n_ev = 0
-                while n_ev<n_events:
-                        print('\tProcessing event {} at {:4.4}s...'.format(n_ev,time.time()-start_time))
-                        if (n_ev+20)*n_channels < n_entries:
-                             start_stop = [n_ev*n_channels,(n_ev+20)*n_channels]
-                        else:
-                             start_stop = [n_ev*n_channels,(n_events-1)*n_channels]
+                n_events_in_file = n_entries if is_simulation else n_entries/n_channels
+                n_events_to_process = num_events if (num_events < n_events_in_file) else n_events_in_file
+                n_events_processed = 0
+                while n_events_processed < n_events_to_process:
+                        print('\tProcessing event {} at {:4.4}s...'.format(n_events_processed,time.time()-start_time))
+                        start_stop = [n_events_processed,(n_events_processed+20)] if (n_events_processed+20 < n_events_to_process)\
+                                else [n_events_processed,(n_events_to_process-1)]
+                        if not is_simulation:
+                             start_stop[0] = start_stop[0]*n_channels
+                             start_stop[1] = start_stop[1]*n_channels
 
                         input_df = input_file.GroupEventsAndWriteToHDF5(save = False, start_stop=start_stop)  
                         
-                        reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_ev,\
+                        reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_events_processed,\
                                                 input_baseline, input_baseline_rms, fixed_trigger, fit_pulse_flag, num_events=-1)
 
                         output_df_list.append(reduced_df)
-                        n_ev += 20
+                        n_events_processed += 20
 
         output_df = pd.concat( output_df_list, axis=0, ignore_index=True, sort=False )
         output_df.to_hdf(output_dir + outputfile, key='df')     
@@ -89,7 +90,10 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
         output_columns = [col for col in input_columns if (col!='Data') and (col!='Channels')]
         sampling_period_ns = 1./(analysis_config.run_parameters['Sampling Rate [MHz]']/1.e3)
         key_buffer = None
+        counter  = 0
         for index, thisrow in input_df.iterrows():
+                print('INDEX: {}, counter: {}'.format(index,counter))
+                counter += 1 
                 skip = False
                 if (event_counter > num_events) and (num_events > 0):
                         break

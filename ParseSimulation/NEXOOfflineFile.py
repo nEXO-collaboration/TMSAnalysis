@@ -97,13 +97,15 @@ class NEXOOfflineFile:
             
             # loop over events in the ElecEvent tree
             print('Beginning data loop.')
+            counter = 0
             for data in self.intree.iterate(['fElecChannels.fWFAmplitude',\
                                              'fElecChannels.fChannelLocalId'],\
                                             namedecode='utf-8',\
                                             entrysteps=1,\
                                             entrystart=self.start_stop[0],\
                                             entrystop=self.start_stop[1]):
-                print('In data loop')
+                print('Event {}'.format(counter))
+                counter += 1
                 if nevents > 0:
                    if global_evt_counter > nevents:
                       break
@@ -170,27 +172,26 @@ class NEXOOfflineFile:
                 except ValueError:
                    mc_channels_in_data_channel = None
 
-                if mc_channels_in_data_channel is None:
-                   summed_wfm = np.zeros( len(data_series['fElecChannels.fWFAmplitude'][0][0]) )
+                if mc_channels_in_data_channel is None or len(data_series['fElecChannels.fWFAmplitude'][0]) == 0:
+                   summed_wfm = np.zeros( 10 )
                 else:
                    channels_mask = np.array( [True if int(channel) in mc_channels_in_data_channel else False\
                                                 for channel in data_series['fElecChannels.fChannelLocalId'][0] ] )
-                
                    summed_wfm = np.sum( np.array(data_series['fElecChannels.fWFAmplitude'][0])[channels_mask], axis=0 )
-                   summed_wfm = summed_wfm * 9. # This scales the waveform to units of electrons. 
-                   summed_wfm = summed_wfm / self.analysis_config.run_parameters['Electrons/ADC [electrons]']
-                   if len(summed_wfm) > self.sim_wfm_length - self.sim_pretrigger_length:
-                      summed_wfm = summed_wfm[0:(self.sim_wfm_length - self.sim_pretrigger_length)]
-                   # The blank wfm allows us to add the pre-trigger time to the simulated waveform.
-                   blank_wfm = np.zeros(self.sim_wfm_length)
-                   blank_wfm[ self.sim_pretrigger_length : self.sim_pretrigger_length+len(summed_wfm) ] = summed_wfm 
-                   if self.sim_pretrigger_length+len(summed_wfm) < self.sim_wfm_length:
-                           wfm_end_length = len( blank_wfm[self.sim_pretrigger_length+len(summed_wfm):] )
-                           blank_wfm[ self.sim_pretrigger_length+len(summed_wfm): ] = np.ones(wfm_end_length)*summed_wfm[-1]
-                   summed_wfm = blank_wfm
+                summed_wfm = np.array(summed_wfm) * 9. # This scales the waveform to units of electrons. 
+                summed_wfm = summed_wfm / self.analysis_config.run_parameters['Electrons/ADC [electrons]']
+                if len(summed_wfm) > self.sim_wfm_length - self.sim_pretrigger_length:
+                   summed_wfm = summed_wfm[0:(self.sim_wfm_length - self.sim_pretrigger_length)]
+                # The blank wfm allows us to add the pre-trigger time to the simulated waveform.
+                blank_wfm = np.zeros(self.sim_wfm_length)
+                blank_wfm[ self.sim_pretrigger_length : self.sim_pretrigger_length+len(summed_wfm) ] = summed_wfm 
+                if self.sim_pretrigger_length+len(summed_wfm) < self.sim_wfm_length:
+                        wfm_end_length = len( blank_wfm[self.sim_pretrigger_length+len(summed_wfm):] )
+                        blank_wfm[ self.sim_pretrigger_length+len(summed_wfm): ] = np.ones(wfm_end_length)*summed_wfm[-1]
+                summed_wfm = blank_wfm
 
-                   if self.add_noise:
-                      pointless_variable = 1 # Under construction
+                if self.add_noise:
+                    pointless_variable = 1 # Under construction
 
                 channel_waveforms.append( summed_wfm )
 

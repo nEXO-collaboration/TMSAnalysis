@@ -248,9 +248,11 @@ class NEXOOfflineFile:
 
                 if self.add_noise and 'TileStrip' in row['ChannelType']:
                    # Downsample the noise wfm by the sampling rate ratio between sim and data    
-                   downsampled_noise_wfm = noise_waveforms[ row['ChannelName'] ][::int(self.wfm_sampling_ratio)]
+                   downsampled_noise_wfm = noise_waveforms[ row['ChannelName'] ][::int(self.wfm_sampling_ratio)] 
                    if len(downsampled_noise_wfm) >= len(summed_wfm):
-                      summed_wfm = summed_wfm + downsampled_noise_wfm[0:len(summed_wfm)]
+                      summed_wfm = summed_wfm + \
+                                   ( downsampled_noise_wfm[0:len(summed_wfm)] * \
+                                     self.analysis_config.calibration_constants['Calibration'].loc[ row['ChannelName'] ] )
                    else:
                       print('WARNING! The noise waveform (length {}) is not long enough\n'.format(len(downsampled_noise_wfm))+\
                             '         to cover the entire simulated waveform (length {}).'.format(len(summed_wfm)))

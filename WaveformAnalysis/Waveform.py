@@ -235,15 +235,13 @@ class Waveform:
 				if self.store_processed_wfm:
 					self.processed_wfm = corrected_wfm
 				charge_energy = np.mean( corrected_wfm[-int(5000./self.sampling_period_ns):] )
-					# ^Charge energy calculated from the last 5us of the smoothed, corrected wfm
+				# ^Charge energy calculated from the last 5us of the smoothed, corrected wfm
 				t10 = -1.
 				t25 = -1.
 				t50 = -1.
 				t90 = -1.
 				drift_time = -1.
-				if False: #charge_energy < 5.*baseline_rms:
-					charge_energy = 0. # if it's not above 5-sigma threshold, set energy to 0
-				else:
+				if charge_energy > 3.*baseline_rms: # Compute timing/position if charge energy is positive and above noise.
 					t10 = float( np.where( corrected_wfm > 0.1*charge_energy)[0][0] )
 					t25 = float( np.where( corrected_wfm > 0.25*charge_energy)[0][0] )
 					t50 = float( np.where( corrected_wfm > 0.5*charge_energy)[0][0] )
@@ -323,7 +321,7 @@ class Waveform:
 
 	#######################################################################################
 	def GetPulseAreaAndTimingParameters( self, dat_array ):
-		if len(dat_array) == 0: return 0, 0, 0, 0
+		if len(dat_array) == 0: return 0, 0, 0, 0, 0, 0, 0
 		cumul_pulse = np.cumsum( dat_array * self.polarity )
 		area_window_length = int(800./self.sampling_period_ns) # average over 800ns
 		pulse_area = np.mean(cumul_pulse[-area_window_length:])
@@ -348,7 +346,13 @@ class Waveform:
 		except IndexError:
 			t90 = 1
 		pulse_height = self.polarity * np.max( np.abs(dat_array) )
-
+#		print('Pulse area: {}'.format(pulse_area))
+#		print('pulse height: {}'.format(pulse_height))
+#		print('T5: {}'.format(t5))
+#		print('T10: {}'.format(t10))
+#		print('T20: {}'.format(t20))
+#		print('T80: {}'.format(t80))
+#		print('T90: {}'.format(t90))
 		return pulse_area, pulse_height, t5, t10, t20, t80, t90
 
 

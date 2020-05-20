@@ -17,7 +17,7 @@ import sys
 class NGMRootFile:
 
         ####################################################################
-	def __init__( self, input_filename=None, output_directory=None, channel_map_file=None, start_stop = [None, None]):
+	def __init__( self, input_filename=None, output_directory=None, config=None, start_stop = [None, None]):
 		print('NGMFile object constructed.')
 
 		self.start_stop = start_stop
@@ -29,8 +29,8 @@ class NGMRootFile:
 
 		if input_filename is not None:
 			self.LoadRootFile( input_filename )
-		if channel_map_file is not None:
-			self.channel_map = pd.read_csv(channel_map_file)
+		if config is not None:
+			self.channel_map = config.channel_map
 		else:
 			print('WARNING: No channel map file provided. Using the default one...')
 			self.channel_map = pd.read_csv(package_directory + '/channel_map_8ns_sampling.txt',skiprows=9)
@@ -51,17 +51,17 @@ class NGMRootFile:
 		
 
         ####################################################################
-	def GroupEventsAndWriteToHDF5( self, nevents = -1, save = True):
+	def GroupEventsAndWriteToHDF5( self, nevents = -1, save = True, start_stop = None ):
 		
 		try:
 			self.infile
 		except NameError:
 			self.LoadFile()
-	
+
+		if start_stop is not None:
+			self.start_stop = start_stop	
+
 		start_time = time.time()		
-		self.current_evt = pd.Series()
-		self.outputdf = pd.DataFrame(columns=['Timestamp','Channels','Data'])
-		this_event_timestamp = -1
 		file_counter = 0
 		global_evt_counter = 0
 		local_evt_counter = 0
@@ -77,10 +77,11 @@ class NGMRootFile:
 			if nevents > 0:
 				if global_evt_counter > nevents:
 					break
-			# If the timestamp has changed (and it's not the first line), write the output
-			# to the output dataframe.
+
 			data_series = pd.Series(data)
 			channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data['_slot'],data['_channel'])
+                         
+                        # Remove 'Off' channels from the data stream
 			for column in data_series.items():
 				data_series[ column[0] ] = np.array(data_series[column[0]][channel_mask])
 			output_series = pd.Series()

@@ -45,7 +45,7 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                    input_file = NEXOOfflineFile.NEXOOfflineFile( input_filename = filename,\
                                                   output_directory = output_dir,\
                                                   config = analysis_config,\
-                                                  add_noise = False)
+                                                  add_noise = True, noise_lib_directory='/usr/workspace/nexo/jacopod/noise/')
                 else:
                    input_file = NGMRootFile.NGMRootFile( input_filename = filename,\
                                                   output_directory = output_dir,\

@@ -19,7 +19,7 @@ class NEXOOfflineFile:
         ####################################################################
         def __init__( self, input_filename=None, output_directory=None,\
                       config=None, start_stop = [None, None],\
-                      add_noise=True, noise_lib_directory=None):
+                      add_noise=True, noise_lib_directory=None, verbose=False):
 
             self.start_stop = start_stop
             self.analysis_config = config
@@ -36,7 +36,7 @@ class NEXOOfflineFile:
                                        / self.wfm_sampling_ratio )
             self.sim_pretrigger_length = int( self.analysis_config.run_parameters['Pretrigger Length [samples]']\
                                               / self.wfm_sampling_ratio )
-
+            self.verbose = verbose
 
             package_directory = os.path.dirname(os.path.abspath(__file__))
             if output_directory is None:
@@ -83,11 +83,12 @@ class NEXOOfflineFile:
                    print('Data reduction will proceed, but waveforms will be generated with no noise.')
                    self.add_noise = False
               else:
-                   print('Noise library files (located at {}):'.format(self.noise_lib_directory))
-                   for filename in self.noise_library_files:
-                       print('\t{}'.format(filename))
-                   self.OpenNoiseFile()
-        
+                  if self.verbose:
+                      print('Noise library files (located at {}):'.format(self.noise_lib_directory))
+                      for filename in self.noise_library_files:
+                          print('\t{}'.format(filename))
+                  self.OpenNoiseFile()
+ 
         ####################################################################
         def OpenNoiseFile( self ):
             if self.global_noise_file_counter < len(self.noise_library_files):
@@ -115,7 +116,8 @@ class NEXOOfflineFile:
         def LoadRootFile( self, filename ):
             self.infile = up.open(filename)
             self.filename = filename
-            print('Input file: {}'.format(filename))
+            if self.verbose:
+                print('Input file: {}'.format(filename))
             try: 
                self.intree = self.infile['Event/Elec/ElecEvent']
             except ValueError as e:
@@ -145,7 +147,8 @@ class NEXOOfflineFile:
                                        'ChannelPositions'])
             
             # loop over events in the ElecEvent tree
-            print('Beginning data loop.')
+            if self.verbose:
+                print('Beginning data loop.')
             counter = 0
             for data in self.intree.iterate(['fElecChannels.fWFAmplitude',\
                                              'fElecChannels.fChannelLocalId'],\

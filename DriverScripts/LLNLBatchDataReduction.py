@@ -20,11 +20,13 @@ path_to_tier1 	= sys.argv[1]
 path_to_reduced = sys.argv[2]
 path_to_config 	= sys.argv[3]
 
-
 if not os.path.isdir(path_to_tier1):
    print(path_to_tier1)
    print('Not a directory! Skipping...')
    exit()
+
+if path_to_tier1[-1] != '/':
+	path_to_tier1 += '/'
 
 if path_to_reduced[-1] != '/':
 	path_to_reduced += '/'
@@ -34,7 +36,7 @@ if not os.path.exists(path_to_reduced):
 	os.makedirs(path_to_reduced)
 
 
-flist = glob.glob('{}tier1*.root'.format(path_to_tier1))
+flist = glob.glob('{}*.root'.format(path_to_tier1))
 
 for i,fname in enumerate(flist):
 	fname_stripped = (fname.split('/')[-1]).split('.')[0]
@@ -44,7 +46,10 @@ for i,fname in enumerate(flist):
 		continue
 	activate_venv = 'source $HOME/uproot/bin/activate && source $HOME/software/TMSAnalysis/setup.sh'
 	cmd_options = '--export=ALL -p pbatch  -t 02:00:00 -n 1 -J {} -o {}{}.out'.format(i,path_to_reduced,fname_stripped)
-	exe = 'python $HOME/software/TMSAnalysis/scripts/reduce_data.py {} {} {}'.format(fname,path_to_reduced,path_to_config)
+	exe = 'python $HOME/software/TMSAnalysis/DriverScripts/reduce_data.py {} {} {}'.format(fname,path_to_reduced,path_to_config)
 	cmd_full = '{} && sbatch {} --wrap=\'{}\''.format(activate_venv,cmd_options,exe)
 	os.system(cmd_full)
 	print('job {} sumbitted'.format(i))
+
+
+#sbatch --export=ALL -p pbatch  -t 8-02:00:00 -n 1 --wrap='python'

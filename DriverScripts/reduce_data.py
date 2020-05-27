@@ -1,7 +1,7 @@
 from TMSAnalysis.DataReduction import DataReduction
+import argparse
 import sys
 import os
-import argparse
 
 ###############################################################################
 # Check arguments and load inputs
@@ -58,4 +58,4 @@ DataReduction.ReduceFile( this_file, output_dir,\
 				config_dir + '/Channel_Map_Xe_Run29_MCIncluded.csv',\
 				input_baseline=-1,input_baseline_rms=-1,\
 				fixed_trigger=True,fit_pulse_flag=False,\
-                                num_events=-1,is_simulation=True)
+                                num_events=-1,is_simulation=False)

@@ -14,11 +14,23 @@
 
 
 
-import os, sys, time, glob
+import argparse, os, sys, time, glob
 
-path_to_tier1 	= sys.argv[1]
-path_to_reduced = sys.argv[2]
-path_to_config 	= sys.argv[3]
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('inputfile', type=str, help='path + name of input file')
+parser.add_argument('outputdir', type=str, help='location to put output files')
+parser.add_argument('configdir', type=str, help='location where config files are stored. '+\
+                                                'Note that this must include three config files:\n'+\
+                                                ' Run_Parameters,\n'+\
+                                                ' Calibrations, and\n'+\
+                                                ' Channel_Map')
+parser.add_argument('--sim', help='Simulation flag', action='store_true')
+args = parser.parse_args()
+path_to_tier1   = args.inputfile
+path_to_reduced = args.outputdir
+path_to_config = args.configdir
 
 if not os.path.isdir(path_to_tier1):
    print(path_to_tier1)
@@ -47,9 +59,8 @@ for i,fname in enumerate(flist):
 	activate_venv = 'source $HOME/uproot/bin/activate && source $HOME/software/TMSAnalysis/setup.sh'
 	cmd_options = '--export=ALL -p pbatch  -t 02:00:00 -n 1 -J {} -o {}{}.out'.format(i,path_to_reduced,fname_stripped)
 	exe = 'python $HOME/software/TMSAnalysis/DriverScripts/reduce_data.py {} {} {}'.format(fname,path_to_reduced,path_to_config)
+	if args.sim:
+		exe += ' --sim'
 	cmd_full = '{} && sbatch {} --wrap=\'{}\''.format(activate_venv,cmd_options,exe)
 	os.system(cmd_full)
 	print('job {} sumbitted'.format(i))
-
-
-#sbatch --export=ALL -p pbatch  -t 8-02:00:00 -n 1 --wrap='python'

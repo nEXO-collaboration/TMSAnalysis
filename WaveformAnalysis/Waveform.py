@@ -397,6 +397,11 @@ class Waveform:
 				     (self.analysis_quantities['Charge Energy']+\
 					3*self.analysis_quantities['Baseline RMS']))[0]
 		buffer_array[above_rms] = 1
+
+		if len(self.data)%induction_window_sample != 0:
+			padding_number = induction_window_sample - len(self.data)%induction_window_sample
+			buffer_array = np.pad(buffer_array,(0,padding_number),'constant', constant_values=0)
+
 		tag = np.sum(buffer_array.reshape(-1,induction_window_sample),axis=1)
 		induction_tag = np.where(tag>0.8*induction_window_sample)[0]
 

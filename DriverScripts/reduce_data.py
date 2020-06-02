@@ -18,7 +18,8 @@ args = parser.parse_args()
 this_file  = args.inputfile
 output_dir = args.outputdir
 config_dir = args.configdir
-
+input_foldername = os.path.dirname(this_file)
+channel_status_file = input_foldername + '/channel_status.p'
 
 #if all((this_file,output_dir,config_dir)):
 if output_dir[-1] != '/':
@@ -31,6 +32,8 @@ if not os.path.exists(output_dir):
 	print('No output directory found - Creating a new one')
 	os.makedirs(output_dir)
 
+if args.sim and not os.path.exists(channel_status_file):
+	sys.exit('No channel status map found for this simulation.\nPlease make one by running status_channel_sim.py')
 #else:
 #	print('\n\nERROR: reduce_data.py requires 3 arguments\n')
 #	print('Usage:')

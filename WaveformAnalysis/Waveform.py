@@ -556,10 +556,13 @@ class Simulated_Event:
 	def __init__( self, reduced, path_to_tier1, event_number,\
 			run_parameters_file,\
 			calibrations_file,\
-			channel_map_file):
+			channel_map_file,\
+			add_noise=True):
 
 		from TMSAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
 		from TMSAnalysis.ParseSimulation import NEXOOfflineFile
+		import pickle
+
 		try :
 			if path_to_tier1[-1] is not '/':
 				path_to_tier1 += '/'
@@ -593,10 +596,14 @@ class Simulated_Event:
 			path_to_file = reduced[:-len(fname)]
 			self.tot_charge_energy = 0.0
 
+		pickled_fname = path_to_file + 'channel_status.p'
+		global ch_status
+		with open(pickled_fname,'rb') as f:
+			ch_status = pickle.load(f)
 
 		input_file = NEXOOfflineFile.NEXOOfflineFile( input_filename = path_to_file+fname,\
 								config = analysis_config,\
-								add_noise = True,\
+								add_noise = add_noise,\
 								noise_lib_directory='/usr/workspace/nexo/jacopod/noise/')
 		input_df = input_file.GroupEventsAndWriteToHDF5(save = False, start_stop=[self.event_number,self.event_number+1])
 		#since the timestamps are not filled in the simulated data there is no real handle to cross-checked the event is actually the same
@@ -606,6 +613,11 @@ class Simulated_Event:
 		for i,ch_waveform in enumerate(waveform):
 			ch_type = analysis_config.GetChannelTypeForSoftwareChannel(i)
 			ch_name = analysis_config.GetChannelNameForSoftwareChannel(i)
+
+			if ch_name in ch_status.keys():
+				mean,sigma = ch_status[ch_name]
+				ch_waveform = np.random.normal(mean,sigma,len(ch_waveform))
+
 			self.waveform[ch_name] = Waveform(input_data = ch_waveform,\
 							detector_type       = ch_type,\
 							sampling_period_ns  = 1.e3/self.sampling_frequency,\

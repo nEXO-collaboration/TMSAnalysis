@@ -117,3 +117,15 @@ python /path/to/TMSAnalysis/DriverScripts/add_into_one_df.py </path/to/output_re
 ```
 This will write a file called `/path/to/output_reduced_directory/reduced_added.h5`. Having all the data into one dataframe should be faster to load
 than dynamically load the different reduced files, in case an analysis of the entire run is required.
+
+## Simulated File
+It's possible to produce the reduced files also from tier1 simulated files. The steps are the same, except three main points one needs to be aware of:
+* in the folder containing the raw simulated data (```</path/to/input/sim_tier1_directory/```), a file called ```channel_status.p``` needs to be present.
+This file contains a dict with a list of the channels not recording events (the elements are mean and RMS of the baseline). To produce this file refer to
+the header of ```/path/to/TMSAnalysis/DriverScripts/status_channel_sim.py```
+
+* the flag ```--sim``` need to be parsed. For example, to run ```LLNLBatchDataReduction.py```, this is the command:
+```
+python /path/to/TMSAnalysis/DriverScripts/LLNLBatchDataReduction.py </path/to/input/tier1_directory/> </path/to/output_reduced_directory/> </path/to/configuration/files/> --sim
+``` 
+* in case noise needs to be added, make sure that the flag ```add_noise``` in ```DataReduction.py``` is True with the associated noise library and False otherwise

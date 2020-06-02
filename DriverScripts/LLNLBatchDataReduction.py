@@ -1,16 +1,16 @@
 #!/usr/bin/python3
 
-#########################################################################################
-#											#
-#	This script submits job to LLNL batch system, once an in input			#
-#	folder is passed it scans for all the tier1 file there. After the		#
-#	uproot venv is activated, one job per tier1 file is submitted.			#
-#	The job option can be found and modified in the variable cmd_options.		#
-#											#
-#					Usage:						#
-#	python LLNLBatchDataReduction.py path_to_tier1 path_to_reduced path_to_config	#
-#											#
-#########################################################################################
+#################################################################################################
+#												#
+#	This script submits job to LLNL batch system, once an in input				#
+#	folder is passed it scans for all the tier1 file there. After the			#
+#	uproot venv is activated, one job per tier1 file is submitted.				#
+#	The job option can be found and modified in the variable cmd_options.			#
+#												#
+#					Usage:							#
+#	python LLNLBatchDataReduction.py path_to_tier1 path_to_reduced path_to_config (--sim)	#
+#												#
+#################################################################################################
 
 
 

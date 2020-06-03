@@ -605,6 +605,9 @@ class Simulated_Event:
 								config = analysis_config,\
 								add_noise = add_noise,\
 								noise_lib_directory='/usr/workspace/nexo/jacopod/noise/')
+		if path_to_tier1 is not None:
+			input_file.global_noise_file_counter = entry_from_reduced['NoiseIndex'].iloc[0][0]
+			input_file.noise_file_event_counter  = entry_from_reduced['NoiseIndex'].iloc[0][1]
 		input_df = input_file.GroupEventsAndWriteToHDF5(save = False, start_stop=[self.event_number,self.event_number+1])
 		#since the timestamps are not filled in the simulated data there is no real handle to cross-checked the event is actually the same
 

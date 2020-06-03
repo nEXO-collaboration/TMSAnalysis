@@ -1,16 +1,16 @@
 #########################################################################################
-#                                                                                       #
+#											#
 #       This script produces a pickled dict containing the status of the channels	#
 #       (mean and RMS of the baseline) for the simulation to be compared		#
 #	with a particular datatake. The first argument parsed is the data reduced	#
-#	file from where the status of the channels is pulled, while the second is the 	#
+#	file from where the status of the channels is pulled, while the second is the	#
 #	folder where the pickled file will be saved.					#
 #       In general the location for the pickled file is where the simulated raw data	#
 #       are located (sim tier1 folder).							#
 #											#
-#					Usage:                                          #
+#					Usage:						#
 #    python status_channel_sim.py path_to_reduced /path/to/input/sim_tier1_directory/	#
-#                                                                                       #
+#											#
 #########################################################################################
 
 

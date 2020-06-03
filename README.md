@@ -120,7 +120,7 @@ than dynamically load the different reduced files, in case an analysis of the en
 
 ## Simulated File
 It's possible to produce the reduced files also from tier1 simulated files. The steps are the same, except three main points one needs to be aware of:
-* in the folder containing the raw simulated data (```</path/to/input/sim_tier1_directory/```), a file called ```channel_status.p``` needs to be present.
+* in the folder containing the raw simulated data (```/path/to/input/sim_tier1_directory/```), a file called ```channel_status.p``` needs to be present.
 This file contains a dict with a list of the channels not recording events (the elements are mean and RMS of the baseline). To produce this file refer to
 the header of ```/path/to/TMSAnalysis/DriverScripts/status_channel_sim.py```
 

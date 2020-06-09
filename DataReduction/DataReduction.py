@@ -1,14 +1,13 @@
+from TMSAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
+from TMSAnalysis.WaveformAnalysis import Waveform
+import time, pickle, os
 import pandas as pd
 import numpy as np
-import time
-from TMSAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
-
-from TMSAnalysis.WaveformAnalysis import Waveform
 
 #Classes for the Clustering Stage
-from TMSAnalysis.Clustering import Signal
 from TMSAnalysis.Clustering import SignalArray
 from TMSAnalysis.Clustering import Clustering
+from TMSAnalysis.Clustering import Signal
 
 ##################################################################################################
 def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, channel_map_file, \
@@ -42,14 +41,22 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                 from TMSAnalysis.ParseSimulation import NEXOOfflineFile
 
                 if is_simulation:
+
+                   path = os.path.dirname(filename) 
+                   pickled_fname = path + '/channel_status.p'
+                   global ch_status
+
+                   with open(pickled_fname,'rb') as f:
+                        ch_status = pickle.load(f)
                    input_file = NEXOOfflineFile.NEXOOfflineFile( input_filename = filename,\
                                                   output_directory = output_dir,\
                                                   config = analysis_config,\
-                                                  add_noise = False)
+                                                  add_noise = True, noise_lib_directory='/usr/workspace/nexo/jacopod/noise/')
                 else:
                    input_file = NGMRootFile.NGMRootFile( input_filename = filename,\
                                                   output_directory = output_dir,\
                                                   config = analysis_config)
+
                 print('Channel map loaded:') 
                 print(input_file.channel_map) 
                 print('\n{} active channels.'.format(len(input_file.channel_map))) 
@@ -58,15 +65,17 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                 n_events_in_file = n_entries if is_simulation else n_entries/n_channels
                 n_events_to_process = num_events if (num_events < n_events_in_file and num_events>0) else n_events_in_file
                 n_events_processed = 0
+
                 while n_events_processed < n_events_to_process:
                         print('\tProcessing event {} at {:4.4}s...'.format(n_events_processed,time.time()-start_time))
                         start_stop = [n_events_processed,(n_events_processed+20)] if (n_events_processed+20 < n_events_to_process)\
                                 else [n_events_processed,n_events_to_process]
+
                         if not is_simulation:
                              start_stop[0] = start_stop[0]*n_channels
                              start_stop[1] = start_stop[1]*n_channels
 
-                        input_df = input_file.GroupEventsAndWriteToHDF5(save = False, start_stop=start_stop)  
+                        input_df = input_file.GroupEventsAndWriteToHDF5(save = False, start_stop=start_stop)
                         reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_events_processed,\
                                                 input_baseline, input_baseline_rms, fixed_trigger,\
                                                 fit_pulse_flag, is_simulation=is_simulation, num_events=-1)
@@ -132,7 +141,14 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                              decay_time_us = analysis_config.GetDecayTimeForSoftwareChannel( software_ch_num )
                              calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel( software_ch_num )
 
-                        w = Waveform.Waveform(input_data=thisrow['Data'][ch_num],\
+                        wfm_data = thisrow['Data'][ch_num]
+
+                        if analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ) in ch_status.keys() and is_simulation:
+                             mean,sigma = ch_status[analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )]
+                             wfm_data = np.random.normal(mean,sigma,len(wfm_data))
+                            
+
+                        w = Waveform.Waveform(input_data=wfm_data,\
                                                 detector_type       = thisrow['ChannelTypes'][ch_num],\
                                                 sampling_period_ns  = sampling_period_ns,\
                                                 input_baseline      = input_baseline,\

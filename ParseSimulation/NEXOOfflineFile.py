@@ -9,7 +9,7 @@
 import pandas as pd
 import numpy as np
 import uproot as up
-import time
+import time, random
 import os
 import sys
 
@@ -19,10 +19,12 @@ class NEXOOfflineFile:
         ####################################################################
         def __init__( self, input_filename=None, output_directory=None,\
                       config=None, start_stop = [None, None],\
-                      add_noise=True, noise_lib_directory=None):
+                      add_noise=True, noise_lib_directory=None, verbose=False):
 
-            self.start_stop = start_stop
-            self.analysis_config = config
+            self.start_stop                = start_stop
+            self.analysis_config           = config
+            self.global_noise_file_counter = None
+            self.noise_file_event_counter  = None
 
             # Since the simulations have a longer sampling period, the following allows us to 
             # get the right pre-trigger and waveform lengths.
@@ -36,7 +38,7 @@ class NEXOOfflineFile:
                                        / self.wfm_sampling_ratio )
             self.sim_pretrigger_length = int( self.analysis_config.run_parameters['Pretrigger Length [samples]']\
                                               / self.wfm_sampling_ratio )
-
+            self.verbose = verbose
 
             package_directory = os.path.dirname(os.path.abspath(__file__))
             if output_directory is None:
@@ -73,8 +75,6 @@ class NEXOOfflineFile:
               self.add_noise = False
            else:
               self.add_noise = True
-              self.noise_file_event_counter = 0
-              self.global_noise_file_counter = 0
               self.noise_lib_directory = noise_lib_directory
               self.noise_library_files = [noisefile for noisefile in os.listdir(noise_lib_directory)\
                                              if (noisefile.endswith('.h5') and 'noise' in noisefile)]
@@ -83,39 +83,33 @@ class NEXOOfflineFile:
                    print('Data reduction will proceed, but waveforms will be generated with no noise.')
                    self.add_noise = False
               else:
-                   print('Noise library files (located at {}):'.format(self.noise_lib_directory))
-                   for filename in self.noise_library_files:
-                       print('\t{}'.format(filename))
-                   self.OpenNoiseFile()
-        
-        ####################################################################
-        def OpenNoiseFile( self ):
-            if self.global_noise_file_counter < len(self.noise_library_files):
-                  self.current_noise_file = pd.read_hdf( self.noise_lib_directory +\
-                                                         '/' + \
-                                                         self.noise_library_files[ self.global_noise_file_counter ] )
-                  self.global_noise_file_counter += 1
-                  self.noise_file_event_counter = 0
-                  self.num_noise_evts_in_file = len(self.current_noise_file)
-            else:
-                  print('WARNING: All noise events have been used already.\n'+\
-                        '         Restarting from the beginning of the library....')
-                  self.global_noise_file_counter = 0
-                  self.OpenNoiseFile()
+                  if self.verbose:
+                      print('Noise library files (located at {}):'.format(self.noise_lib_directory))
+                      for filename in self.noise_library_files:
+                          print('\t{}'.format(filename))
  
         ####################################################################
         def GetNoiseEvent( self ):
-            if self.noise_file_event_counter == self.num_noise_evts_in_file:
-               self.OpenNoiseFile()
-            this_evt = self.current_noise_file.iloc[ self.noise_file_event_counter ]
-            self.noise_file_event_counter += 1
+            if (self.global_noise_file_counter is None) and (self.noise_file_event_counter is None):
+                self.global_noise_file_counter = random.randrange(len(self.noise_library_files))
+                self.current_noise_file = pd.read_hdf( self.noise_lib_directory +\
+                                                  '/' + \
+                                                   self.noise_library_files[ self.global_noise_file_counter ] )
+                self.noise_file_event_counter = random.randrange(len(self.current_noise_file))
+                this_evt = self.current_noise_file.iloc[ self.noise_file_event_counter ]
+            else:
+                self.current_noise_file = pd.read_hdf( self.noise_lib_directory +\
+                                                  '/' + \
+                                                   self.noise_library_files[ self.global_noise_file_counter ] )
+                this_evt = self.current_noise_file.iloc[ self.noise_file_event_counter ]
             return this_evt
 
         ####################################################################
         def LoadRootFile( self, filename ):
             self.infile = up.open(filename)
             self.filename = filename
-            print('Input file: {}'.format(filename))
+            if self.verbose:
+                print('Input file: {}'.format(filename))
             try: 
                self.intree = self.infile['Event/Elec/ElecEvent']
             except ValueError as e:
@@ -145,7 +139,8 @@ class NEXOOfflineFile:
                                        'ChannelPositions'])
             
             # loop over events in the ElecEvent tree
-            print('Beginning data loop.')
+            if self.verbose:
+                print('Beginning data loop.')
             counter = 0
             for data in self.intree.iterate(['fElecChannels.fWFAmplitude',\
                                              'fElecChannels.fChannelLocalId'],\
@@ -168,6 +163,9 @@ class NEXOOfflineFile:
                 output_series['Data'] = channel_waveforms
                 output_series['ChannelTypes'] = channel_types
                 output_series['ChannelPositions'] = channel_positions
+                output_series['NoiseIndex'] = (self.global_noise_file_counter , self.noise_file_event_counter)
+                self.global_noise_file_counter = None
+                self.noise_file_event_counter  = None
                 df = df.append(output_series,ignore_index=True)
 
                 global_evt_counter += 1

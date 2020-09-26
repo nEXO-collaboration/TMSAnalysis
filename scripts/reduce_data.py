@@ -53,9 +53,9 @@ else:
 
 print('\nReducing {}'.format( this_file ))
 DataReduction.ReduceFile( this_file, output_dir,\
-				config_dir + '/Run_Parameters_Xe_Run29_SimCompatible.csv',\
+				config_dir + '/Run_Parameters_Run30_RnPoTest.csv',\
 				config_dir + '/Calibrations_Xe_Run11b.csv',\
-				config_dir + '/Channel_Map_Xe_Run29_MCIncluded.csv',\
+				config_dir + '/Channel_Maps_Run30_RnPoAlphaEffTest.csv',\
 				input_baseline=-1,input_baseline_rms=-1,\
 				fixed_trigger=True,fit_pulse_flag=False,\
-                                num_events=-1,is_simulation=True)
+                                num_events=-1,is_simulation=False)

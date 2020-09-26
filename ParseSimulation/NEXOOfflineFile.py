@@ -172,7 +172,7 @@ class NEXOOfflineFile:
 
                 global_evt_counter += 1
                 local_evt_counter += 1
-                if local_evt_counter > 200 and save:
+                if local_evt_counter > 500 and save:
                    output_filename = '{}{}_{:0>3}.h5'.format( self.output_directory,\
                                                               self.GetFileTitle(str(self.infile.name)),\
                                                               file_counter )

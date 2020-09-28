@@ -14,11 +14,23 @@ class StruckAnalysisConfiguration:
       self.channel_map = None
       self.calibration_constants = None
       self.run_parameters = None
+      self.update_cal = False
 
 
   ###############################################################################
-  def GetChannelMapFromFile( self, input_file ):
-      self.channel_map = pd.read_csv( input_file, delimiter=',' )
+  def GetChannelMapFromFile( self, input_file, sheet = None ):
+      if len(sheet)>31:
+          sheet = sheet[:31]
+
+      if input_file.split('.')[-1] == 'csv':
+          self.channel_map = pd.read_csv( input_file, delimiter=',' )
+      else:
+          self.channel_map = pd.read_excel( input_file, sheet_name = sheet)
+
+      if self.update_cal:
+          mask = (self.channel_map['IsAmplified']==False) & (self.channel_map['ChannelType']=='TileStrip')
+          self.calibration_constants['Calibration'].loc[self.channel_map['ChannelName'][mask]] *= 10.0
+          self.update_cal = False
 
       
   ###############################################################################
@@ -26,7 +38,12 @@ class StruckAnalysisConfiguration:
       self.calibration_constants = pd.read_csv( input_file, delimiter=',' )
 
       # Index the calibration constants by the channel name (i.e. 'X1-12')
-      self.calibration_constants = self.calibration_constants.set_index('ChannelName')  
+      self.calibration_constants = self.calibration_constants.set_index('ChannelName')
+      if self.channel_map is None:
+          self.update_cal = True
+      else:
+          mask = (self.channel_map['IsAmplified']==False) & (self.channel_map['ChannelType']=='TileStrip')
+          self.calibration_constants['Calibration'].loc[self.channel_map['ChannelName'][mask]] *= 10.0
 
 
   ###############################################################################
@@ -214,7 +231,7 @@ class StruckAnalysisConfiguration:
       return self.run_parameters['Drift Velocity [mm/us]']
 
   ###############################################################################
-  def GetRunParametersFromFile( self, input_file ):
+  def GetRunParametersFromFile( self, input_file, sheet = None ):
       # Run parameters:
       #     Drift Length [mm]
       #     Drift Velocity [mm/us]
@@ -233,7 +250,14 @@ class StruckAnalysisConfiguration:
       # The input file needs two columns: 'Parameter' and 'Value'
       # We will end up with a dict called run_parameters
 
-      temp_dataframe = pd.read_csv( input_file, delimiter=',' )
+      if len(sheet)>31:
+          sheet = sheet[:31]
+
+      if input_file.split('.')[-1] == 'csv':
+          temp_dataframe = pd.read_csv( input_file, delimiter=',' )
+      else:
+          temp_dataframe = pd.read_excel( input_file, sheet_name = sheet)
+
       self.run_parameters = dict(zip(temp_dataframe['Parameter'],temp_dataframe['Value']))
 
 

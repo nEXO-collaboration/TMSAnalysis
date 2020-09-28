@@ -41,13 +41,12 @@ class Waveform:
 
 	#######################################################################################
 	def __init__( self, input_data=None, detector_type=None, sampling_period_ns=None, \
-			input_baseline=-1, input_baseline_rms=-1, polarity=-1., \
+			input_baseline=-1, polarity=-1., \
 			fixed_trigger=False, trigger_position=0, decay_time_us=1.e9,\
 			calibration_constant=1.,store_processed_wfm=False ):
 
 		self.data = input_data                           # <- Waveform in numpy array
 		self.input_baseline = input_baseline             # <- Input baseline (not required)
-		self.input_baseline_rms = input_baseline_rms     # <- Input baseline noise (not required)
 		self.detector_type = detector_type               # <- Options are: 'NaI', 'Cherenkov', 'PS',
 							         #      'XWire', 'YWire', 'SiPM', 'TileStrip'
 		self.fixed_trigger = fixed_trigger               # <- Flag which fixes the pulse analysis window
@@ -72,13 +71,9 @@ class Waveform:
 	def FindPulsesAndComputeAQs( self, fit_pulse_flag=False ):
 		self.DataCheck()
 		if self.input_baseline < 0.:
-			baseline = np.mean(self.data[0:50])
-			baseline_rms = np.std(self.data[0:50])
-		else:
-			baseline = self.input_baseline
-			baseline_rms = self.input_baseline_rms
-		self.analysis_quantities['Baseline'] = baseline
-		self.analysis_quantities['Baseline RMS'] = baseline_rms
+			self.input_baseline = 500
+		self.analysis_quantities['Baseline'] = np.mean(self.data[:self.input_baseline])
+		self.analysis_quantities['Baseline RMS'] =  np.std(self.data[:self.input_baseline])
 
 		# NOTE: almost all analyses are fixed_trigger analyses, so the if statement
 		#       should generally be true.
@@ -226,8 +221,8 @@ class Waveform:
 				self.data = gaussian_filter( self.data.astype(float),\
 				ns_smoothing_window/self.sampling_period_ns ) * self.polarity
 					# ^Gaussian smoothing with a 0.5us width, also, flip polarity if necessary
-				baseline = np.mean(self.data[0:int(10000./self.sampling_period_ns)])
-				baseline_rms = np.std(self.data[0:int(10000./self.sampling_period_ns)])
+				baseline = np.mean(self.data[0:self.input_baseline])
+				baseline_rms = np.std(self.data[0:self.input_baseline])
 					# ^Baseline and RMS calculated from first 10us of smoothed wfm
 				corrected_wfm = DecayTimeCorrection( self.data - baseline, \
 									self.decay_time_us, \
@@ -236,6 +231,7 @@ class Waveform:
 				if self.store_processed_wfm:
 					self.processed_wfm = corrected_wfm
 				charge_energy = np.mean( corrected_wfm[-int(5000./self.sampling_period_ns):] )
+				baseline_rms *= self.calibration_constant
 				# ^Charge energy calculated from the last 5us of the smoothed, corrected wfm
 				t10 = -1.
 				t25 = -1.
@@ -251,7 +247,7 @@ class Waveform:
 					t90 = float( np.where( corrected_wfm > 0.9*charge_energy)[0][0] )
 					# Compute drift time in microseconds (sampling is given in ns)
 					drift_time = (t90 - self.trigger_position) * (self.sampling_period_ns / 1.e3)
-				self.analysis_quantities['Baseline'] = baseline
+				self.analysis_quantities['Baseline'] = baseline * self.calibration_constant
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
 				self.analysis_quantities['Charge Energy'] = charge_energy
 				self.analysis_quantities['T10'] = t10
@@ -459,9 +455,9 @@ class Event:
 			pass
 
 		analysis_config = StruckAnalysisConfiguration.StruckAnalysisConfiguration()
-		analysis_config.GetRunParametersFromFile( run_parameters_file )
+		analysis_config.GetRunParametersFromFile( run_parameters_file, path_to_tier1.split('/')[-3] )
 		analysis_config.GetCalibrationConstantsFromFile( calibrations_file )
-		analysis_config.GetChannelMapFromFile( channel_map_file )
+		analysis_config.GetChannelMapFromFile( channel_map_file, path_to_tier1.split('/')[-3] )
 		channel_number = analysis_config.GetNumberOfChannels()
 		self.event_number 		= event_number
 		self.waveform 			= {}
@@ -501,22 +497,25 @@ class Event:
 			polarity = 1.
 
 		waveform = np.array(tier1_ev[ b'_waveform'])
+		self.ix_channel = []
 		#looping through channels and fill the waveforms
 		for i,ch_waveform in enumerate(waveform):
 			ch_type = analysis_config.GetChannelTypeForSoftwareChannel(software_channel[i])
 			ch_name = analysis_config.GetChannelNameForSoftwareChannel(software_channel[i])
+			if ch_name == 'Off':
+				continue
+			self.ix_channel.append(software_channel[i])
 			self.waveform[ch_name] = Waveform(input_data = ch_waveform,\
 							detector_type       = ch_type,\
 							sampling_period_ns  = 1.e3/self.sampling_frequency,\
 							input_baseline      = -1,\
-							input_baseline_rms  = -1,\
 							polarity            = polarity,\
 							fixed_trigger       = False,\
 							trigger_position    = analysis_config.run_parameters['Pretrigger Length [samples]'],\
 							decay_time_us       = analysis_config.GetDecayTimeForSoftwareChannel( software_channel[i] ),\
 							calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel(software_channel[i]))
 			#same as for Waveform class
-			self.baseline.append(np.mean(ch_waveform[:int(10*self.sampling_frequency)]))
+			self.baseline.append(np.mean(ch_waveform[:int(analysis_config.run_parameters['Baseline Length [samples]'])]))
 			#different cases for tile/SiPM
 			try:
 				self.charge_energy_ch.append(entry_from_reduced['{} {} Charge Energy'.format(ch_type,ch_name)].values[0])
@@ -536,15 +535,12 @@ class Event:
 	def plot_event( self, risetime=False ):
 		import matplotlib.pyplot as plt
 		ch_offset = 250
-		for i,v in enumerate(self.waveform):
-			if software_channel[i] == 15:
-				software_channel[i] = 32
-			if software_channel[i] > 15:
-				software_channel[i] += -1
-			p = plt.plot(np.arange(len(self.waveform[v].data))/self.sampling_frequency,self.waveform[v].data-self.baseline[i]+ch_offset*software_channel[i])
-			plt.text(0,ch_offset*software_channel[i],'{} {:.1f}'.format(v,self.charge_energy_ch[i]))
-			if risetime and self.charge_energy_ch[i]>0:
-				plt.vlines(self.risetime[i],ch_offset*software_channel[i],ch_offset*software_channel[i]+2*self.charge_energy_ch[i],linestyles='dashed',colors=p[0].get_color())
+		for i,e in enumerate(np.argsort(self.ix_channel)):
+			v = list(self.waveform.keys())[e]
+			p = plt.plot(np.arange(len(self.waveform[v].data))/self.sampling_frequency,self.waveform[v].data-self.baseline[e]+ch_offset*i)
+			plt.text(0,ch_offset*i,'{} {:.1f}'.format(v,self.charge_energy_ch[e]))
+			if risetime and self.charge_energy_ch[e]>0:
+				plt.vlines(self.risetime[e],ch_offset*software_channel[i],ch_offset*software_channel[i]+2*self.charge_energy_ch[e],linestyles='dashed',colors=p[0].get_color())
 
 		plt.xlabel('time [$\mu$s]')
 		plt.title('Event {}, Energy {:.1f} ADC counts'.format(self.event_number,self.tot_charge_energy))
@@ -625,14 +621,13 @@ class Simulated_Event:
 							detector_type       = ch_type,\
 							sampling_period_ns  = 1.e3/self.sampling_frequency,\
 							input_baseline      = -1,\
-							input_baseline_rms  = -1,\
 							polarity            = -1,\
 							fixed_trigger       = False,\
 							trigger_position    = analysis_config.run_parameters['Pretrigger Length [samples]'],\
 							decay_time_us       = analysis_config.GetDecayTimeForSoftwareChannel( i ),\
 							calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel(i))
 			#same as for Waveform class
-			self.baseline.append(np.mean(ch_waveform[:int(10*self.sampling_frequency)]))
+			self.baseline.append(np.mean(ch_waveform[:analysis_config.run_parameters['Baseline Length [samples]']]))
 			#different cases for tile/SiPM
 			try:
 				self.charge_energy_ch.append(entry_from_reduced['{} {} Charge Energy'.format(ch_type,ch_name)].values[0])

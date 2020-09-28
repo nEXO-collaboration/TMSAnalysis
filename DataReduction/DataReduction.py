@@ -11,19 +11,20 @@ from TMSAnalysis.Clustering import Signal
 
 ##################################################################################################
 def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, channel_map_file, \
-                        num_events=-1, input_baseline=-1, input_baseline_rms=-1, \
-                        fixed_trigger=False, fit_pulse_flag=False, is_simulation=False):
+                        num_events=-1, fixed_trigger=False, fit_pulse_flag=False, is_simulation=False):
 
         filetitle = filename.split('/')[-1]
+        dataset = filename.split('/')[-3]
         filetitle_noext = filetitle.split('.')[0]
         outputfile = '{}_reduced.h5'.format(filetitle_noext)
         output_df_list = [] # For some reason, it's faster to concat a list of dataframes than
                             # to append dataframes one-by-one.
 
         analysis_config = StruckAnalysisConfiguration.StruckAnalysisConfiguration()
-        analysis_config.GetRunParametersFromFile( run_parameters_file )
+        analysis_config.GetRunParametersFromFile( run_parameters_file, dataset )
         analysis_config.GetCalibrationConstantsFromFile( calibrations_file )
-        analysis_config.GetChannelMapFromFile( channel_map_file )
+        analysis_config.GetChannelMapFromFile( channel_map_file, dataset )
+        input_baseline = int(analysis_config.run_parameters['Baseline Length [samples]'])
 
         start_time = time.time()
         try:
@@ -32,7 +33,7 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                 input_df = pd.read_hdf(filename)
                 n_ev = 0
                 reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_ev,\
-                                        input_baseline, input_baseline_rms, fixed_trigger, fit_pulse_flag, num_events=-1)
+                                        input_baseline, fixed_trigger, fit_pulse_flag, num_events=-1)
                 output_df_list.append(reduced_df)
         except OSError:
                 # This block runs if the input file is not an HDF5 file (meaning it is
@@ -51,7 +52,7 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                    input_file = NEXOOfflineFile.NEXOOfflineFile( input_filename = filename,\
                                                   output_directory = output_dir,\
                                                   config = analysis_config,\
-                                                  add_noise = True, noise_lib_directory='/usr/workspace/nexo/jacopod/noise/')
+                                                  add_noise = False, noise_lib_directory='/usr/workspace/nexo/jacopod/noise/')
                 else:
                    input_file = NGMRootFile.NGMRootFile( input_filename = filename,\
                                                   output_directory = output_dir,\
@@ -77,7 +78,7 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
 
                         input_df = input_file.GroupEventsAndWriteToHDF5(save = False, start_stop=start_stop)
                         reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_events_processed,\
-                                                input_baseline, input_baseline_rms, fixed_trigger,\
+                                                input_baseline, fixed_trigger,\
                                                 fit_pulse_flag, is_simulation=is_simulation, num_events=-1)
                         output_df_list.append(reduced_df)
                         n_events_processed += 20
@@ -89,7 +90,7 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
 
 ##################################################################################################
 def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
-                input_baseline, input_baseline_rms, fixed_trigger, \
+                input_baseline, fixed_trigger, \
                 fit_pulse_flag, is_simulation=False, num_events=-1):
 
         output_series = pd.Series()
@@ -143,16 +144,16 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 
                         wfm_data = thisrow['Data'][ch_num]
 
-                        if analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ) in ch_status.keys() and is_simulation:
-                             mean,sigma = ch_status[analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )]
-                             wfm_data = np.random.normal(mean,sigma,len(wfm_data))
+                        if is_simulation:
+                             if analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ) in ch_status.keys():
+                                  mean,sigma = ch_status[analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )]
+                                  wfm_data = np.random.normal(mean,sigma,len(wfm_data))
                             
 
                         w = Waveform.Waveform(input_data=wfm_data,\
                                                 detector_type       = thisrow['ChannelTypes'][ch_num],\
                                                 sampling_period_ns  = sampling_period_ns,\
                                                 input_baseline      = input_baseline,\
-                                                input_baseline_rms  = input_baseline_rms,\
                                                 polarity            = polarity,\
                                                 fixed_trigger       = fixed_trigger,\
                                                 trigger_position    = trigger_position,\
@@ -175,7 +176,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                         # Compute the combined quantities for the tile.
                         if 'TileStrip' in analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ):
 
-                                if w.analysis_quantities['Charge Energy'] > 5. * w.analysis_quantities['Baseline RMS']:
+                                if (w.analysis_quantities['Charge Energy'] > 5. * w.analysis_quantities['Baseline RMS']) and (w.analysis_quantities['Charge Energy']>0.5):
                                         output_series['NumTileChannelsHit'] += 1
                                         ch_pos = analysis_config.GetChannelPos(software_ch_num)
                                         

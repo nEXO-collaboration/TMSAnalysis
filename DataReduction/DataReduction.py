@@ -117,7 +117,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                         software_ch_num = thisrow['Channels'][ch_num]
                         #calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel( software_ch_num )
                         #decay_constant = analysis_config.GetDecayTimeForSoftwareChannel( software_ch_num )
-                        polarity = -1.
+                        polarity = 1.
                         if analysis_config.run_parameters['Sampling Rate [MHz]'] == 62.5:
                                 polarity = 1.
 
@@ -185,28 +185,28 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                         output_series['NumSiPMChannelsHit'] += 1
                                         output_series['TotalSiPMEnergy'] += w.analysis_quantities['Pulse Area']
                 
-                #First fill event level info
-                output_series['WeightedPosX']     = sig_array.GetPos1D('X')
-                output_series['WeightedPosY']     = sig_array.GetPos1D('Y')
-                output_series['WeightedDriftTime']= sig_array.GetTime()
-                output_series['WeightedPosZ']     = sig_array.GetTime()*analysis_config.GetDriftVelocity()
-
-                output_series['Weighted Event Size Z'] = sig_array.GetTimeRMS()*analysis_config.GetDriftVelocity()
-                output_series['Weighted Event Size X'] = sig_array.GetPosRMS('X')
-                output_series['Weighted Event Size Y'] = sig_array.GetPosRMS('Y')
-
-                #Now cluster the signals and save number of clusters
-                cluster=Clustering.Clustering(sig_array)
-                cluster.Cluster()
-                output_series['NumberOfClusters'] = cluster.GetNumClusters()
-                output_series['IsFull3D']         = cluster.Is3DEvent()
-                output_series['Number3DClusters'] = cluster.GetNumber3D()
-
-                output_series['Cluster Energies'] = [c.GetEnergy() for c in cluster.clusters]
-                output_series['Cluster X-Pos'] = [c.GetPos1D('X') for c in cluster.clusters]
-                output_series['Cluster Y-Pos'] = [c.GetPos1D('Y') for c in cluster.clusters]
-                output_series['Cluster Drift Time'] = [c.GetTime() for c in cluster.clusters]
-                output_series['Cluster Z-Pos'] = [c.GetTime()*analysis_config.GetDriftVelocity() for c in cluster.clusters]
+#                #First fill event level info
+#                output_series['WeightedPosX']     = sig_array.GetPos1D('X')
+#                output_series['WeightedPosY']     = sig_array.GetPos1D('Y')
+#                output_series['WeightedDriftTime']= sig_array.GetTime()
+#                output_series['WeightedPosZ']     = sig_array.GetTime()*analysis_config.GetDriftVelocity()
+#
+#                output_series['Weighted Event Size Z'] = sig_array.GetTimeRMS()*analysis_config.GetDriftVelocity()
+#                output_series['Weighted Event Size X'] = sig_array.GetPosRMS('X')
+#                output_series['Weighted Event Size Y'] = sig_array.GetPosRMS('Y')
+#
+#                #Now cluster the signals and save number of clusters
+#                cluster=Clustering.Clustering(sig_array)
+#                cluster.Cluster()
+#                output_series['NumberOfClusters'] = cluster.GetNumClusters()
+#                output_series['IsFull3D']         = cluster.Is3DEvent()
+#                output_series['Number3DClusters'] = cluster.GetNumber3D()
+#
+#                output_series['Cluster Energies'] = [c.GetEnergy() for c in cluster.clusters]
+#                output_series['Cluster X-Pos'] = [c.GetPos1D('X') for c in cluster.clusters]
+#                output_series['Cluster Y-Pos'] = [c.GetPos1D('Y') for c in cluster.clusters]
+#                output_series['Cluster Drift Time'] = [c.GetTime() for c in cluster.clusters]
+#                output_series['Cluster Z-Pos'] = [c.GetTime()*analysis_config.GetDriftVelocity() for c in cluster.clusters]
                 
         
                 #print("E1: %.2f, E2: %.2f, X: %.2f, Y: %.2f, N: %i, N3D: %i, Is3D:%i"%(output_series['TotalTileEnergy'],

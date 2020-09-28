@@ -42,12 +42,12 @@ class NGMRootFile:
 		self.filename = filename
 		print('Input file: {}'.format(self.filename))
 		try:
-			self.intree = self.infile['HitTree']
+			self.intree = self.infile['sis3316tree']
 		except ValueError as e:
-			print('Some problem getting the HitTree out of the file.')
+			print('Some problem getting the sis3316tree out of the file.')
 			print('{}'.format(e))
 			return
-		print('Got HitTree.')
+		print('Got sis3316tree.')
 		
 
         ####################################################################
@@ -69,43 +69,67 @@ class NGMRootFile:
 		start_time = time.time()
 		print('{} entries per event.'.format(len(self.channel_map)))
 
-		for data in self.intree.iterate(['_waveform','_rawclock','_slot','_channel'],\
-						namedecode='utf-8',\
-						entrysteps=len(self.channel_map),\
-						entrystart=self.start_stop[0],\
-						entrystop=self.start_stop[1]):
-			if nevents > 0:
-				if global_evt_counter > nevents:
+		reached_the_end = False
+		entry_index = 0
+
+		while not reached_the_end:
+
+
+			for data in self.intree.iterate(['waveform','timestamp','channelID','nSamples'],\
+							namedecode='utf-8',\
+							entrysteps=len(self.channel_map),\
+							entrystart=self.start_stop[0],\
+							entrystop=self.start_stop[1]):
+				if nevents > 0:
+					if global_evt_counter > nevents:
+						break
+				
+				
+				data_series = pd.Series(data)
+				if data_series['channelID'][0] == data_series['channelID'][1]:
+					entry_index += len(self.channel_map)+1
+					self.start_stop[0] = entry_index
 					break
 
-			data_series = pd.Series(data)
-			channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data['_slot'],data['_channel'])
-                         
-                        # Remove 'Off' channels from the data stream
-			for column in data_series.items():
-				data_series[ column[0] ] = np.array(data_series[column[0]][channel_mask])
-			output_series = pd.Series()
-			output_series['Channels'] = data_series['_slot']*16+data_series['_channel']
-			output_series['Timestamp'] = data_series['_rawclock']
-			output_series['Data'] = data_series['_waveform']
-			channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data_series['_slot'],data_series['_channel'])
-			output_series['ChannelTypes'] = channel_types
-			output_series['ChannelPositions'] = channel_positions
-			df = df.append(output_series,ignore_index=True)	
-
-
-			global_evt_counter += 1
-			local_evt_counter += 1
-			if local_evt_counter > 200 and save:
-				output_filename = '{}{}_{:0>3}.h5'.format( self.output_directory,\
-									self.GetFileTitle(str(self.infile.name)),\
-									file_counter )
-				df.to_hdf(output_filename,key='raw')
-				local_evt_counter = 0
-				file_counter += 1
-				df = pd.DataFrame(columns=['Channels','Timestamp','Data','ChannelTypes','ChannelPositions'])
-				print('Written to {} at {:4.4} seconds'.format(output_filename,time.time()-start_time))	
+				try:
+					channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data_series['channelID'])
+				except IndexError:
+					print('Data series for this event:')
+					print(data_series)
+					sys.exit()                         
+	
+	                        # Remove 'Off' channels from the data stream
+				for column in data_series.items():
+					data_series[ column[0] ] = np.array(data_series[column[0]][channel_mask])
+				output_series = pd.Series()
+				output_series['Channels'] = data_series['channelID']
+				output_series['Timestamp'] = data_series['timestamp']
+				output_series['Data'] = data_series['waveform']
+				channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data_series['channelID'])
+				output_series['ChannelTypes'] = channel_types
+				output_series['ChannelPositions'] = channel_positions
+				df = df.append(output_series,ignore_index=True)	
+	
+	
+				global_evt_counter += 1
+				local_evt_counter += 1
+				entry_index += len(self.channel_map)
+				if local_evt_counter > 10000 and save:
+					output_filename = '{}{}_{:0>3}.h5'.format( self.output_directory,\
+										self.GetFileTitle(str(self.infile.name)),\
+										file_counter )
+					df.to_hdf(output_filename,key='raw')
+					local_evt_counter = 0
+					file_counter += 1
+					df = pd.DataFrame(columns=['Channels','Timestamp','Data','ChannelTypes','ChannelPositions'])
+					print('Written to {} at {:4.4} seconds'.format(output_filename,time.time()-start_time))	
 		
+				if not self.start_stop[1] is None:
+					if entry_index >= self.start_stop[1]:
+						reached_the_end = True
+				else:
+					if entry_index >= self.intree.numentries:
+						reached_the_end = True
 
 		if save:
 			output_filename = '{}{}_{:0>3}.h5'.format( self.output_directory,\
@@ -118,21 +142,30 @@ class NGMRootFile:
 			return df
 	
 	####################################################################
-	def GenerateChannelMask( self, slot_column, channel_column ):
+	def GenerateChannelMask( self, channelID ):
 
-		channel_mask = np.array(np.ones(len(slot_column),dtype=bool))
-		channel_types = ['' for i in range(len(slot_column))]
-		channel_positions = np.zeros(len(slot_column),dtype=int)
+		channel_mask = np.array(np.ones(len(channelID),dtype=bool))
+		channel_types = ['' for i in range(len(channelID))]
+		channel_positions = np.zeros(len(channelID),dtype=int)
 
 		for index,row in self.channel_map.iterrows():
 			
-			slot_mask = np.where(slot_column==row['Board'])
-			chan_mask = np.where(channel_column==row['InputChannel'])
-			intersection = np.intersect1d(slot_mask,chan_mask)
-			if len(intersection) == 1:
-				this_index = intersection[0]
-			else:
-				 continue
+			chan_mask = np.where(channelID==row['ChannelID'])
+			#print('Chan mask')
+			#print(chan_mask)
+			try:
+				this_index = chan_mask[0][0]
+			except IndexError:
+				print('Chan_mask: {}'.format(chan_mask))
+				print('ChanMap ChannelID: {}'.format(row['ChannelID']))
+				print('Input channelID: {}'.format(channelID))
+				raise IndexError
+			#print('this_index: {}'.format(this_index))
+			#intersection = np.intersect1d(slot_mask,chan_mask)
+			#if len(intersection) == 1:
+			#		this_index = intersection[0]
+			#else:
+			#	 continue
 			channel_types[this_index] = row['ChannelType']
 			channel_positions[this_index] = row['ChannelPosX'] if row['ChannelPosX'] != 0 else row['ChannelPosY']
 			if row['ChannelType']=='Off':

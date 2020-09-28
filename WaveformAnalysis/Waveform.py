@@ -101,8 +101,8 @@ class Waveform:
 									p0=(pulse_height*7.,pulse_time),xtol=0.05,ftol=0.05)
 					fit_height = popt[0]
 					fit_time = popt[1]
+					fit_time = fit_time - int(800/self.sampling_period_ns)
 				pulse_time = pulse_time - int(800/self.sampling_period_ns)
-				fit_time = fit_time - int(800/self.sampling_period_ns)
 				self.analysis_quantities['Baseline'] = baseline
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
 				self.analysis_quantities['Pulse Area'] = pulse_area
@@ -123,12 +123,70 @@ class Waveform:
 									p0=(pulse_height,pulse_time),xtol=0.001,ftol=0.001)
 					fit_height = popt[0]
 					fit_time = popt[1]
+					fit_time = fit_time - int(320/self.sampling_period_ns)
 				pulse_time = pulse_time - int(320/self.sampling_period_ns)
-				fit_time = fit_time - int(320/self.sampling_period_ns)
 				self.analysis_quantities['Baseline'] = baseline
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
 				self.analysis_quantities['Pulse Area'] = pulse_area
 				self.analysis_quantities['Pulse Time'] = pulse_time
+				self.analysis_quantities['Pulse Height'] = pulse_height
+				if fit_pulse_flag:
+					self.analysis_quantities['Fit Time'] = fit_time
+
+			elif 'PSD' in self.detector_type:
+				window_start = self.trigger_position - int(100/self.sampling_period_ns)
+				window_end = self.trigger_position + int(500/self.sampling_period_ns)
+				baseline = np.mean(self.data[window_start:window_start+10])
+				baseline_rms = np.std(self.data[window_start:window_start+10])
+				pulse_area, pulse_height, t5, t10, t20, t50, t80, t90, height_time_20 = \
+					self.GetPulseAreaAndTimingParameters( self.data[window_start:window_end]-baseline )
+				if fit_pulse_flag == True and np.abs(pulse_height>10.*baseline_rms):
+					xwfm = np.linspace(0.,(window_end-window_start)-1,(window_end-window_start))
+					popt,pcov = opt.curve_fit( self.PSPulseTemplate, xwfm, self.data[window_start:window_end]-baseline,\
+									p0=(pulse_height,pulse_time),xtol=0.002,ftol=0.002)
+					fit_height = popt[0]
+					fit_time = popt[1]
+					fit_time = fit_time - int(100/self.sampling_period_ns)
+				height_time_20 = height_time_20 - int(100/self.sampling_period_ns)
+				self.analysis_quantities['Baseline'] = baseline
+				self.analysis_quantities['Baseline RMS'] = baseline_rms
+				self.analysis_quantities['Pulse Area'] = pulse_area
+				self.analysis_quantities['T5'] = t5
+				self.analysis_quantities['T10'] = t10
+				self.analysis_quantities['T20'] = t20
+				self.analysis_quantities['T50'] = t50
+				self.analysis_quantities['T80'] = t80
+				self.analysis_quantities['T90'] = t90
+				self.analysis_quantities['Pulse Time'] = height_time_20
+				self.analysis_quantities['Pulse Height'] = pulse_height
+				if fit_pulse_flag:
+					self.analysis_quantities['Fit Time'] = fit_time
+			
+			elif 'BPM' in self.detector_type:
+				window_start = 0 #self.trigger_position
+				window_end = int(500/self.sampling_period_ns) # self.trigger_position + int(500/self.sampling_period_ns)
+				baseline = np.mean(self.data[window_start:window_start+10])
+				baseline_rms = np.std(self.data[window_start:window_start+10])
+				pulse_area, pulse_height, t5, t10, t20, t50, t80, t90, height_time_20 = \
+					self.GetPulseAreaAndTimingParameters( self.data[window_start:window_end]-baseline )
+				if fit_pulse_flag == True and np.abs(pulse_height>10.*baseline_rms):
+					xwfm = np.linspace(0.,(window_end-window_start)-1,(window_end-window_start))
+					popt,pcov = opt.curve_fit( self.PSPulseTemplate, xwfm, self.data[window_start:window_end]-baseline,\
+									p0=(pulse_height,pulse_time),xtol=0.002,ftol=0.002)
+					fit_height = popt[0]
+					fit_time = popt[1]
+					fit_time = fit_time
+				height_time_20 = height_time_20
+				self.analysis_quantities['Baseline'] = baseline
+				self.analysis_quantities['Baseline RMS'] = baseline_rms
+				self.analysis_quantities['Pulse Area'] = pulse_area
+				self.analysis_quantities['T5'] = t5
+				self.analysis_quantities['T10'] = t10
+				self.analysis_quantities['T20'] = t20
+				self.analysis_quantities['T50'] = t50
+				self.analysis_quantities['T80'] = t80
+				self.analysis_quantities['T90'] = t90
+				self.analysis_quantities['Pulse Time'] = height_time_20
 				self.analysis_quantities['Pulse Height'] = pulse_height
 				if fit_pulse_flag:
 					self.analysis_quantities['Fit Time'] = fit_time
@@ -145,8 +203,8 @@ class Waveform:
 									p0=(pulse_height,pulse_time),xtol=0.002,ftol=0.002)
 					fit_height = popt[0]
 					fit_time = popt[1]
+					fit_time = fit_time - int(400/self.sampling_period_ns)
 				pulse_time = pulse_time - int(400/self.sampling_period_ns)
-				fit_time = fit_time - int(400/self.sampling_period_ns)
 				self.analysis_quantities['Baseline'] = baseline
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
 				self.analysis_quantities['Pulse Area'] = pulse_area
@@ -154,6 +212,28 @@ class Waveform:
 				self.analysis_quantities['Pulse Height'] = pulse_height
 				if fit_pulse_flag:
 					self.analysis_quantities['Fit Time'] = fit_time
+
+#			elif 'BPM' in self.detector_type:
+#				window_start = self.trigger_position - int(400/self.sampling_period_ns)
+#				window_end = self.trigger_position + int(160/self.sampling_period_ns)
+#				baseline = np.mean(self.data[window_start:window_start+10])
+#				baseline_rms = np.std(self.data[window_start:window_start+10])
+#				pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[window_start:window_end]-baseline )
+#				if fit_pulse_flag == True and np.abs(pulse_height>10.*baseline_rms):
+#					xwfm = np.linspace(0.,(window_end-window_start)-1,(window_end-window_start))
+#					popt,pcov = opt.curve_fit( self.PSPulseTemplate, xwfm, self.data[window_start:window_end]-baseline,\
+#									p0=(pulse_height,pulse_time),xtol=0.002,ftol=0.002)
+#					fit_height = popt[0]
+#					fit_time = popt[1]
+#				pulse_time = pulse_time - int(400/self.sampling_period_ns)
+#				fit_time = fit_time - int(400/self.sampling_period_ns)
+#				self.analysis_quantities['Baseline'] = baseline
+#				self.analysis_quantities['Baseline RMS'] = baseline_rms
+#				self.analysis_quantities['Pulse Area'] = pulse_area
+#				self.analysis_quantities['Pulse Time'] = pulse_time
+#				self.analysis_quantities['Pulse Height'] = pulse_height
+#				if fit_pulse_flag:
+#					self.analysis_quantities['Fit Time'] = fit_time
 
 			elif 'Xwire' in self.detector_type:
 				self.polarity = (-1.)*self.polarity
@@ -206,7 +286,7 @@ class Waveform:
 				baseline_calc_end = window_start + int(800/self.sampling_period_ns)
 				baseline = np.mean(self.data[window_start:baseline_calc_end])
 				baseline_rms = np.std(self.data[window_start:baseline_calc_end])
-				pulse_area, pulse_height, t5, t10, t20, t80, t90 = \
+				pulse_area, pulse_height, t5, t10, t20, t50, t80, t90 = \
 					self.GetPulseAreaAndTimingParameters( self.data[window_start:window_end]-baseline )
 				pulse_time = t10 - int(1600/self.sampling_period_ns)
 				self.analysis_quantities['Baseline'] = baseline
@@ -217,6 +297,7 @@ class Waveform:
 				self.analysis_quantities['T5'] = t5
 				self.analysis_quantities['T10'] = t10
 				self.analysis_quantities['T20'] = t20
+				self.analysis_quantities['T50'] = t50
 				self.analysis_quantities['T80'] = t80
 				self.analysis_quantities['T90'] = t90
 
@@ -328,10 +409,14 @@ class Waveform:
 		pulse_area = np.mean(cumul_pulse[-area_window_length:])
 		try:
 			t5 = np.where( cumul_pulse > 0.05*pulse_area )[0][0]
+			slope = cumul_pulse[t5] - cumul_pulse[t5-1] # Denominator is just 1 sample, so omitted
+			t5 = ( 0.05*pulse_area - cumul_pulse[t5-1] ) / slope + (t5-1) # Linear interpolation
 		except IndexError:
 			t5 = 1
 		try:
 			t10 = np.where( cumul_pulse > 0.1*pulse_area )[0][0]
+			slope = cumul_pulse[t10] - cumul_pulse[t10-1] # Denominator is just 1 sample, so omitted
+			t10 = ( 0.1*pulse_area - cumul_pulse[t10-1] ) / slope + (t10-1) # Linear interpolation
 		except IndexError:
 			t10 = 1
 		try:
@@ -339,7 +424,15 @@ class Waveform:
 		except IndexError:
 			t20 = 1
 		try:
+			t50 = np.where( cumul_pulse > 0.5*pulse_area )[0][0]
+			slope = cumul_pulse[t50] - cumul_pulse[t50-1] # Denominator is just 1 sample, so omitted
+			t50 = ( 0.5*pulse_area - cumul_pulse[t50-1] ) / slope + (t50-1) # Linear interpolation
+		except IndexError:
+			t50=1
+		try:
 			t80 = np.where( cumul_pulse > 0.8*pulse_area )[0][0]
+			slope = cumul_pulse[t80] - cumul_pulse[t80-1] # Denominator is just 1 sample, so omitted
+			t80 = ( 0.8*pulse_area - cumul_pulse[t80-1] ) / slope + (t80-1) # Linear interpolation
 		except IndexError:
 			t80 = 1
 		try:
@@ -347,6 +440,16 @@ class Waveform:
 		except IndexError:
 			t90 = 1
 		pulse_height = self.polarity * np.max( np.abs(dat_array) )
+
+		# Interpolate to get the time where pulse crosses the 20% height
+		height_threshold = 0.2 * pulse_height/self.polarity
+		pulse_above_threshold_sample = np.where( np.abs(dat_array) > height_threshold )[0][0]
+		slope = ( np.abs(dat_array)[pulse_above_threshold_sample] - \
+			np.abs(dat_array)[pulse_above_threshold_sample-1] )
+		height_time_20 = ( height_threshold - np.abs(dat_array)[pulse_above_threshold_sample-1] )/slope + \
+				(pulse_above_threshold_sample-1)
+
+		
 #		print('Pulse area: {}'.format(pulse_area))
 #		print('pulse height: {}'.format(pulse_height))
 #		print('T5: {}'.format(t5))
@@ -354,7 +457,7 @@ class Waveform:
 #		print('T20: {}'.format(t20))
 #		print('T80: {}'.format(t80))
 #		print('T90: {}'.format(t90))
-		return pulse_area, pulse_height, t5, t10, t20, t80, t90
+		return pulse_area, pulse_height, t5, t10, t20, t50, t80, t90, height_time_20
 
 
 	#######################################################################################

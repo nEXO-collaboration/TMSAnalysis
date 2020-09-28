@@ -1,0 +1,3 @@
+ChannelID,SoftwareChannel,ChannelType,ChannelName,NumDevicesInChannel,IsAmplified,IsDead,ChannelPosX,ChannelPosY,MCChannelMap
+0,0,PSD,PSD,1,FALSE,FALSE,0,0,0
+4,4,BPM,BPM,1,FALSE,FALSE,0,0,0

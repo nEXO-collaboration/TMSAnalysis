@@ -38,10 +38,12 @@ IS_SIMULATION = False
 config_dir = '/g/g20/lenardo1/software/TMSAnalysis/config/'
 analysis_config = StruckAnalysisConfiguration.StruckAnalysisConfiguration()
 #analysis_config.GetRunParametersFromFile( config_dir +  'Run_Parameters_Xe_Run29_SimCompatible.csv' )
-analysis_config.GetRunParametersFromFile( config_dir +  'Run_Parameters_Run30_RnPoTest.csv' )
+#analysis_config.GetRunParametersFromFile( config_dir +  'Run_Parameters_Run30_RnPoTest.csv' )
+analysis_config.GetRunParametersFromFile( config_dir +  'Run_Parameters_TUNL_TOF.csv' )
 analysis_config.GetCalibrationConstantsFromFile( config_dir + 'Calibrations_Xe_Run11b.csv' )
 #analysis_config.GetChannelMapFromFile( config_dir + 'Channel_Map_Xe_Run29_MCIncluded.csv' )
-analysis_config.GetChannelMapFromFile( config_dir + 'Channel_Maps_Run30_RnPoAlphaEffTest.csv' )
+#analysis_config.GetChannelMapFromFile( config_dir + 'Channel_Maps_Run30_RnPoAlphaEffTest.csv' )
+analysis_config.GetChannelMapFromFile( config_dir + 'Channel_Map_TUNL_TOF.csv' )
 
 if IS_SIMULATION:
 	infile = NEXOOfflineFile.NEXOOfflineFile( input_filename = input_file,\
@@ -56,4 +58,4 @@ print('Channel map loaded:')
 print(infile.channel_map)
 print('\n{} active channels.'.format(len(infile.channel_map)))
 
-infile.GroupEventsAndWriteToHDF5()
+infile.GroupEventsAndWriteToHDF5(nevents=100000)

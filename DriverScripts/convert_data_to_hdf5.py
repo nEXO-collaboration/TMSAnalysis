@@ -1,4 +1,7 @@
 from TMSAnalysis.ParseStruck import NGMRootFile
+from TMSAnalysis.ParseSimulation import NEXOOfflineFile
+from TMSAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
+
 import sys
 import os
 
@@ -29,12 +32,24 @@ true_path = ''
 for component in path_components[:-1]:
 	true_path += component + '/'
 
+IS_SIMULATION = True
 
-file = NGMRootFile.NGMRootFile( input_filename = input_file,\
+if IS_SIMULATION:
+	config_dir = '/g/g20/lenardo1/software/TMSAnalysis/config/'
+	analysis_config = StruckAnalysisConfiguration.StruckAnalysisConfiguration()
+	analysis_config.GetRunParametersFromFile( config_dir +  'Run_Parameters_Xe_Run29_SimCompatible.csv' )
+	analysis_config.GetCalibrationConstantsFromFile( config_dir + 'Calibrations_Xe_Run11b.csv' )
+	analysis_config.GetChannelMapFromFile( config_dir + 'Channel_Map_Xe_Run29_MCIncluded.csv' )
+	infile = NEXOOfflineFile.NEXOOfflineFile( input_filename = input_file,\
+						output_directory = output_dir,\
+						config = analysis_config,\
+						add_noise=True,noise_lib_directory='/usr/workspace/nexo/jacopod/noise/')
+else:
+	infile = NGMRootFile.NGMRootFile( input_filename = input_file,\
 				output_directory = output_dir,\
 				channel_map_file = true_path + '/channel_map_8ns_sampling_LONGTPC2.txt')
 print('Channel map loaded:')
-print(file.channel_map)
-print('\n{} active channels.'.format(len(file.channel_map)))
+print(infile.channel_map)
+print('\n{} active channels.'.format(len(infile.channel_map)))
 
-file.GroupEventsAndWriteToHDF5()
+infile.GroupEventsAndWriteToHDF5()

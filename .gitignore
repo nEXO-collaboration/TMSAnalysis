@@ -1,4 +1,8 @@
 notebook/
+ChargeSim/
+TMSUtilities/GetCuts.py
+TMSUtilities/cut_driver.py
+WaveformAnalysis/event_driver.py
 *.swp
 *.txt
 *.h5

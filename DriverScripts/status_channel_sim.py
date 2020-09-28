@@ -36,5 +36,5 @@ for k in df.keys():
 		#I arbitrarily chose 5 ADC counts as a threshold for the active channel
 			ch_list[k[10:-14]] = [np.mean(df['%s Baseline'%k[:-14]]),np.mean(df['%s Baseline RMS'%k[:-14]])]
 
-with open('channel_status.p','wb') as f:
+with open(output_dir + 'channel_status.p','wb') as f:
 	pickle.dump(ch_list,f)

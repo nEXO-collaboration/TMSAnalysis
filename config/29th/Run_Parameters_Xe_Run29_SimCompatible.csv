@@ -4,7 +4,7 @@ Simulation Sampling Rate [MHz],7.8125
 Electrons/ADC [electrons],11.9
 Drift Length [mm],140
 Drift Velocity [mm/us],1.79
-Num Struck Boards,2
+Num Struck Boards,3
 Waveform Length [samples],6500
 Pretrigger Length [samples],1000
 Baseline Length [samples],500

@@ -135,11 +135,11 @@ python /path/to/TMSAnalysis/DriverScripts/LLNLBatchDataReduction.py </path/to/in
 ``` 
 * in case noise needs to be added, make sure that the flag ```add_noise``` in ```DataReduction.py``` is True with the associated noise library and False otherwise
 
-### Prerequisite for processing the binary files from the Struck
+## Prerequisite for processing the binary files from the Struck
 
 The default output files from the digitizer is a `.bin` file coupled with a `-conf.root` file. A first conversion from `.bin` to `.root`, to start the processing pipeline. In order to do that, the NGMDaq software needs to be installed. Generally this step is not required as the data are converted to `.root`, after the data-taking. For more information on the installation, contact Jacopo.
 
-#### Binary/Root conversion
+### Binary/Root conversion
 
 The it is possible to do a batch conversion of the binary files by running the script 
 ```

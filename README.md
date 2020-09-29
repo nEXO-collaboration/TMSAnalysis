@@ -69,13 +69,18 @@ now you need some configuration files. These are:
 Each of these can be downloaded as a `.csv` file and placed in a common location, at which point that location can be
 passed as an argument above. One will also need to edit the `reduce_data.py` script if the names of the files change.
 
+
 We've included example configuration files in the repository, which can be found at `TMSAnalysis/config/`.
 
 * NOTE: at present, the `convert_data_to_hdf5.py` script requires a channel map text file, which is
 being deprecated in other parts of the code. I plan to fix this soon.
 * NOTE: as of 7 April 2020, the smoothing window used to extract some charge parameters is hard-coded,
 if it needs to be changed open  `WaveformAnalysis/Waveform.py` and edit the `ns_smoothing_window` variable
-
+* NOTE: as 28 September 2020, the config files can be `.xlsx` as well. This solution was adopted because in the 30th liquefaction different dataset have slightly different run parameters and channel configuration. This information is stored in different sheets of the `.xlsx` file. In order to point to the correct configuration, the `tier1` files need to be stored in such a path:
+```
+path_to_dataset/dataset_name/raw_data/
+```
+where `dataset_name` has to name the sheet in the `.xlsx` file.
 
 ## Generating batch hdf5 databases
 
@@ -129,3 +134,16 @@ the header of ```/path/to/TMSAnalysis/DriverScripts/status_channel_sim.py```
 python /path/to/TMSAnalysis/DriverScripts/LLNLBatchDataReduction.py </path/to/input/tier1_directory/> </path/to/output_reduced_directory/> </path/to/configuration/files/> --sim
 ``` 
 * in case noise needs to be added, make sure that the flag ```add_noise``` in ```DataReduction.py``` is True with the associated noise library and False otherwise
+
+### Prerequisite for processing the binary files from the Struck
+
+The default output files from the digitizer is a `.bin` file coupled with a `-conf.root` file. A first conversion from `.bin` to `.root`, to start the processing pipeline. In order to do that, the NGMDaq software needs to be installed. Generally this step is not required as the data are converted to `.root`, after the data-taking. For more information on the installation, contact Jacopo.
+
+#### Binary/Root conversion
+
+The it is possible to do a batch conversion of the binary files by running the script 
+```
+python /path/to/TMSAnalysis/DriverScripts/LLNLBatchRootify.py binary_file_dir output_dir
+```
+where `binary_file_dir` is the directory containing the `.bin` and the `-conf.root` files and `output_dir` is where target directory for the `tier1` files
+

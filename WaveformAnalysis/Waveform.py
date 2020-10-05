@@ -468,11 +468,18 @@ class Event:
 
 		if path_to_tier1 is not None:
 			path_to_file 		= path_to_tier1
-			entry_from_reduced 	= pd.read_hdf(reduced, start=self.event_number, stop=self.event_number+1)
-			timestamp 		= entry_from_reduced['Timestamp'].values[0]
-			fname 			= entry_from_reduced['File'].values[0]
-			self.tot_charge_energy 	= entry_from_reduced['TotalTileEnergy'].values[0]
-			self.event_number 	= entry_from_reduced['Event'][event_number]
+			try:
+				entry_from_reduced 	= pd.read_hdf(reduced, start=self.event_number, stop=self.event_number+1)
+				timestamp 		= entry_from_reduced['Timestamp'].values[0]
+				fname 			= entry_from_reduced['File'].values[0]
+				self.tot_charge_energy 	= entry_from_reduced['TotalTileEnergy'].values[0]
+				self.event_number 	= entry_from_reduced['Event'][event_number]
+			except OSError:
+				entry_from_reduced = pd.read_pickle(reduced).iloc[self.event_number]
+				timestamp 		= entry_from_reduced['Timestamp']
+				fname 			= entry_from_reduced['File']
+				self.tot_charge_energy 	= entry_from_reduced['TotalTileEnergy']
+				self.event_number 	= entry_from_reduced['Event']
 
 		else:
 			print('No reduced file found, charge energy and risetime information not present')
@@ -482,10 +489,9 @@ class Event:
 
 		tier1_tree = uproot.open('{}{}'.format(path_to_file,fname))['HitTree']
 		tier1_ev = tier1_tree.arrays( entrystart=self.event_number*channel_number, entrystop=(self.event_number+1)*channel_number)
-
 		#the events picked from the reduced file and from the tier1 root file are cross-checked with their timestamp
 		try:
-			if not np.array_equal(tier1_ev[ b'_rawclock'],timestamp):
+			if not np.array_equal(np.unique(tier1_ev[ b'_rawclock']),np.unique(timestamp)):
 				raise RuntimeError('Timestamps not matching')
 
 		except NameError:
@@ -520,7 +526,7 @@ class Event:
 			try:
 				self.charge_energy_ch.append(entry_from_reduced['{} {} Charge Energy'.format(ch_type,ch_name)].values[0])
 				self.risetime.append(entry_from_reduced['{} {} T90'.format(ch_type,ch_name)].values[0]/self.sampling_frequency)
-			except (KeyError, UnboundLocalError):
+			except (KeyError, UnboundLocalError, AttributeError):
 				self.charge_energy_ch.append(0)
 				self.risetime.append(0)
 

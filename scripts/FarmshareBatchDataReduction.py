@@ -11,8 +11,10 @@ config_dir = '/g/g20/lenardo1/software/TMSAnalysis/config/'
 #print(sys.argv[1])
 datapath = '/farmshare/user_data/blenardo/struck_data/29th_LXe/'
 datapath = '/p/lustre1/lenardo1/stanford_teststand/29th_LXe/'
-print(datapath)
-datapath = datapath + sys.argv[1] + '/'
+datapath = '/p/lustre1/lenardo1/tunl_tof_data/'
+
+#print(datapath)
+#datapath = datapath + sys.argv[1] + '/'
 print(datapath)
 
 if not os.path.isdir(datapath):
@@ -21,16 +23,17 @@ if not os.path.isdir(datapath):
    exit()
 
 files = os.listdir(datapath)
-rootfiles = [f for f in files if f.endswith('.root')]
+#rootfiles = [f for f in files if f.endswith('.root')]
+h5files = [f for f in files if f.endswith('.h5')]
 
-num_files = len(rootfiles)
+num_files = len(h5files)
 
 print('{} files found:'.format(num_files))
 #for thisfile in rootfiles:
 #	print(thisfile)
 
 
-reduceddir = datapath + '/Reduced_April162020/'
+reduceddir = datapath + '/Reduced_Oct42020/'
 outdir = reduceddir + 'Out/'
 subdir = reduceddir + 'Sub/'
 procdir = datapath + '/Processing/'
@@ -64,9 +67,9 @@ for num in range(0,num_files):
         #if rootfiles[num].endswith('_reduced.h5'):
         #      continue
 
-        rootfile_base = rootfiles[num].split('.')[0]
+#        rootfile_base = rootfiles[num].split('.')[0]
 
-        h5files = [f for f in glob.glob(procdir + rootfile_base + '*') if f.endswith('.h5')]
+#        h5files = [f for f in glob.glob(procdir + rootfile_base + '*') if f.endswith('.h5')]
 
         #queue_list = os.popen('squeue -u blenardo').read()
         #num_jobs_in_queue = queue_list.count('\n') - 1
@@ -75,22 +78,21 @@ for num in range(0,num_files):
         #   time.sleep(30)
         #   continue
 
-        print(sys.argv[1] + '\t' + rootfiles[num])
+        #print(sys.argv[1] + '\t' + rootfiles[num])
 
-        outfilename = '{}/{}_{:04d}.out'.format(outdir,sys.argv[1],num)
+        outfilename = '{}/{}_{:04d}.out'.format(outdir,'output',num)
 
-        scriptfilename = '{}/{}_{:04d}.sub'.format(subdir,sys.argv[1],num)
+        scriptfilename = '{}/{}_{:04d}.sub'.format(subdir,'script',num)
         thescript = "#!/bin/bash\n" + \
-		"#SBATCH -t 02:00:00\n" + \
+		"#SBATCH -t 00:20:00\n" + \
 		"#SBATCH -e " + outfilename + "\n" + \
 		"#SBATCH -o " + outfilename + "\n" + \
 		"#SBATCH --export=ALL \n" + \
 		"export STARTTIME=`date +%s`\n" + \
 		"echo Start time $STARTTIME\n" + \
 		"source activate myenv\n" + \
-		"for h5file in $(ls " + procdir + rootfile_base + '*' + ')\n' + \
-		"do python " + script_dir + "reduce_data.py $h5file " + reduceddir + ' ' + config_dir + '\n' + \
-		"done\n" + \
+		"python " + script_dir + "reduce_data.py " + datapath + '/' + h5files[num] +\
+                            ' ' + reduceddir + ' ' + config_dir + '\n' + \
 		"export STOPTIME=`date +%s`\n" + \
 		"echo Stop time $STOPTIME\n" + \
 		"export DT=`expr $STOPTIME - $STARTTIME`\n" + \

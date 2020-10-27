@@ -138,7 +138,7 @@ class Waveform:
 				window_end = self.trigger_position + int(500/self.sampling_period_ns)
 				baseline = np.mean(self.data[window_start:window_start+10])
 				baseline_rms = np.std(self.data[window_start:window_start+10])
-				pulse_area, pulse_height, t5, t10, t20, t50, t80, t90, height_time_20 = \
+				pulse_area, pulse_height, t5, t10, t20, t50, t80, t90, height_time_20, height_time_50 = \
 					self.GetPulseAreaAndTimingParameters( self.data[window_start:window_end]-baseline )
 				if fit_pulse_flag == True and np.abs(pulse_height>10.*baseline_rms):
 					xwfm = np.linspace(0.,(window_end-window_start)-1,(window_end-window_start))
@@ -148,6 +148,7 @@ class Waveform:
 					fit_time = popt[1]
 					fit_time = fit_time - int(100/self.sampling_period_ns)
 				height_time_20 = height_time_20 - int(100/self.sampling_period_ns)
+				height_time_50 = height_time_50 - int(100/self.sampling_period_ns)
 				self.analysis_quantities['Baseline'] = baseline
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
 				self.analysis_quantities['Pulse Area'] = pulse_area
@@ -157,17 +158,18 @@ class Waveform:
 				self.analysis_quantities['T50'] = t50
 				self.analysis_quantities['T80'] = t80
 				self.analysis_quantities['T90'] = t90
-				self.analysis_quantities['Pulse Time'] = height_time_20
+				self.analysis_quantities['Pulse Time 20'] = height_time_20
+				self.analysis_quantities['Pulse Time 50'] = height_time_50
 				self.analysis_quantities['Pulse Height'] = pulse_height
 				if fit_pulse_flag:
 					self.analysis_quantities['Fit Time'] = fit_time
 			
 			elif 'BPM' in self.detector_type:
 				window_start = 0 #self.trigger_position
-				window_end = int(500/self.sampling_period_ns) # self.trigger_position + int(500/self.sampling_period_ns)
-				baseline = np.mean(self.data[window_start:window_start+10])
-				baseline_rms = np.std(self.data[window_start:window_start+10])
-				pulse_area, pulse_height, t5, t10, t20, t50, t80, t90, height_time_20 = \
+				window_end = int(400/self.sampling_period_ns) # self.trigger_position + int(500/self.sampling_period_ns)
+				baseline = np.min(self.data)
+				baseline_rms = 0. #np.std(self.data[window_start:window_start+10])
+				pulse_area, pulse_height, t5, t10, t20, t50, t80, t90, height_time_20, height_time_50 = \
 					self.GetPulseAreaAndTimingParameters( self.data[window_start:window_end]-baseline )
 				if fit_pulse_flag == True and np.abs(pulse_height>10.*baseline_rms):
 					xwfm = np.linspace(0.,(window_end-window_start)-1,(window_end-window_start))
@@ -177,6 +179,7 @@ class Waveform:
 					fit_time = popt[1]
 					fit_time = fit_time
 				height_time_20 = height_time_20
+				height_time_50 = height_time_50
 				self.analysis_quantities['Baseline'] = baseline
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
 				self.analysis_quantities['Pulse Area'] = pulse_area
@@ -186,7 +189,8 @@ class Waveform:
 				self.analysis_quantities['T50'] = t50
 				self.analysis_quantities['T80'] = t80
 				self.analysis_quantities['T90'] = t90
-				self.analysis_quantities['Pulse Time'] = height_time_20
+				self.analysis_quantities['Pulse Time 20'] = height_time_20
+				self.analysis_quantities['Pulse Time 50'] = height_time_50
 				self.analysis_quantities['Pulse Height'] = pulse_height
 				if fit_pulse_flag:
 					self.analysis_quantities['Fit Time'] = fit_time
@@ -449,6 +453,12 @@ class Waveform:
 		height_time_20 = ( height_threshold - np.abs(dat_array)[pulse_above_threshold_sample-1] )/slope + \
 				(pulse_above_threshold_sample-1)
 
+		height_threshold = 0.5 * pulse_height/self.polarity
+		pulse_above_threshold_sample = np.where( np.abs(dat_array) > height_threshold )[0][0]
+		slope = ( np.abs(dat_array)[pulse_above_threshold_sample] - \
+			np.abs(dat_array)[pulse_above_threshold_sample-1] )
+		height_time_50 = ( height_threshold - np.abs(dat_array)[pulse_above_threshold_sample-1] )/slope + \
+				(pulse_above_threshold_sample-1)
 		
 #		print('Pulse area: {}'.format(pulse_area))
 #		print('pulse height: {}'.format(pulse_height))
@@ -457,7 +467,7 @@ class Waveform:
 #		print('T20: {}'.format(t20))
 #		print('T80: {}'.format(t80))
 #		print('T90: {}'.format(t90))
-		return pulse_area, pulse_height, t5, t10, t20, t50, t80, t90, height_time_20
+		return pulse_area, pulse_height, t5, t10, t20, t50, t80, t90, height_time_20, height_time_50
 
 
 	#######################################################################################

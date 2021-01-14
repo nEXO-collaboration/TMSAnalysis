@@ -41,7 +41,9 @@ analysis_config = StruckAnalysisConfiguration.StruckAnalysisConfiguration()
 analysis_config.GetRunParametersFromFile( config_dir +  'Run_Parameters_Run30_RnPoTest.csv' )
 analysis_config.GetCalibrationConstantsFromFile( config_dir + 'Calibrations_Xe_Run11b.csv' )
 #analysis_config.GetChannelMapFromFile( config_dir + 'Channel_Map_Xe_Run29_MCIncluded.csv' )
-analysis_config.GetChannelMapFromFile( config_dir + 'Channel_Maps_Run30_RnPoAlphaEffTest.csv' )
+#analysis_config.GetChannelMapFromFile( config_dir + 'Channel_Maps_Run31 - Run31_DS01.csv' )
+analysis_config.GetChannelMapFromFile( config_dir + 'Channel_Maps_Run31_DS01_SPETest.csv' )
+
 
 if IS_SIMULATION:
 	infile = NEXOOfflineFile.NEXOOfflineFile( input_filename = input_file,\

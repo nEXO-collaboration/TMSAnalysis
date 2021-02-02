@@ -5,8 +5,8 @@ import time
 import glob
 
 
-script_dir = '/g/g20/lenardo1/software/TMSAnalysis/scripts/'
-config_dir = '/g/g20/lenardo1/software/TMSAnalysis/config/'
+script_dir = '/g/g20/lenardo1/software/StanfordTPCAnalysis/scripts/'
+config_dir = '/g/g20/lenardo1/software/StanfordTPCAnalysis/config/'
 
 #print(sys.argv[1])
 datapath = '/farmshare/user_data/blenardo/struck_data/29th_LXe/'

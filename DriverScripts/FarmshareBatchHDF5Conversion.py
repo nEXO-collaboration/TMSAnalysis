@@ -68,7 +68,7 @@ for num in range(0,num_files):
 		"export STARTTIME=`date +%s`\n" + \
 		"echo Start time $STARTTIME\n" + \
 		"source activate myenv\n" + \
-		"python ./TMSAnalysis/convert_data_to_hdf5.py "  + datapath + rootfiles[num] + ' ' + datapath + '\n' + \
+		"python ./StanfordTPCAnalysis/convert_data_to_hdf5.py "  + datapath + rootfiles[num] + ' ' + datapath + '\n' + \
 		"export STOPTIME=`date +%s`\n" + \
 		"echo Stop time $STOPTIME\n" + \
 		"export DT=`expr $STOPTIME - $STARTTIME`\n" + \

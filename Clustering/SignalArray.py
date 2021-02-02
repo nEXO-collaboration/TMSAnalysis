@@ -1,4 +1,4 @@
-from TMSAnalysis.Clustering import Signal
+from StanfordTPCAnalysis.Clustering import Signal
 import numpy as np
 import copy
 

@@ -1,4 +1,4 @@
-# TMSAnalysis
+# StanfordTPCAnalysis
 
 This is a python-based analysis package intended to process and
 analyze data taken on the various detectors in the Gratta Lab at
@@ -32,10 +32,10 @@ have questions about this, contact Brian.
 To install the software, clone it from this repository and put it somewhere on your machine.
 Then run the setup script:
 ```
-source /path/to/TMSAnalysis/setup.sh
+source /path/to/StanfordTPCAnalysis/setup.sh
 ```
-This script just appends the parent directory for TMSAnalysis to the user's `PYTHONPATH`, so
-you can import the TMSAnalysis module in your python scripts and/or Jupyter notebooks.
+This script just appends the parent directory for StanfordTPCAnalysis to the user's `PYTHONPATH`, so
+you can import the StanfordTPCAnalysis module in your python scripts and/or Jupyter notebooks.
 
 
 ## Running the code on NGMDaq files
@@ -45,10 +45,10 @@ by Jason Newby of ORNL). These files are called `tier1` files.
 
 To process `tier1` files, the code first converts the ROOT trees into pandas dataframes,
 in which the waveforms from all channels are grouped together into events. This can be done
-with the script `convert_data_to_hdf5.py` contained in the `TMSAnalysis/DriverScripts` directory,
+with the script `convert_data_to_hdf5.py` contained in the `StanfordTPCAnalysis/DriverScripts` directory,
 by running:
 ```
-python /path/to/TMSAnalysis/DriverScripts/convert_data_to_hdf5.py <input_file> </path/to/output/directory/>
+python /path/to/StanfordTPCAnalysis/DriverScripts/convert_data_to_hdf5.py <input_file> </path/to/output/directory/>
 ```
 where `<input_file>` is the absolute path to a `tier1` ROOT file, and the output directory is wherever
 you want to write your data. This script also writes only 200 events per output file, so in general
@@ -57,7 +57,7 @@ you will end up with several HDF5 output files for each input ROOT file.
 Once the new HDF5 files have been created, you can run the data reduction step using the
 `reduce_data.py` script, via the command:
 ```
-python /path/to/TMSAnalysis/DriverScripts/reduce_data.py <input_file> </path/to/output/directory/> </path/to/configuration/files/>
+python /path/to/StanfordTPCAnalysis/DriverScripts/reduce_data.py <input_file> </path/to/output/directory/> </path/to/configuration/files/>
 ```
 where `<input_file>` is now an HDF5 file that you made in the previous step. The new thing here is that
 now you need some configuration files. These are:
@@ -70,7 +70,7 @@ Each of these can be downloaded as a `.csv` file and placed in a common location
 passed as an argument above. One will also need to edit the `reduce_data.py` script if the names of the files change.
 
 
-We've included example configuration files in the repository, which can be found at `TMSAnalysis/config/`.
+We've included example configuration files in the repository, which can be found at `StanfordTPCAnalysis/config/`.
 
 * NOTE: at present, the `convert_data_to_hdf5.py` script requires a channel map text file, which is
 being deprecated in other parts of the code. I plan to fix this soon.
@@ -95,21 +95,21 @@ for the following scripts, all the generated files will be located in the target
 
 by running:
 ```
-python /path/to/TMSAnalysis/DriverScripts/reduce_data.py <input_file> </path/to/output_reduced_directory/> </path/to/configuration/files/>
+python /path/to/StanfordTPCAnalysis/DriverScripts/reduce_data.py <input_file> </path/to/output_reduced_directory/> </path/to/configuration/files/>
 ```
 refer to the file header for more details
 
 ### Batch submission
 by running:
 ```
-python /path/to/TMSAnalysis/DriverScripts/LLNLBatchDataReduction.py </path/to/input/tier1_directory/> </path/to/output_reduced_directory/> </path/to/configuration/files/>
+python /path/to/StanfordTPCAnalysis/DriverScripts/LLNLBatchDataReduction.py </path/to/input/tier1_directory/> </path/to/output_reduced_directory/> </path/to/configuration/files/>
 ```
 a batch job will be submitted for each file in the folder. The submission options are stored in the `cmd_options` variable. A `.out`
 file is written containing the stdout of the file with the same name of the tier1 root file. If this script is run more than once on
 a specific folder, it will automatically skip all the alredy processed tier1 root files
 Possible errors can be quickly checked by running.
 ```
-python /path/to/TMSAnalysis/DriverScripts/check_batch_output_error.py </path/to/output_reduced_directory/>
+python /path/to/StanfordTPCAnalysis/DriverScripts/check_batch_output_error.py </path/to/output_reduced_directory/>
 ```
 if there is any error, this script will produce a `.log` file with in each line the name of the tier1 root file that failed,
 along with the error, otherwise the the `.log` file will only contain the string `No errors in this folder`
@@ -118,7 +118,7 @@ along with the error, otherwise the the `.log` file will only contain the string
 
 In case all the reduced `.h5` files need to be stacked into one file it is possible to do so with the command
 ```
-python /path/to/TMSAnalysis/DriverScripts/add_into_one_df.py </path/to/output_reduced_directory/>
+python /path/to/StanfordTPCAnalysis/DriverScripts/add_into_one_df.py </path/to/output_reduced_directory/>
 ```
 This will write a file called `/path/to/output_reduced_directory/reduced_added.h5`. Having all the data into one dataframe should be faster to load
 than dynamically load the different reduced files, in case an analysis of the entire run is required.
@@ -127,11 +127,11 @@ than dynamically load the different reduced files, in case an analysis of the en
 It's possible to produce the reduced files also from tier1 simulated files. The steps are the same, except three main points one needs to be aware of:
 * in the folder containing the raw simulated data (```/path/to/input/sim_tier1_directory/```), a file called ```channel_status.p``` needs to be present.
 This file contains a dict with a list of the channels not recording events (the elements are mean and RMS of the baseline). To produce this file refer to
-the header of ```/path/to/TMSAnalysis/DriverScripts/status_channel_sim.py```
+the header of ```/path/to/StanfordTPCAnalysis/DriverScripts/status_channel_sim.py```
 
 * the flag ```--sim``` need to be parsed. For example, to run ```LLNLBatchDataReduction.py```, this is the command:
 ```
-python /path/to/TMSAnalysis/DriverScripts/LLNLBatchDataReduction.py </path/to/input/tier1_directory/> </path/to/output_reduced_directory/> </path/to/configuration/files/> --sim
+python /path/to/StanfordTPCAnalysis/DriverScripts/LLNLBatchDataReduction.py </path/to/input/tier1_directory/> </path/to/output_reduced_directory/> </path/to/configuration/files/> --sim
 ``` 
 * in case noise needs to be added, make sure that the flag ```add_noise``` in ```DataReduction.py``` is True with the associated noise library and False otherwise
 
@@ -143,7 +143,4 @@ The default output files from the digitizer is a `.bin` file coupled with a `-co
 
 The it is possible to do a batch conversion of the binary files by running the script 
 ```
-python /path/to/TMSAnalysis/DriverScripts/LLNLBatchRootify.py binary_file_dir output_dir
-```
-where `binary_file_dir` is the directory containing the `.bin` and the `-conf.root` files and `output_dir` is where target directory for the `tier1` files
 

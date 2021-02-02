@@ -1,6 +1,6 @@
-from TMSAnalysis.ParseStruck import NGMRootFile
-from TMSAnalysis.ParseSimulation import NEXOOfflineFile
-from TMSAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
+from StanfordTPCAnalysis.ParseStruck import NGMRootFile
+from StanfordTPCAnalysis.ParseSimulation import NEXOOfflineFile
+from StanfordTPCAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
 
 import sys
 import os
@@ -35,7 +35,7 @@ for component in path_components[:-1]:
 IS_SIMULATION = True
 
 if IS_SIMULATION:
-	config_dir = '/g/g20/lenardo1/software/TMSAnalysis/config/'
+	config_dir = '/g/g20/lenardo1/software/StanfordTPCAnalysis/config/'
 	analysis_config = StruckAnalysisConfiguration.StruckAnalysisConfiguration()
 	analysis_config.GetRunParametersFromFile( config_dir +  'Run_Parameters_Xe_Run29_SimCompatible.csv' )
 	analysis_config.GetCalibrationConstantsFromFile( config_dir + 'Calibrations_Xe_Run11b.csv' )

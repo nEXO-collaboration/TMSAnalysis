@@ -1,7 +1,7 @@
 ############################################################################
 # This file defines a class that reads the ROOT files produced by the 
 # nexo-offline charge simulation, and converts them into a format usable by
-# the TMSAnalysis software.
+# the StanfordTPCAnalysis software.
 #
 #    - Brian L.
 ############################################################################

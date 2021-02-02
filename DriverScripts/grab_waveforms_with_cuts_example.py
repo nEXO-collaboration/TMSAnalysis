@@ -9,8 +9,8 @@ import os
 import pickle
 
 sys.path.append('/g/g20/lenardo1/software/')
-from TMSAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
-from TMSAnalysis.WaveformAnalysis import Waveform
+from StanfordTPCAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
+from StanfordTPCAnalysis.WaveformAnalysis import Waveform
 
 #########################################################################################
 if len(sys.argv) != 3:
@@ -25,14 +25,14 @@ file_idx = int(sys.argv[1])
 output_dir = sys.argv[2]
 #########################################################################################
 
-channel_map_file = '/g/g20/lenardo1/software/TMSAnalysis/config/Channel_Maps_Run30_RnPoAlphaEffTest.csv'
-run_parameters_file = '/g/g20/lenardo1/software/TMSAnalysis/config/Run_Parameters_Run30_RnPoTest.csv'
-calibrations_file = '/g/g20/lenardo1/software/TMSAnalysis/config/Calibrations_Xe_Run11b.csv'
+channel_map_file = '/g/g20/lenardo1/software/StanfordTPCAnalysis/config/Channel_Maps_Run30_RnPoAlphaEffTest.csv'
+run_parameters_file = '/g/g20/lenardo1/software/StanfordTPCAnalysis/config/Run_Parameters_Run30_RnPoTest.csv'
+calibrations_file = '/g/g20/lenardo1/software/StanfordTPCAnalysis/config/Calibrations_Xe_Run11b.csv'
 
 analysis_config = StruckAnalysisConfiguration.StruckAnalysisConfiguration()
-analysis_config.GetChannelMapFromFile('/g/g20/lenardo1/software/TMSAnalysis/config/Channel_Maps_Run30_RnPoAlphaEffTest.csv',sheet='')
-analysis_config.GetRunParametersFromFile('/g/g20/lenardo1/software/TMSAnalysis/config/Run_Parameters_Run30_RnPoTest.csv',sheet='')
-analysis_config.GetCalibrationConstantsFromFile('/g/g20/lenardo1/software/TMSAnalysis/config/Calibrations_Xe_Run11b.csv')
+analysis_config.GetChannelMapFromFile('/g/g20/lenardo1/software/StanfordTPCAnalysis/config/Channel_Maps_Run30_RnPoAlphaEffTest.csv',sheet='')
+analysis_config.GetRunParametersFromFile('/g/g20/lenardo1/software/StanfordTPCAnalysis/config/Run_Parameters_Run30_RnPoTest.csv',sheet='')
+analysis_config.GetCalibrationConstantsFromFile('/g/g20/lenardo1/software/StanfordTPCAnalysis/config/Calibrations_Xe_Run11b.csv')
 
 channel_names = [chname for chname in analysis_config.channel_map['ChannelName'] if 'X' in chname or 'Y' in chname]
 print('{} channels being grabbed:'.format(len(channel_names)))

@@ -1,13 +1,13 @@
-from TMSAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
-from TMSAnalysis.WaveformAnalysis import Waveform
+from StanfordTPCAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
+from StanfordTPCAnalysis.WaveformAnalysis import Waveform
 import time, pickle, os
 import pandas as pd
 import numpy as np
 
 #Classes for the Clustering Stage
-from TMSAnalysis.Clustering import SignalArray
-from TMSAnalysis.Clustering import Clustering
-from TMSAnalysis.Clustering import Signal
+from StanfordTPCAnalysis.Clustering import SignalArray
+from StanfordTPCAnalysis.Clustering import Clustering
+from StanfordTPCAnalysis.Clustering import Signal
 
 ##################################################################################################
 def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, channel_map_file, \
@@ -38,8 +38,8 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
         except OSError:
                 # This block runs if the input file is not an HDF5 file (meaning it is
                 # assumed to be a ROOT file).
-                from TMSAnalysis.ParseStruck import NGMRootFile
-                from TMSAnalysis.ParseSimulation import NEXOOfflineFile
+                from StanfordTPCAnalysis.ParseStruck import NGMRootFile
+                from StanfordTPCAnalysis.ParseSimulation import NEXOOfflineFile
 
                 if is_simulation:
 
@@ -241,5 +241,4 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                 event_counter += 1
                 row_counter += 1
         return output_df
-
 

@@ -1,4 +1,4 @@
-from TMSAnalysis.DataReduction import DataReduction
+from StanfordTPCAnalysis.DataReduction import DataReduction
 import argparse
 import sys
 import os

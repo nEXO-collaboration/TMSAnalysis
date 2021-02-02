@@ -49,7 +49,7 @@ for i,fname in enumerate(flist):
 		print('file {} already exists'.format(outfile))
 		continue
 	cmd_options = '--export=ALL -p pbatch  -t 02:00:00 -n 1 -J {} -o {}{}.out'.format(i,path_to_tier1,fname_stripped)
-	exe = 'python $HOME/software/TMSAnalysis/DriverScripts/toRoot.py {} {}'.format(path_to_tier1,fname)
+	exe = 'python $HOME/software/StanfordTPCAnalysis/DriverScripts/toRoot.py {} {}'.format(path_to_tier1,fname)
 	cmd_full = 'sbatch {} --wrap=\'{}\''.format(cmd_options,exe)
 	os.system(cmd_full)
 	print('job {} sumbitted'.format(i))

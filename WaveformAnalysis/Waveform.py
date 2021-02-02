@@ -26,8 +26,8 @@
 #
 ########################################################################
 
-from TMSAnalysis.TMSUtilities import UsefulFunctionShapes as Ufun
-from TMSAnalysis.TMSUtilities import TMSWireFiltering as Filter
+from StanfordTPCAnalysis.TMSUtilities import UsefulFunctionShapes as Ufun
+from StanfordTPCAnalysis.TMSUtilities import TMSWireFiltering as Filter
 from scipy.ndimage import gaussian_filter
 import scipy.optimize as opt
 from numba import jit
@@ -81,118 +81,7 @@ class Waveform:
 		if self.fixed_trigger:
 
 			# Here we have different processing algorithms for different detectors.
-
-			if 'NaI' in self.detector_type:
-				window_start = self.trigger_position - int(800/self.sampling_period_ns)
-				window_end = self.trigger_position + int(1600/self.sampling_period_ns)
-				baseline = np.mean(self.data[window_start:window_start+10])
-				baseline_rms = np.std(self.data[window_start:window_start+10])
-				pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[window_start:window_end]-baseline )
-				if fit_pulse_flag == True and np.abs(pulse_height)>10.*baseline_rms:
-					xwfm = np.linspace(0.,(window_end-window_start)-1,(window_end-window_start))
-					popt,pcov = opt.curve_fit( self.NaIPulseTemplate, \
-									xwfm, \
-									self.data[window_start:window_end]-baseline,\
-									p0=(pulse_height*7.,pulse_time),xtol=0.05,ftol=0.05)
-					fit_height = popt[0]
-					fit_time = popt[1]
-				pulse_time = pulse_time - int(800/self.sampling_period_ns)
-				fit_time = fit_time - int(800/self.sampling_period_ns)
-				self.analysis_quantities['Baseline'] = baseline
-				self.analysis_quantities['Baseline RMS'] = baseline_rms
-				self.analysis_quantities['Pulse Area'] = pulse_area
-				self.analysis_quantities['Pulse Time'] = pulse_time
-				self.analysis_quantities['Pulse Height'] = pulse_height
-				if fit_pulse_flag:
-					self.analysis_quantities['Fit Time'] = fit_time
-
-			elif 'Cherenkov' in self.detector_type:
-				window_start = self.trigger_position - int(320/self.sampling_period_ns)
-				window_end = self.trigger_position + int(160/self.sampling_period_ns)
-				baseline = np.mean(self.data[window_start:window_start+10])
-				baseline_rms = np.std(self.data[window_start:window_start+10])
-				pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[window_start:window_end]-baseline )
-				if (fit_pulse_flag == True) and (pulse_height < 7.) and np.abs(pulse_height)>10.*baseline_rms:
-					xwfm = np.linspace(0.,(window_end-window_start)-1,(window_end-window_start))
-					popt,pcov = opt.curve_fit( self.CherenkovPulseTemplate, xwfm, self.data[window_start:window_end]-baseline,\
-									p0=(pulse_height,pulse_time),xtol=0.001,ftol=0.001)
-					fit_height = popt[0]
-					fit_time = popt[1]
-				pulse_time = pulse_time - int(320/self.sampling_period_ns)
-				fit_time = fit_time - int(320/self.sampling_period_ns)
-				self.analysis_quantities['Baseline'] = baseline
-				self.analysis_quantities['Baseline RMS'] = baseline_rms
-				self.analysis_quantities['Pulse Area'] = pulse_area
-				self.analysis_quantities['Pulse Time'] = pulse_time
-				self.analysis_quantities['Pulse Height'] = pulse_height
-				if fit_pulse_flag:
-					self.analysis_quantities['Fit Time'] = fit_time
-
-			elif 'PS' in self.detector_type:
-				window_start = self.trigger_position - int(400/self.sampling_period_ns)
-				window_end = self.trigger_position + int(160/self.sampling_period_ns)
-				baseline = np.mean(self.data[window_start:window_start+10])
-				baseline_rms = np.std(self.data[window_start:window_start+10])
-				pulse_area, pulse_time, pulse_height = self.GetPulseArea( self.data[window_start:window_end]-baseline )
-				if fit_pulse_flag == True and np.abs(pulse_height>10.*baseline_rms):
-					xwfm = np.linspace(0.,(window_end-window_start)-1,(window_end-window_start))
-					popt,pcov = opt.curve_fit( self.PSPulseTemplate, xwfm, self.data[window_start:window_end]-baseline,\
-									p0=(pulse_height,pulse_time),xtol=0.002,ftol=0.002)
-					fit_height = popt[0]
-					fit_time = popt[1]
-				pulse_time = pulse_time - int(400/self.sampling_period_ns)
-				fit_time = fit_time - int(400/self.sampling_period_ns)
-				self.analysis_quantities['Baseline'] = baseline
-				self.analysis_quantities['Baseline RMS'] = baseline_rms
-				self.analysis_quantities['Pulse Area'] = pulse_area
-				self.analysis_quantities['Pulse Time'] = pulse_time
-				self.analysis_quantities['Pulse Height'] = pulse_height
-				if fit_pulse_flag:
-					self.analysis_quantities['Fit Time'] = fit_time
-
-			elif 'Xwire' in self.detector_type:
-				self.polarity = (-1.)*self.polarity
-				window_start = self.trigger_position - int(2400/self.sampling_period_ns) # 2.4us pretrigger
-				window_end = self.trigger_position + int(10000/self.sampling_period_ns)  # 10us posttrigger
-
-				baseline = np.mean(self.data[0:250])
-				fft_wfm = Filter.WaveformFFT( self.data-baseline, 8. )
-				filtered_wfm = Filter.WaveformFFTAndFilter( self.data - baseline , 8. )
-				self.analysis_quantities['RawEnergy'] = np.mean( fft_wfm[window_end:window_end+300] ) - \
-									np.mean( fft_wfm[window_start-200:window_start] )
-				baseline = np.mean(filtered_wfm[-500:-1])
-				baseline_rms = np.std(filtered_wfm[-500:-1])
-				# Pulse time, area, height, position are derived from the filtered waveform.
-				pulse_area, pulse_time, pulse_height = self.GetPulseArea( filtered_wfm[window_start:window_end] )
-				pulse_time = pulse_time - int(2400/self.sampling_period_ns)
-				self.analysis_quantities['Baseline'] = baseline
-				self.analysis_quantities['Baseline RMS'] = baseline_rms
-				self.analysis_quantities['Pulse Area'] = pulse_area
-				self.analysis_quantities['Pulse Time'] = pulse_time
-				self.analysis_quantities['Pulse Height'] = pulse_height
-
-			elif 'Ywire' in self.detector_type:
-				self.polarity = (-1.)*self.polarity
-				window_start = self.trigger_position - int(2400/self.sampling_period_ns) # 2.4us pretrigger
-				window_end = self.trigger_position + int(10000/self.sampling_period_ns)  # 10us posttrigger
-
-				baseline = np.mean(self.data[0:250])
-				fft_wfm = Filter.WaveformFFT( self.data-baseline, 8. )
-				filtered_wfm = Filter.WaveformFFTAndFilter( self.data - baseline , 8. )
-				self.analysis_quantities['RawEnergy'] = np.mean( fft_wfm[window_end:window_end+300] ) - \
-									np.mean( fft_wfm[window_start-200:window_start] )
-				baseline = np.mean(filtered_wfm[-500:-1])
-				baseline_rms = np.std(filtered_wfm[-500:-1])
-				# Pulse time, area, height, position are derived from the filtered waveform.
-				pulse_area, pulse_time, pulse_height = self.GetPulseArea( filtered_wfm[window_start:window_end] )
-				pulse_time = pulse_time - int(2400/self.sampling_period_ns)
-				self.analysis_quantities['Baseline'] = baseline
-				self.analysis_quantities['Baseline RMS'] = baseline_rms
-				self.analysis_quantities['Pulse Area'] = pulse_area
-				self.analysis_quantities['Pulse Time'] = pulse_time
-				self.analysis_quantities['Pulse Height'] = pulse_height
-
-			elif 'SiPM' in self.detector_type:
+			if 'SiPM' in self.detector_type:
 				self.data = gaussian_filter( self.data.astype(float), 80./self.sampling_period_ns )
 					# ^Gaussian smoothing with a 80ns width (1sig)
 				window_start = self.trigger_position - int(1600/self.sampling_period_ns)
@@ -356,28 +245,6 @@ class Waveform:
 		return pulse_area, pulse_height, t5, t10, t20, t80, t90
 
 
-	#######################################################################################
-	def NaIPulseTemplate( self, x, amp, time):
-		return Ufun.TwoExpConv(x, amp*30., time-40./self.sampling_period_ns, \
-					58./self.sampling_period_ns, \
-					200.5/self.sampling_period_ns)
-
-
-	#######################################################################################
-	def PSPulseTemplate( self, x, amp, time):
-		return Ufun.DoubleExpGaussConv( x, amp*2., 0.80, time + 5./self.sampling_period_ns, \
-						2./self.sampling_period_ns, \
-						6.5/self.sampling_period_ns, \
-						37.3/self.sampling_period_ns )
-
-
-	#######################################################################################
-	def CherenkovPulseTemplate( self, x, amp, time ):
-		return Ufun.DoubleExpGaussConv( x, amp * 6.7, 0.90, time, \
-						1.8/self.sampling_period_ns, \
-						4.1/self.sampling_period_ns, \
-						49./self.sampling_period_ns )
-
 
 	#######################################################################################
 	def DataCheck( self ):
@@ -445,7 +312,7 @@ class Event:
 			calibrations_file,\
 			channel_map_file):
 
-		from TMSAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
+		from StanfordTPCAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
 		import uproot
 
 		try :
@@ -561,8 +428,8 @@ class Simulated_Event:
 			channel_map_file,\
 			add_noise=True):
 
-		from TMSAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
-		from TMSAnalysis.ParseSimulation import NEXOOfflineFile
+		from StanfordTPCAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
+		from StanfordTPCAnalysis.ParseSimulation import NEXOOfflineFile
 		import pickle
 
 		try :

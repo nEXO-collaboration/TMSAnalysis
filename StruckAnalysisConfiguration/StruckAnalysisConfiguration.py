@@ -32,6 +32,10 @@ class StruckAnalysisConfiguration:
           self.calibration_constants['Calibration'].loc[self.channel_map['ChannelName'][mask]] *= 10.0
           self.update_cal = False
 
+      # Make sure the 'ChargeMCChannelMap' gets interpreted as a string, rather than integers
+      if 'ChargeMCChannelMap' in self.channel_map.columns:
+         self.channel_map['ChargeMCChannelMap'] = self.channel_map['ChargeMCChannelMap'].astype(str)
+
       
   ###############################################################################
   def GetCalibrationConstantsFromFile( self, input_file ):

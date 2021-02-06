@@ -29,7 +29,7 @@ class StruckAnalysisConfiguration:
 
       if self.update_cal:
           mask = (self.channel_map['IsAmplified']==False) & (self.channel_map['ChannelType']=='TileStrip')
-          self.calibration_constants['Calibration'].loc[self.channel_map['ChannelName'][mask]] *= 10.0
+          self.calibration_constants.loc[self.channel_map['ChannelName'][mask],'Calibration'] *= 10.0
           self.update_cal = False
 
       # Make sure the 'ChargeMCChannelMap' gets interpreted as a string, rather than integers
@@ -47,17 +47,22 @@ class StruckAnalysisConfiguration:
           self.update_cal = True
       else:
           mask = (self.channel_map['IsAmplified']==False) & (self.channel_map['ChannelType']=='TileStrip')
-          self.calibration_constants['Calibration'].loc[self.channel_map['ChannelName'][mask]] *= 10.0
+          self.calibration_constants.loc[self.channel_map['ChannelName'][mask],'Calibration'] *= 10.0
 
 
   ###############################################################################
   def GetCalibrationConstantForSoftwareChannel( self, software_channel_int ):
       mask = self.channel_map['SoftwareChannel'] == software_channel_int
-      if 'TileStrip' in self.channel_map['ChannelType'].loc[mask].values[0]:
-            channel_name = self.channel_map['ChannelName'].loc[mask].values[0]
-            return self.calibration_constants['Calibration'].loc[channel_name]
+      if 'TileStrip' in self.channel_map['ChannelType'].loc[mask].values[0] or \
+         'SiPM' in self.channel_map['ChannelType'].loc[mask].values[0]:
+            try:
+               channel_name = self.channel_map['ChannelName'].loc[mask].values[0]
+               return self.calibration_constants['Calibration'].loc[channel_name]
+            except KeyError:
+               # If there's no calibration entry for <channel_name>
+               return 1.
       else:
-            # I assume there's no calibration constants for SiPM channels
+            # I assume no calibrations for channels other than SiPMs and TileStrip
             return 1. 
 
 

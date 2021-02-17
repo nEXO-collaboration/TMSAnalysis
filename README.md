@@ -44,7 +44,17 @@ We work mostly with ROOT files produced by the NGMDaq software package (which wa
 by Jason Newby of ORNL). These files are called `tier1` files.
 
 To process `tier1` files, the code first converts the ROOT trees into pandas dataframes,
-in which the waveforms from all channels are grouped together into events. This can be done
+in which the waveforms from all channels are grouped together into events. Then these events are
+processed using the `Waveform` class. All of this happens automatically in the `DataReduction` class,
+and can be run using the `reduce_data.py` script, via the command:
+```
+python /path/to/StanfordTPCAnalysis/DriverScripts/reduce_data.py <input_file> </path/to/output/directory/> </path/to/configuration/files/>
+```
+where `<input_file>` is a `tier1` ROOT file.
+
+
+If desired, one can save files at the intermediate step, where the waveforms have been grouped into events
+but not yet processed. This can be done
 with the script `convert_data_to_hdf5.py` contained in the `StanfordTPCAnalysis/DriverScripts` directory,
 by running:
 ```
@@ -52,25 +62,21 @@ python /path/to/StanfordTPCAnalysis/DriverScripts/convert_data_to_hdf5.py <input
 ```
 where `<input_file>` is the absolute path to a `tier1` ROOT file, and the output directory is wherever
 you want to write your data. This script also writes only 200 events per output file, so in general
-you will end up with several HDF5 output files for each input ROOT file.
+you will end up with several HDF5 output files for each input ROOT file. *NOTE: this script is no longer maintained
+and may not work as advertised. The recommended way to access waveform-level information is using the `Event` class,
+as illustrated in the tutorial notebook.*
 
-Once the new HDF5 files have been created, you can run the data reduction step using the
-`reduce_data.py` script, via the command:
-```
-python /path/to/StanfordTPCAnalysis/DriverScripts/reduce_data.py <input_file> </path/to/output/directory/> </path/to/configuration/files/>
-```
-where `<input_file>` is now an HDF5 file that you made in the previous step. The new thing here is that
-now you need some configuration files. These are:
+You need three configuration files to run the data processing, which should be packaged with the software
+in the `StanfordTPCAnalysis/config/<run_number>` directory. You can see examples below:
 
 * The Run Parameters table - see [Example](https://docs.google.com/spreadsheets/d/1_a5np_45Q3RD28KyxvfwPUAgzYLbc04wWJq26Fh22G4/edit?usp=sharing)
 * The Calibrations table - see [Example](https://docs.google.com/spreadsheets/d/1rXRXEe0IBWPgIpwmnd8P4OAsJjiRXsxcnnTBvuM9l0Q/edit?usp=sharing)
 * The Channel Map - see [Example](https://docs.google.com/spreadsheets/d/1kfQ1g7JiRv8LEUFZ-IhzWiNHxBoyt0SbndU7X9NW9io/edit?usp=sharing)
 
-Each of these can be downloaded as a `.csv` file and placed in a common location, at which point that location can be
-passed as an argument above. One will also need to edit the `reduce_data.py` script if the names of the files change.
+The "calibrations" table will be in `.csv` format, while the other two will genearlly be in `.xlsx` format. 
+The code should support configuration files in both `.xlsx` and `.csv` format, although the `.csv` format is no
+longer supported and may give you some trouble. 
 
-
-We've included example configuration files in the repository, which can be found at `StanfordTPCAnalysis/config/`.
 
 * NOTE: at present, the `convert_data_to_hdf5.py` script requires a channel map text file, which is
 being deprecated in other parts of the code. I plan to fix this soon.
@@ -82,31 +88,16 @@ path_to_dataset/dataset_name/raw_data/
 ```
 where `dataset_name` has to name the sheet in the `.xlsx` file.
 
-## Generating batch hdf5 databases
-
-It is also possible to generate a reduced hdf5 file straight from the tier1 root files. This can be achieved in two ways:
-
-* processing tier1 file one-by-one
-* submit a batch job for the entire run
-
-for the following scripts, all the generated files will be located in the target folder.
-
-### One-by-one
-
-by running:
-```
-python /path/to/StanfordTPCAnalysis/DriverScripts/reduce_data.py <input_file> </path/to/output_reduced_directory/> </path/to/configuration/files/>
-```
-refer to the file header for more details
 
 ### Batch submission
-by running:
+Processing jobs can be submitted in batch mode to the LLNL computing queue by running:
 ```
 python /path/to/StanfordTPCAnalysis/DriverScripts/LLNLBatchDataReduction.py </path/to/input/tier1_directory/> </path/to/output_reduced_directory/> </path/to/configuration/files/>
 ```
-a batch job will be submitted for each file in the folder. The submission options are stored in the `cmd_options` variable. A `.out`
+This script submits one batch job for each file in the folder. The submission options are stored in the `cmd_options` variable. A `.out`
 file is written containing the stdout of the file with the same name of the tier1 root file. If this script is run more than once on
-a specific folder, it will automatically skip all the alredy processed tier1 root files
+a specific folder, it will automatically skip all the already processed tier1 root files.
+
 Possible errors can be quickly checked by running.
 ```
 python /path/to/StanfordTPCAnalysis/DriverScripts/check_batch_output_error.py </path/to/output_reduced_directory/>

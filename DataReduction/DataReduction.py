@@ -202,6 +202,11 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                                 output_series['TimeOfMaxChannel'] = w.analysis_quantities['T90']
 
                         if 'SiPM' in analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ):
+#                                output_series['{} {} {}'.format(\
+#                                                                analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ),\
+#                                                                analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ),\
+#                                                                'Waveform')] = w.corrected_data
+
                                 if w.analysis_quantities['Pulse Height'] > 3.*w.analysis_quantities['Baseline RMS']:
                                         output_series['NumSiPMChannelsHit'] += 1
                                         output_series['TotalSiPMEnergy'] += w.analysis_quantities['Pulse Area']
@@ -223,9 +228,9 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                                         calibration_constant = 1. )
                     summed_sipm_wfm.FindPulsesAndComputeAQs(fit_pulse_flag=fit_pulse_flag)
                     # Add AQ's from summed waveform to the output
-                    for key in w.analysis_quantities.keys():
-                            output_series['Summed SiPM {}'.format(key)] = w.analysis_quantities[key]
-                                 
+                    for key in summed_sipm_wfm.analysis_quantities.keys():
+                            output_series['Summed SiPM {}'.format(key)] = summed_sipm_wfm.analysis_quantities[key]
+#                    output_series['Summed SiPM Waveform'] = summed_sipm_data 
 
 
                 #First fill event level info

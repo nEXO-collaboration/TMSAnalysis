@@ -82,8 +82,9 @@ class Waveform:
 
 			# Here we have different processing algorithms for different sensor channels.
 			if 'SiPM' in self.detector_type:
-				self.data = gaussian_filter( self.data.astype(float), 80./self.sampling_period_ns )
+				#self.data = gaussian_filter( self.data.astype(float), 80./self.sampling_period_ns )
 					# ^Gaussian smoothing with a 80ns width (1sig)
+				self.data = self.data.astype(float)
 				window_start = self.trigger_position - int(1600/self.sampling_period_ns)
 				window_end = self.trigger_position + int(2400/self.sampling_period_ns)
 				baseline_calc_end = window_start + int(800/self.sampling_period_ns)

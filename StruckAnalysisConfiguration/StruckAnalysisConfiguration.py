@@ -107,6 +107,12 @@ class StruckAnalysisConfiguration:
 
 
   ###############################################################################
+  def GetNumDevicesInChannelForSoftwareChannel( self, software_channel_int ):
+      mask = self.channel_map['SoftwareChannel'] == software_channel_int
+      return self.channel_map['NumDevicesInChannel'].loc[mask].values[0]
+
+
+  ###############################################################################
   def GetChargeChannelMask( self ):
       charge_mask = np.zeros( self.GetNumberOfChannels() )
       for index, row in self.channel_map:

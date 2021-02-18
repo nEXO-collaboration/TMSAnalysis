@@ -122,8 +122,12 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                 sig_array  = SignalArray.SignalArray()
                 summed_sipm_data = None
 
+                # Objects to store charge tile data for noise subtraction
+                charge_channel_dict = dict() # dict will be indexed by integers
+                hit_channel_positions_x = []
+                hit_channel_positions_y = []
 
-                # Loop through channels, do the analysis, put this into the output series
+                # Loop through channels, do SiPM analysis, and store the charge channels in a dict.
                 for ch_num in range(len(thisrow['Channels'])):
                         if skip:
                                 continue
@@ -176,37 +180,22 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                                                 analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ),\
                                                                 analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ),\
                                                                 key)] = w.analysis_quantities[key]
-                        # Compute the combined quantities for the tile.
+
+                        # Store hit data and waveform for charge signals, for use in noise subtraction.
                         if 'TileStrip' in analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ):
+
+                                charge_channel_dict[software_ch_num] = w 
 
                                 if (w.analysis_quantities['Charge Energy'] > 5. * w.analysis_quantities['Baseline RMS']) and \
                                    (w.analysis_quantities['Charge Energy']>0.5):
-                                        output_series['NumTileChannelsHit'] += 1
-                                        ch_pos = analysis_config.GetChannelPos(software_ch_num)
-                                        
-                                        signal = Signal.Signal(w.analysis_quantities['Charge Energy'], \
-                                                        w.analysis_quantities['Drift Time'], \
-                                                        software_ch_num, \
-                                                        ch_pos,\
-                                                        analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )\
-                                                        )
-                                        sig_array.AddSignal(signal)
+                                     if 'X' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ):
+                                         hit_channel_positions_x.append( analysis_config.GetChannelPos(software_ch_num)[0] )
+     
+                                     elif 'Y' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ):
+                                         hit_channel_positions_y.append( analysis_config.GetChannelPos(software_ch_num)[1] )
 
-                                        if 'X' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ):
-                                                output_series['NumXTileChannelsHit'] += 1
-                                        if 'Y' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ):
-                                                output_series['NumYTileChannelsHit'] += 1
-                                        output_series['TotalTileEnergy'] += w.analysis_quantities['Charge Energy']
-                                        if w.analysis_quantities['Charge Energy']**2 > max_channel_val**2:
-                                                max_channel_val = w.analysis_quantities['Charge Energy']
-                                                output_series['TimeOfMaxChannel'] = w.analysis_quantities['T90']
-
+                        # Compute the combined quantities for the SiPM array. 
                         if 'SiPM' in analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ):
-#                                output_series['{} {} {}'.format(\
-#                                                                analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ),\
-#                                                                analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ),\
-#                                                                'Waveform')] = w.corrected_data
-
                                 if w.analysis_quantities['Pulse Height'] > 3.*w.analysis_quantities['Baseline RMS']:
                                         output_series['NumSiPMChannelsHit'] += 1
                                         output_series['TotalSiPMEnergy'] += w.analysis_quantities['Pulse Area']
@@ -230,8 +219,91 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                     # Add AQ's from summed waveform to the output
                     for key in summed_sipm_wfm.analysis_quantities.keys():
                             output_series['Summed SiPM {}'.format(key)] = summed_sipm_wfm.analysis_quantities[key]
-#                    output_series['Summed SiPM Waveform'] = summed_sipm_data 
 
+                # Create charge noise waveform.
+                noise_data = None
+                num_noise_strips = 0
+                print('\n\n\n')
+                print('Hit X positions: {}'.format(hit_channel_positions_x))
+                print('Hit Y positions: {}'.format(hit_channel_positions_y))
+                for software_ch_num, w in charge_channel_dict.items():
+
+                    # If there's a signal, skip this one.
+                    if (w.analysis_quantities['Charge Energy'] > 5. * w.analysis_quantities['Baseline RMS']) and \
+                       (w.analysis_quantities['Charge Energy']>0.5):
+                          print('Not enough energy on channel {}'.format(analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )))
+                          continue
+                    
+                    # If the channel is within NOISE_DISTANCE of a hit channel, skip it.
+                    NOISE_DISTANCE = 7. # units: mm
+                    if 'X' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ) and \
+                       any( [np.abs(analysis_config.GetChannelPos(software_ch_num)[0] - xhit) < NOISE_DISTANCE for xhit in hit_channel_positions_x] ) :
+                         print('{} too close to a hit in X'.format(analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )))
+                         continue
+                    if 'Y' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ) and \
+                       any( [np.abs(analysis_config.GetChannelPos(software_ch_num)[1] - yhit) < NOISE_DISTANCE for yhit in hit_channel_positions_y] ) :
+                         print('{} too close to a hit in Y'.format( analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )))
+                         continue
+
+                    # If the channel is one of the big ganged channels, skip it.
+                    if analysis_config.GetNumDevicesInChannelForSoftwareChannel( software_ch_num ) > 2:
+                         print('{} is a big ganged channel'.format(analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )))
+                         continue
+
+                    num_noise_strips += analysis_config.GetNumDevicesInChannelForSoftwareChannel( software_ch_num ) 
+                    if noise_data is None:
+                       noise_data = w.corrected_data
+                    else:
+                       noise_data += w.corrected_data
+                
+                output_series['Num Noise Strips'] = num_noise_strips
+
+                # Divide the noise waveform by the *number of strips*, so it's per-strip.
+                if noise_data is not None:
+                   noise_data /= num_noise_strips
+
+                # Run a second loop over the charge channels, to get noise-subtracted data.                
+                if noise_data is not None:
+                    for software_channel_num, w in charge_channel_dict.items():
+                        
+                        w.data = w.data - noise_data * analysis_config.GetNumDevicesInChannelForSoftwareChannel( software_ch_num ) 
+                        
+                        try:
+                                w.FindPulsesAndComputeAQs(fit_pulse_flag=fit_pulse_flag)
+                        except IndexError:
+                                print('Null waveform found in channel {}, event {} skipped'.format(ch_num,event_counter))
+                                key_buffer = output_df[row_counter-1].keys() # Grab keys from previous event
+                                for key_buf in key_buffer:
+                                        output_series[key_buf] = 0
+                                skip = True
+                                continue
+                        for key in w.analysis_quantities.keys():
+                                output_series['{} {} {}'.format(\
+                                                                analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ),\
+                                                                analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ),\
+                                                                key)] = w.analysis_quantities[key]
+    
+                        if (w.analysis_quantities['Charge Energy'] > 5. * w.analysis_quantities['Baseline RMS']) and \
+                           (w.analysis_quantities['Charge Energy']>0.5):
+                               output_series['NumTileChannelsHit'] += 1
+                               ch_pos = analysis_config.GetChannelPos(software_ch_num)
+                               
+                               signal = Signal.Signal(w.analysis_quantities['Charge Energy'], \
+                                               w.analysis_quantities['Drift Time'], \
+                                               software_ch_num, \
+                                               ch_pos,\
+                                               analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )\
+                                               )
+                               sig_array.AddSignal(signal)
+    
+                               if 'X' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ):
+                                       output_series['NumXTileChannelsHit'] += 1
+                               if 'Y' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ):
+                                       output_series['NumYTileChannelsHit'] += 1
+                               output_series['TotalTileEnergy'] += w.analysis_quantities['Charge Energy']
+                               if w.analysis_quantities['Charge Energy']**2 > max_channel_val**2:
+                                       max_channel_val = w.analysis_quantities['Charge Energy']
+                                       output_series['TimeOfMaxChannel'] = w.analysis_quantities['T90']
 
                 #First fill event level info
                 output_series['WeightedPosX']     = sig_array.GetPos1D('X')

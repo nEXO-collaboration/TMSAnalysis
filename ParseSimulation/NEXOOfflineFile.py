@@ -111,7 +111,8 @@ class NEXOOfflineFile:
             if self.verbose:
                 print('Input file: {}'.format(filename))
             try: 
-               self.intree = self.infile['Event/Elec/ElecEvent']
+               self.electree = self.infile['Event/Elec/ElecEvent']
+               self.simtree = self.infile['Event/Sim/SimEvent']
             except ValueError as e:
                print('Some problem getting the ElecEvent tree out of the file.')
                print('{}'.format(e))
@@ -136,25 +137,33 @@ class NEXOOfflineFile:
                                        'Timestamp',\
                                        'Data',\
                                        'ChannelTypes',\
-                                       'ChannelPositions'])
+                                       'ChannelPositions',\
+                                       'MCElectrons',\
+                                       'MCPhotons'])
             
             # loop over events in the ElecEvent tree
             if self.verbose:
                 print('Beginning data loop.')
             counter = 0
-            for data in self.intree.iterate(['fElecChannels.fWFAmplitude',\
+            for data in self.electree.iterate(['fElecChannels.fWFAmplitude',\
                                              'fElecChannels.fChannelLocalId'],\
                                             namedecode='utf-8',\
                                             entrysteps=1,\
                                             entrystart=self.start_stop[0],\
                                             entrystop=self.start_stop[1]):
                 #print('Event {}'.format(counter))
+                simdata = [thisdata for thisdata in self.simtree.iterate(['fNTE','fInitNOP'],\
+                                                                         namedecode='utf-8',\
+                                                                         entrysteps=1,\
+                                                                         entrystart=self.start_stop[0]+counter,\
+                                                                         entrystop=self.start_stop[0]+counter+1)][0]
                 counter += 1
                 if nevents > 0:
                    if global_evt_counter > nevents:
                       break
 
                 data_series = pd.Series(data)
+                simdata_series = pd.Series(simdata)
                 channel_ids, channel_waveforms, \
                 channel_types, channel_positions = self.GroupSimChannelsIntoDataChannels( data_series)
                 output_series = pd.Series()
@@ -164,6 +173,8 @@ class NEXOOfflineFile:
                 output_series['ChannelTypes'] = channel_types
                 output_series['ChannelPositions'] = channel_positions
                 output_series['NoiseIndex'] = (self.global_noise_file_counter , self.noise_file_event_counter)
+                output_series['MCElectrons'] = float(simdata_series['fNTE'][0])
+                output_series['MCPhotons'] = float(simdata_series['fInitNOP'][0])
                 self.global_noise_file_counter = None
                 self.noise_file_event_counter  = None
                 df = df.append(output_series,ignore_index=True)
@@ -181,7 +192,9 @@ class NEXOOfflineFile:
                                               'Timestamp',\
                                               'Data',\
                                               'ChannelTypes',\
-                                              'ChannelPositions'])
+                                              'ChannelPositions',\
+                                              'MCElectrons',\
+                                              'MCPhotons'])
                    print('Written to {} at {:4.4} seconds'.format(output_filename,time.time()-start_time))
 
             if save:
@@ -272,6 +285,6 @@ class NEXOOfflineFile:
 
         ####################################################################
         def GetTotalEntries( self ):
-            return self.intree.numentries
+            return self.electree.numentries
 
 

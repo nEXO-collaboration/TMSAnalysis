@@ -25,6 +25,7 @@ class NEXOOfflineFile:
             self.analysis_config           = config
             self.global_noise_file_counter = None
             self.noise_file_event_counter  = None
+            self.noise_file_event_list = []
 
             # Since the simulations have a longer sampling period, the following allows us to 
             # get the right pre-trigger and waveform lengths.
@@ -88,20 +89,43 @@ class NEXOOfflineFile:
                       for filename in self.noise_library_files:
                           print('\t{}'.format(filename))
  
+#        ####################################################################
+#        def GetNoiseEvent( self ):
+#            if (self.global_noise_file_counter is None) and (self.noise_file_event_counter is None):
+#                self.global_noise_file_counter = random.randrange(len(self.noise_library_files))
+#                print('Getting noise event.')
+#                print('Reading {}'.format(self.noise_library_files[ self.global_noise_file_counter ]))
+#                self.current_noise_file = pd.read_hdf( self.noise_lib_directory +\
+#                                                  '/' + \
+#                                                   self.noise_library_files[ self.global_noise_file_counter ] )
+#                print('.....Done.')
+#                self.noise_file_event_counter = random.randrange(len(self.current_noise_file))
+#                this_evt = self.current_noise_file.iloc[ self.noise_file_event_counter ]
+#            else:
+#                self.current_noise_file = pd.read_hdf( self.noise_lib_directory +\
+#                                                  '/' + \
+#                                                   self.noise_library_files[ self.global_noise_file_counter ] )
+#                this_evt = self.current_noise_file.iloc[ self.noise_file_event_counter ]
+#            return this_evt
+
         ####################################################################
         def GetNoiseEvent( self ):
-            if (self.global_noise_file_counter is None) and (self.noise_file_event_counter is None):
+            if type(self.current_noise_file) == type(None) or len(self.noise_file_event_list) > 75:
+                self.noise_file_event_list = []
                 self.global_noise_file_counter = random.randrange(len(self.noise_library_files))
+                print('Loading new noise file.')
+                print('Reading {}'.format(self.noise_library_files[ self.global_noise_file_counter ]))
                 self.current_noise_file = pd.read_hdf( self.noise_lib_directory +\
                                                   '/' + \
                                                    self.noise_library_files[ self.global_noise_file_counter ] )
-                self.noise_file_event_counter = random.randrange(len(self.current_noise_file))
-                this_evt = self.current_noise_file.iloc[ self.noise_file_event_counter ]
-            else:
-                self.current_noise_file = pd.read_hdf( self.noise_lib_directory +\
-                                                  '/' + \
-                                                   self.noise_library_files[ self.global_noise_file_counter ] )
-                this_evt = self.current_noise_file.iloc[ self.noise_file_event_counter ]
+                print('.....Done.')
+            event_counter_temp = random.randrange(len(self.current_noise_file))
+            while event_counter_temp in self.noise_file_event_list:
+                event_counter_temp = random.randrange(len(self.current_noise_file))
+            self.noise_file_event_counter = event_counter_temp
+           
+            self.noise_file_event_list.append(self.noise_file_event_counter)
+            this_evt = self.current_noise_file.iloc[ self.noise_file_event_counter ]
             return this_evt
 
         ####################################################################
@@ -152,7 +176,7 @@ class NEXOOfflineFile:
                                             entrystart=self.start_stop[0],\
                                             entrystop=self.start_stop[1]):
                 #print('Event {}'.format(counter))
-                simdata = [thisdata for thisdata in self.simtree.iterate(['fNTE','fInitNOP'],\
+                simdata = [thisdata for thisdata in self.simtree.iterate(['fNTE','fInitNOP','fGenX','fGenY','fGenZ'],\
                                                                          namedecode='utf-8',\
                                                                          entrysteps=1,\
                                                                          entrystart=self.start_stop[0]+counter,\
@@ -175,8 +199,12 @@ class NEXOOfflineFile:
                 output_series['NoiseIndex'] = (self.global_noise_file_counter , self.noise_file_event_counter)
                 output_series['MCElectrons'] = float(simdata_series['fNTE'][0])
                 output_series['MCPhotons'] = float(simdata_series['fInitNOP'][0])
+                output_series['MC_GenX'] = float(simdata_series['fGenX'][0])
+                output_series['MC_GenY'] = float(simdata_series['fGenY'][0])
+                output_series['MC_GenZ'] = float(simdata_series['fGenZ'][0])
                 self.global_noise_file_counter = None
                 self.noise_file_event_counter  = None
+
                 df = df.append(output_series,ignore_index=True)
 
                 global_evt_counter += 1

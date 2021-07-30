@@ -14,7 +14,10 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                         num_events=-1, fixed_trigger=False, fit_pulse_flag=False, is_simulation=False):
 
         filetitle = filename.split('/')[-1]
-        dataset = filename.split('/')[-3]
+        if is_simulation:
+           dataset = 'simulations'
+        else:
+           dataset = filename.split('/')[-3]
         filetitle_noext = filetitle.split('.')[0]
         outputfile = '{}_reduced.h5'.format(filetitle_noext)
         output_df_list = [] # For some reason, it's faster to concat a list of dataframes than

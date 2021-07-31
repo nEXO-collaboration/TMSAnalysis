@@ -55,7 +55,7 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                    input_file = NEXOOfflineFile.NEXOOfflineFile( input_filename = filename,\
                                                   output_directory = output_dir,\
                                                   config = analysis_config,\
-                                                  add_noise = False, noise_lib_directory='/usr/workspace/nexo/jacopod/noise/')
+                                                  add_noise = True, noise_lib_directory='/usr/workspace/nexo/jacopod/dedicated_noise_run/')
                 else:
                    input_file = NGMRootFile.NGMRootFile( input_filename = filename,\
                                                   output_directory = output_dir,\
@@ -148,6 +148,9 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                              trigger_position = int( analysis_config.run_parameters['Pretrigger Length [samples]'] *\
                                                      analysis_config.run_parameters['Simulation Sampling Rate [MHz]'] /\
                                                      analysis_config.run_parameters['Sampling Rate [MHz]'] )
+                             input_baseline = int( analysis_config.run_parameters['Baseline Length [samples]'] *\
+                                                     analysis_config.run_parameters['Simulation Sampling Rate [MHz]'] /\
+                                                     analysis_config.run_parameters['Sampling Rate [MHz]'] )
                              decay_time_us = 100000000.
                              calibration_constant = 1.
                         else:
@@ -157,11 +160,13 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 
                         wfm_data = thisrow['Data'][ch_num]
 
-                        if is_simulation:
-                             if analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ) in ch_status.keys():
-                                  mean,sigma = ch_status[analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )]
-                                  wfm_data = np.random.normal(mean,sigma,len(wfm_data))
-                            
+                        #if is_simulation:
+                        #     if analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ) in ch_status.keys():
+                        #          mean,sigma = ch_status[analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )]
+                        #          wfm_data = np.random.normal(mean,sigma,len(wfm_data))
+                        #print('{}: {:4.4} input_baseline: {}'.format(\
+                        #          analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ),\
+                        #          np.sum(wfm_data),input_baseline))    
 
                         w = Waveform.Waveform(input_data=wfm_data,\
                                                 detector_type       = thisrow['ChannelTypes'][ch_num],\

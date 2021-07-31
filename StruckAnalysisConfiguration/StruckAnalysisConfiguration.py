@@ -19,6 +19,11 @@ class StruckAnalysisConfiguration:
 
   ###############################################################################
   def GetChannelMapFromFile( self, input_file, sheet = None ):
+
+      if sheet==None:
+         print('No sheet selected in channel map! Please provide sheet name and try again.')
+         return
+
       if len(sheet)>31:
           sheet = sheet[:31]
 
@@ -264,6 +269,10 @@ class StruckAnalysisConfiguration:
 
       # The input file needs two columns: 'Parameter' and 'Value'
       # We will end up with a dict called run_parameters
+
+      if sheet==None:
+         print('No sheet selected in RunParameters file! Please provide sheet name and try again.')
+         return
 
       if len(sheet)>31:
           sheet = sheet[:31]

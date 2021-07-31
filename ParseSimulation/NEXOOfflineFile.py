@@ -233,6 +233,7 @@ class NEXOOfflineFile:
                df.to_hdf(output_filename,key='raw')
                end_time = time.time()
                print('{} events written in {:4.4} seconds.'.format(global_evt_counter,end_time-start_time))
+               return df
             else:
                return df 
 

@@ -120,6 +120,9 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                 
                 max_channel_val = 0.
                 sig_array  = SignalArray.SignalArray()
+                summed_sipm_data = None
+
+
                 # Loop through channels, do the analysis, put this into the output series
                 for ch_num in range(len(thisrow['Channels'])):
                         if skip:
@@ -176,7 +179,8 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                         # Compute the combined quantities for the tile.
                         if 'TileStrip' in analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ):
 
-                                if (w.analysis_quantities['Charge Energy'] > 5. * w.analysis_quantities['Baseline RMS']) and (w.analysis_quantities['Charge Energy']>0.5):
+                                if (w.analysis_quantities['Charge Energy'] > 5. * w.analysis_quantities['Baseline RMS']) and \
+                                   (w.analysis_quantities['Charge Energy']>0.5):
                                         output_series['NumTileChannelsHit'] += 1
                                         ch_pos = analysis_config.GetChannelPos(software_ch_num)
                                         
@@ -198,10 +202,37 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                                 output_series['TimeOfMaxChannel'] = w.analysis_quantities['T90']
 
                         if 'SiPM' in analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ):
-                                if w.analysis_quantities['Pulse Area'] > 0.:
+#                                output_series['{} {} {}'.format(\
+#                                                                analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ),\
+#                                                                analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ),\
+#                                                                'Waveform')] = w.corrected_data
+
+                                if w.analysis_quantities['Pulse Height'] > 3.*w.analysis_quantities['Baseline RMS']:
                                         output_series['NumSiPMChannelsHit'] += 1
                                         output_series['TotalSiPMEnergy'] += w.analysis_quantities['Pulse Area']
-                
+                                if summed_sipm_data is None:
+                                        summed_sipm_data = w.corrected_data
+                                else:
+                                        summed_sipm_data += w.corrected_data
+
+                # Create a waveform object for the summed light signal. Should be already calibrated. 
+                if summed_sipm_data is not None:
+                    summed_sipm_wfm = Waveform.Waveform(input_data=summed_sipm_data,\
+                                                        detector_type       = 'SiPM',\
+                                                        sampling_period_ns  = sampling_period_ns,\
+                                                        input_baseline      = input_baseline,\
+                                                        polarity            = 1,\
+                                                        fixed_trigger       = fixed_trigger,\
+                                                        trigger_position    = trigger_position,\
+                                                        decay_time_us       = 1.e9,\
+                                                        calibration_constant = 1. )
+                    summed_sipm_wfm.FindPulsesAndComputeAQs(fit_pulse_flag=fit_pulse_flag)
+                    # Add AQ's from summed waveform to the output
+                    for key in summed_sipm_wfm.analysis_quantities.keys():
+                            output_series['Summed SiPM {}'.format(key)] = summed_sipm_wfm.analysis_quantities[key]
+#                    output_series['Summed SiPM Waveform'] = summed_sipm_data 
+
+
                 #First fill event level info
                 output_series['WeightedPosX']     = sig_array.GetPos1D('X')
                 output_series['WeightedPosY']     = sig_array.GetPos1D('Y')

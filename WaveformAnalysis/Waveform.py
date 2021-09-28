@@ -43,7 +43,7 @@ class Waveform:
 	def __init__( self, input_data=None, detector_type=None, sampling_period_ns=None, \
 			input_baseline=-1, polarity=-1., \
 			fixed_trigger=False, trigger_position=0, decay_time_us=1.e9,\
-			calibration_constant=1.,store_processed_wfm=False ):
+			calibration_constant=1. ):
 
 		self.data = input_data                           # <- Waveform in numpy array
 		self.input_baseline = input_baseline             # <- Input baseline (not required)
@@ -53,7 +53,7 @@ class Waveform:
 		self.trigger_position = int(trigger_position)    # <- Location of DAQ trigger in samples
 		self.polarity = polarity                         # <- Polarity switch to make waveforms positive
 		self.decay_time_us = decay_time_us               # <- Decay time of preamps (for charge tile)
-		self.store_processed_wfm = store_processed_wfm   # <- Flag which allows you to access the processed waveform
+		#self.store_corrected_data = store_corrected_data   # <- Flag which allows you to access the processed waveform
 		self.calibration_constant = calibration_constant # <- Calibration constant (for charge tile)
 
 		# Make the default detector type a simple PMT
@@ -80,17 +80,20 @@ class Waveform:
 
 		if self.fixed_trigger:
 
-			# Here we have different processing algorithms for different detectors.
+			# Here we have different processing algorithms for different sensor channels.
 			if 'SiPM' in self.detector_type:
-				self.data = gaussian_filter( self.data.astype(float), 80./self.sampling_period_ns )
+				#self.data = gaussian_filter( self.data.astype(float), 80./self.sampling_period_ns )
 					# ^Gaussian smoothing with a 80ns width (1sig)
+				self.data = self.data.astype(float)
 				window_start = self.trigger_position - int(1600/self.sampling_period_ns)
 				window_end = self.trigger_position + int(2400/self.sampling_period_ns)
 				baseline_calc_end = window_start + int(800/self.sampling_period_ns)
 				baseline = np.mean(self.data[window_start:baseline_calc_end])
 				baseline_rms = np.std(self.data[window_start:baseline_calc_end])
+				self.corrected_data = (self.data - baseline) * self.calibration_constant
+
 				pulse_area, pulse_height, t5, t10, t20, t80, t90 = \
-					self.GetPulseAreaAndTimingParameters( self.data[window_start:window_end]-baseline )
+					self.GetPulseAreaAndTimingParameters( self.corrected_data[window_start:window_end] )
 				pulse_time = t10 - int(1600/self.sampling_period_ns)
 				self.analysis_quantities['Baseline'] = baseline
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
@@ -105,6 +108,9 @@ class Waveform:
 				self.analysis_quantities['Induced Charge'] = 0
 
 			elif 'TileStrip' in self.detector_type:
+                                # 'TileStrip' denotes the strips read out with the
+                                # charge-sensitive discrete preamps.
+
 				#this is the smoothing time window in ns
 				ns_smoothing_window = 500.0
 				self.data = gaussian_filter( self.data.astype(float),\
@@ -113,13 +119,11 @@ class Waveform:
 				baseline = np.mean(self.data[0:self.input_baseline])
 				baseline_rms = np.std(self.data[0:self.input_baseline])
 					# ^Baseline and RMS calculated from first 10us of smoothed wfm
-				corrected_wfm = DecayTimeCorrection( self.data - baseline, \
+				self.corrected_data = DecayTimeCorrection( self.data - baseline, \
 									self.decay_time_us, \
 									self.sampling_period_ns ) * \
 						self.calibration_constant
-				if self.store_processed_wfm:
-					self.processed_wfm = corrected_wfm
-				charge_energy = np.mean( corrected_wfm[-int(5000./self.sampling_period_ns):] )
+				charge_energy = np.mean( self.corrected_data[-int(5000./self.sampling_period_ns):] )
 				baseline_rms *= self.calibration_constant
 				# ^Charge energy calculated from the last 5us of the smoothed, corrected wfm
 				t10 = -1.
@@ -130,10 +134,10 @@ class Waveform:
 				induction_window_ns = 4000
 				ind_window_sample = int(induction_window_ns/self.sampling_period_ns)
 				if charge_energy > 3.*baseline_rms: # Compute timing/position if charge energy is positive and above noise.
-					t10 = float( np.where( corrected_wfm > 0.1*charge_energy)[0][0] )
-					t25 = float( np.where( corrected_wfm > 0.25*charge_energy)[0][0] )
-					t50 = float( np.where( corrected_wfm > 0.5*charge_energy)[0][0] )
-					t90 = float( np.where( corrected_wfm > 0.9*charge_energy)[0][0] )
+					t10 = float( np.where( self.corrected_data > 0.1*charge_energy)[0][0] )
+					t25 = float( np.where( self.corrected_data > 0.25*charge_energy)[0][0] )
+					t50 = float( np.where( self.corrected_data > 0.5*charge_energy)[0][0] )
+					t90 = float( np.where( self.corrected_data > 0.9*charge_energy)[0][0] )
 					# Compute drift time in microseconds (sampling is given in ns)
 					drift_time = (t90 - self.trigger_position) * (self.sampling_period_ns / 1.e3)
 				self.analysis_quantities['Baseline'] = baseline * self.calibration_constant

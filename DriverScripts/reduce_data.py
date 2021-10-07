@@ -48,4 +48,4 @@ DataReduction.ReduceFile( this_file, output_dir,\
 				config_dir + '/Calibrations_Xe_Run31.csv',\
 				config_dir + '/Channel_Map_Run31.xlsx',\
 				fixed_trigger=True,fit_pulse_flag=False,\
-                                num_events=10,is_simulation=args.sim)
+                                num_events=-1,is_simulation=args.sim)

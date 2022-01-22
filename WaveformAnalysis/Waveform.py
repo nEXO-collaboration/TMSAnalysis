@@ -112,7 +112,7 @@ class Waveform:
                                 # charge-sensitive discrete preamps.
 
 				#this is the smoothing time window in ns
-				ns_smoothing_window = 500.0
+				ns_smoothing_window = 20.0
 				self.data = gaussian_filter( self.data.astype(float),\
 				ns_smoothing_window/self.sampling_period_ns ) * self.polarity
 					# ^Gaussian smoothing with a 0.5us width, also, flip polarity if necessary
@@ -123,7 +123,7 @@ class Waveform:
 									self.decay_time_us, \
 									self.sampling_period_ns ) * \
 						self.calibration_constant
-				charge_energy = np.mean( self.corrected_data[-int(5000./self.sampling_period_ns):] )
+				charge_energy = np.mean( self.corrected_data[-int(1000.0/self.sampling_period_ns):] )
 				baseline_rms *= self.calibration_constant
 				# ^Charge energy calculated from the last 5us of the smoothed, corrected wfm
 				t10 = -1.

@@ -45,10 +45,13 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
 
                    path = os.path.dirname(filename) 
                    pickled_fname = path + '/channel_status.p'
-                   global ch_status
+                   global ch_status_flag
+                   ch_status_flag = os.path.exists(pickled_fname)
+                   if ch_status_flag:
+                       global ch_status
+                       with open(pickled_fname,'rb') as f:
+                           ch_status = pickle.load(f)
 
-                   with open(pickled_fname,'rb') as f:
-                        ch_status = pickle.load(f)
                    input_file = NEXOOfflineFile.NEXOOfflineFile( input_filename = filename,\
                                                   output_directory = output_dir,\
                                                   config = analysis_config,\
@@ -60,7 +63,7 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
 
                 print('Channel map loaded:') 
                 print(input_file.channel_map) 
-                print('\n{} active channels.'.format(len(input_file.channel_map))) 
+                print('\n{} active channels.'.format(len(input_file.channel_map)))
                 n_entries = input_file.GetTotalEntries()
                 n_channels = analysis_config.GetNumberOfChannels()
                 n_events_in_file = n_entries if is_simulation else n_entries/n_channels
@@ -147,12 +150,11 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 
                         wfm_data = thisrow['Data'][ch_num]
 
-                        if is_simulation:
+                        if is_simulation and ch_status_flag:
                              if analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ) in ch_status.keys():
                                   mean,sigma = ch_status[analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )]
                                   wfm_data = np.random.normal(mean,sigma,len(wfm_data))
                             
-
                         w = Waveform.Waveform(input_data=wfm_data,\
                                                 detector_type       = thisrow['ChannelTypes'][ch_num],\
                                                 sampling_period_ns  = sampling_period_ns,\

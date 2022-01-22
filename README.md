@@ -13,10 +13,11 @@ containing pandas dataframes.
 
 Which python packages (and versions) you need to install:
 
-* [pandas (0.24.1+)](https://pandas.pydata.org/docs/)
+* [pandas (latest)](https://pandas.pydata.org/docs/)
 * [numpy (1.17.4+)](https://numpy.org/)
-* [tables (3.6.1+)](https://www.pytables.org/)
-* [uproot (latest)](https://github.com/scikit-hep/uproot)
+* [openpyxl (latest)](https://openpyxl.readthedocs.io/en/stable/)
+* [tables (latest)](https://www.pytables.org/index.html)
+* [uproot (\<=3.13.1)](https://github.com/scikit-hep/uproot)
 * [scipy (1.2.1+)](https://www.scipy.org/install.html)
 * [numba (latest)](http://numba.pydata.org/)
 

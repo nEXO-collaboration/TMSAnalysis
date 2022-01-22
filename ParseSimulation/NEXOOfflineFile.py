@@ -231,7 +231,6 @@ class NEXOOfflineFile:
 
                 summed_wfm = np.array(summed_wfm) * 9. # This scales the waveform to units of electrons. 
                 summed_wfm = summed_wfm / self.analysis_config.run_parameters['Electrons/ADC [electrons]']
-
                 if len(summed_wfm) > self.sim_wfm_length - self.sim_pretrigger_length:
                    summed_wfm = summed_wfm[0:(self.sim_wfm_length - self.sim_pretrigger_length)]
 

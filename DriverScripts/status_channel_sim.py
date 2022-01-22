@@ -2,7 +2,7 @@
 #											#
 #       This script produces a pickled dict containing the status of the channels	#
 #       (mean and RMS of the baseline) for the simulation to be compared		#
-#	with a particular datatake. The first argument parsed is the data reduced	#
+#	with a particular dataset. The first argument parsed is the data reduced	#
 #	file from where the status of the channels is pulled, while the second is the	#
 #	folder where the pickled file will be saved.					#
 #       In general the location for the pickled file is where the simulated raw data	#

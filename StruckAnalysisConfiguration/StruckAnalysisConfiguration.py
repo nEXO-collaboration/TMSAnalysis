@@ -25,7 +25,7 @@ class StruckAnalysisConfiguration:
       if input_file.split('.')[-1] == 'csv':
           self.channel_map = pd.read_csv( input_file, delimiter=',' )
       else:
-          self.channel_map = pd.read_excel( input_file, sheet_name = sheet)
+          self.channel_map = pd.read_excel( input_file, sheet_name = self.sheet, engine='openpyxl', keep_default_na=False)
 
       if self.update_cal:
           mask = (self.channel_map['IsAmplified']==False) & (self.channel_map['ChannelType']=='TileStrip')
@@ -261,11 +261,18 @@ class StruckAnalysisConfiguration:
 
       if len(sheet)>31:
           sheet = sheet[:31]
+      self.sheet = sheet
 
       if input_file.split('.')[-1] == 'csv':
           temp_dataframe = pd.read_csv( input_file, delimiter=',' )
       else:
-          temp_dataframe = pd.read_excel( input_file, sheet_name = sheet)
+          df_excel = pd.read_excel( input_file, sheet_name = None, engine='openpyxl')
+          if not self.sheet in df_excel.keys():
+              for k_ex in df_excel.keys():
+                  print(k_ex)
+              self.sheet = input('Select one of the options above: ')
+
+          temp_dataframe = pd.read_excel( input_file, sheet_name = self.sheet, engine='openpyxl',keep_default_na=False)
 
       self.run_parameters = dict(zip(temp_dataframe['Parameter'],temp_dataframe['Value']))
 

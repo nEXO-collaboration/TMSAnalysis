@@ -17,9 +17,11 @@ Which python packages (and versions) you need to install:
 * [numpy (1.17.4+)](https://numpy.org/)
 * [openpyxl (latest)](https://openpyxl.readthedocs.io/en/stable/)
 * [tables (latest)](https://www.pytables.org/index.html)
-* [uproot (\<=3.13.1)](https://github.com/scikit-hep/uproot)
+* [uproot (4+)](https://github.com/scikit-hep/uproot)
 * [scipy (1.2.1+)](https://www.scipy.org/install.html)
 * [numba (latest)](http://numba.pydata.org/)
+* [awkward (lastest)](https://pypi.org/project/awkward/)
+
 
 All of the above should be available via `pip install`. If you already have a
 version of these, you can use `pip install --upgrade <package_name>`.
@@ -28,6 +30,15 @@ Note that if you're running on a cluster, you should create a virtual environmen
 where you can install software packages locally. This is done using `virtualenv`. If you
 have questions about this, contact Brian.
 
+FOR UPROOT4, PLEASE SEE COMMENTS AT: 
+```
+/StanfordTPCAnalysis/ParseSimulation/NEXOOfflineFile.py 
+```
+look for:
+```
+uproot4 compatibility
+```
+TODO: fix excel config file import. Use .csv files, until this message is removed.
 ### Installing
 
 To install the software, clone it from this repository and put it somewhere on your machine.

@@ -14,6 +14,7 @@ parser.add_argument('configdir', type=str, help='location where config files are
 						' Calibrations, and\n'+\
 						' Channel_Map')
 parser.add_argument('--sim', help='Simulation flag', action='store_true')
+parser.add_argument('--noise', help='Add noise flag, active only in simulation', action='store_true')
 args = parser.parse_args()
 this_file  = args.inputfile
 output_dir = args.outputdir
@@ -46,4 +47,4 @@ DataReduction.ReduceFile( this_file, output_dir,\
 				config_dir + '/Calibrations_Xe_Run30.csv',\
 				config_dir + '/Channel_Map_Run32.csv',\
 				fixed_trigger=True,fit_pulse_flag=False,\
-                                num_events=-1,is_simulation=args.sim)
+                                num_events=-1,is_simulation=args.sim,add_noise=args.noise)

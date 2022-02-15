@@ -142,21 +142,20 @@ class NEXOOfflineFile:
             if self.verbose:
                 print('Beginning data loop.')
             counter = 0
+            self.MCtruth = up.concatenate(self.filename+':Event/Sim/SimEvent/SimEvent',\
+                   expressions=['fNESTLineageNOP','fGenX','fGenY','fGenZ','fNESTLineageNTE','fNESTLineageT'])[self.start_stop[0]:self.start_stop[1]]
             for data in self.intree.iterate(['fElecChannels.fWFAmplitude',\
                                              'fElecChannels.fChannelLocalId'],\
-                                            namedecode='utf-8',\
-                                            entrysteps=1,\
-                                            entrystart=self.start_stop[0],\
-                                            entrystop=self.start_stop[1]):
+                                            entry_start=self.start_stop[0],\
+                                            entry_stop=self.start_stop[1],\
+                                            step_size=1):
                 #print('Event {}'.format(counter))
                 counter += 1
                 if nevents > 0:
                    if global_evt_counter > nevents:
                       break
-
-                data_series = pd.Series(data)
                 channel_ids, channel_waveforms, \
-                channel_types, channel_positions = self.GroupSimChannelsIntoDataChannels( data_series)
+                channel_types, channel_positions = self.GroupSimChannelsIntoDataChannels( data )
                 output_series = pd.Series()
                 output_series['Channels'] = channel_ids
                 output_series['Timestamp'] = np.zeros(len(channel_ids))
@@ -164,6 +163,17 @@ class NEXOOfflineFile:
                 output_series['ChannelTypes'] = channel_types
                 output_series['ChannelPositions'] = channel_positions
                 output_series['NoiseIndex'] = (self.global_noise_file_counter , self.noise_file_event_counter)
+                output_series['MCSourceLocationX'] = self.MCtruth['fGenX'][counter-1]
+                output_series['MCSourceLocationY'] = self.MCtruth['fGenY'][counter-1]
+                output_series['MCSourceLocationZ'] = self.MCtruth['fGenZ'][counter-1]
+                output_series['MCNTE'] = sum(self.MCtruth['fNESTLineageNTE'][counter-1])
+                output_series['MCNOP'] = sum(self.MCtruth['fNESTLineageNOP'][counter-1])
+
+                if sum(self.MCtruth['fNESTLineageNOP'][counter-1]) > 5e6:
+                        output_series['MCBiPoFlag'] = 1
+                else:
+                        output_series['MCBiPoFlag'] = 0
+
                 self.global_noise_file_counter = None
                 self.noise_file_event_counter  = None
                 df = df.append(output_series,ignore_index=True)
@@ -228,7 +238,6 @@ class NEXOOfflineFile:
                    channels_mask = np.array( [True if int(channel) in mc_channels_in_data_channel else False\
                                                 for channel in data_series['fElecChannels.fChannelLocalId'][0] ] )
                    summed_wfm = np.sum( np.array(data_series['fElecChannels.fWFAmplitude'][0])[channels_mask], axis=0 )
-
                 summed_wfm = np.array(summed_wfm) * 9. # This scales the waveform to units of electrons. 
                 summed_wfm = summed_wfm / self.analysis_config.run_parameters['Electrons/ADC [electrons]']
                 if len(summed_wfm) > self.sim_wfm_length - self.sim_pretrigger_length:
@@ -271,6 +280,6 @@ class NEXOOfflineFile:
 
         ####################################################################
         def GetTotalEntries( self ):
-            return self.intree.numentries
+            return self.intree.num_entries
 
 

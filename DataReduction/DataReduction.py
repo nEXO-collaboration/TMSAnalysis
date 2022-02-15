@@ -11,7 +11,7 @@ from StanfordTPCAnalysis.Clustering import Signal
 
 ##################################################################################################
 def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, channel_map_file, \
-                        num_events=-1, fixed_trigger=False, fit_pulse_flag=False, is_simulation=False):
+                        num_events=-1, fixed_trigger=False, fit_pulse_flag=False, is_simulation=False, add_noise=False):
 
         filetitle = filename.split('/')[-1]
         dataset = filename.split('/')[-3]
@@ -55,7 +55,7 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                    input_file = NEXOOfflineFile.NEXOOfflineFile( input_filename = filename,\
                                                   output_directory = output_dir,\
                                                   config = analysis_config,\
-                                                  add_noise = False, noise_lib_directory='/usr/workspace/nexo/jacopod/noise/')
+                                                  add_noise = add_noise, noise_lib_directory='/usr/workspace/nexo/jacopod/noise/')
                 else:
                    input_file = NGMRootFile.NGMRootFile( input_filename = filename,\
                                                   output_directory = output_dir,\
@@ -125,7 +125,6 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                 sig_array  = SignalArray.SignalArray()
                 summed_sipm_data = None
 
-
                 # Loop through channels, do the analysis, put this into the output series
                 for ch_num in range(len(thisrow['Channels'])):
                         if skip:
@@ -133,9 +132,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                         software_ch_num = thisrow['Channels'][ch_num]
                         #calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel( software_ch_num )
                         #decay_constant = analysis_config.GetDecayTimeForSoftwareChannel( software_ch_num )
-                        polarity = -1.
-                        if analysis_config.run_parameters['Sampling Rate [MHz]'] == 62.5:
-                                polarity = 1.
+                        polarity = 1.
 
                         if is_simulation:
                              trigger_position = int( analysis_config.run_parameters['Pretrigger Length [samples]'] *\
@@ -149,12 +146,10 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                              calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel( software_ch_num )
 
                         wfm_data = thisrow['Data'][ch_num]
-
                         if is_simulation and ch_status_flag:
                              if analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ) in ch_status.keys():
                                   mean,sigma = ch_status[analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )]
                                   wfm_data = np.random.normal(mean,sigma,len(wfm_data))
-                            
                         w = Waveform.Waveform(input_data=wfm_data,\
                                                 detector_type       = thisrow['ChannelTypes'][ch_num],\
                                                 sampling_period_ns  = sampling_period_ns,\

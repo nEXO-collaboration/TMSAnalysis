@@ -19,12 +19,12 @@ class StruckAnalysisConfiguration:
 
   ###############################################################################
   def GetChannelMapFromFile( self, input_file, sheet = None ):
-      if len(sheet)>31:
-          sheet = sheet[:31]
 
       if input_file.split('.')[-1] == 'csv':
           self.channel_map = pd.read_csv( input_file, delimiter=',' )
       else:
+          if len(sheet)>31:
+              sheet = sheet[:31]
           self.channel_map = pd.read_excel( input_file, sheet_name = self.sheet, engine='openpyxl', keep_default_na=False)
 
       if self.update_cal:

@@ -2,6 +2,7 @@ notebook/
 ChargeSim/
 DriverScripts/check_incoming_data.sh
 DriverScripts/check_tier1_incoming.py
+DriverScripts/*driver.py
 TMSUtilities/GetCuts.py
 TMSUtilities/cut_driver.py
 StruckAnalysisConfiguration/test.py

@@ -26,8 +26,6 @@
 #
 ########################################################################
 
-from StanfordTPCAnalysis.TMSUtilities import UsefulFunctionShapes as Ufun
-from StanfordTPCAnalysis.TMSUtilities import TMSWireFiltering as Filter
 from scipy.ndimage import gaussian_filter
 import scipy.optimize as opt
 from numba import jit

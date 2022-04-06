@@ -341,6 +341,7 @@ class Event:
 			path_to_file 		= path_to_tier1
 			try:
 				entry_from_reduced 	= pd.read_hdf(reduced, start=self.event_number, stop=self.event_number+1)
+				print(entry_from_reduced)
 				timestamp 		= entry_from_reduced['Timestamp'].values[0]
 				fname 			= entry_from_reduced['File'].values[0]
 				self.tot_charge_energy 	= entry_from_reduced['TotalTileEnergy'].values[0]
@@ -351,6 +352,9 @@ class Event:
 				fname 			= entry_from_reduced['File']
 				self.tot_charge_energy 	= entry_from_reduced['TotalTileEnergy']
 				self.event_number 	= entry_from_reduced['Event']
+			except IndexError:
+				fname = reduced.split('/')[-1]
+
 
 		else:
 			print('No reduced file found, charge energy and risetime information not present')
@@ -370,7 +374,7 @@ class Event:
 
 		global software_channel 
 		software_channel = tier1_ev[b'_slot']*16+tier1_ev[b'_channel']
-		if analysis_config.run_parameters['Sampling Rate [MHz]'] == 62.5:
+		if analysis_config.run_parameters['Sampling Rate [MHz]'] == 62.5 or analysis_config.run_parameters['Sampling Rate [MHz]'] == 25:
 			polarity = 1.
 
 		waveform = np.array(tier1_ev[ b'_waveform'])

@@ -56,9 +56,9 @@ for i,fname in enumerate(flist):
 	if os.path.exists(outfile):
 		print('file {}_reduced.h5 already exists'.format(fname_stripped))
 		continue
-	activate_venv = 'source $HOME/uproot/bin/activate && source $HOME/software/StanfordTPCAnalysis/setup.sh'
-	cmd_options = '--export=ALL -p pbatch  -t 02:00:00 -n 1 -J {} -o {}{}.out'.format(i,path_to_reduced,fname_stripped)
-	exe = 'python $HOME/software/StanfordTPCAnalysis/DriverScripts/reduce_data.py {} {} {}'.format(fname,path_to_reduced,path_to_config)
+	activate_venv = 'source $HOME/StanfordTPC/uproot/bin/activate && source $HOME/StanfordTPC/StanfordTPCAnalysis/setup.sh'
+	cmd_options = '--export=ALL -p pbatch  -t 60 -n 1 -J {} -o {}{}.out'.format(i,path_to_reduced,fname_stripped)
+	exe = 'python $HOME/StanfordTPC/StanfordTPCAnalysis/DriverScripts/reduce_data.py {} {} {}'.format(fname,path_to_reduced,path_to_config)
 	if args.sim:
 		exe += ' --sim'
 	cmd_full = '{} && sbatch {} --wrap=\'{}\''.format(activate_venv,cmd_options,exe)

@@ -27,61 +27,67 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
         input_baseline = int(analysis_config.run_parameters['Baseline Length [samples]'])
 
         start_time = time.time()
-        try:
-                # This block runs if the input file is in an HDF5 format. Othwerise, it
-                # will raise an OSError
-                input_df = pd.read_hdf(filename)
-                n_ev = 0
-                reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_ev,\
-                                        input_baseline, fixed_trigger, fit_pulse_flag, num_events=-1)
+        #try:
+        #        # This block runs if the input file is in an HDF5 format. Othwerise, it
+        #        # will raise an OSError
+        #        input_df = pd.read_hdf(filename)
+        #        n_ev = 0
+        #        reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_ev,\
+        #                                input_baseline, fixed_trigger, fit_pulse_flag, num_events=-1)
+        #        output_df_list.append(reduced_df)
+        #except:
+        # This block runs if the input file is not an HDF5 file (meaning it is
+        # assumed to be a ROOT file).
+        from StanfordTPCAnalysis.ParseStruck import NGMRootFile
+        from StanfordTPCAnalysis.ParseSimulation import NEXOOfflineFile
+
+        if is_simulation:
+
+           path = os.path.dirname(filename) 
+           pickled_fname = path + '/channel_status.p'
+           global ch_status
+
+           with open(pickled_fname,'rb') as f:
+                ch_status = pickle.load(f)
+           input_file = NEXOOfflineFile.NEXOOfflineFile( input_filename = filename,\
+                                          output_directory = output_dir,\
+                                          config = analysis_config,\
+                                          add_noise = False, noise_lib_directory='/usr/workspace/nexo/jacopod/noise/')
+        else:
+           input_file = NGMRootFile.NGMRootFile( input_filename = filename,\
+                                          output_directory = output_dir,\
+                                          config = analysis_config)
+
+        print('Channel map loaded:') 
+        print(input_file.channel_map) 
+        print('\n{} active channels.'.format(len(input_file.channel_map))) 
+        n_entries = input_file.GetTotalEntries()
+        n_channels = analysis_config.GetNumberOfChannels()
+        n_events_in_file = n_entries if is_simulation else n_entries/n_channels
+        n_events_to_process = num_events if (num_events < n_events_in_file and num_events>0) else n_events_in_file
+        n_events_processed = 0
+
+        while n_events_processed < n_events_to_process:
+                print('\tProcessing event {} at {:4.4}s...'.format(n_events_processed,time.time()-start_time))
+
+                #try:
+                start_stop = [n_events_processed,(n_events_processed+20)] if (n_events_processed+20 < n_events_to_process)\
+                        else [n_events_processed,n_events_to_process]
+
+                if not is_simulation:
+                     start_stop[0] = start_stop[0]*n_channels
+                     start_stop[1] = start_stop[1]*n_channels
+
+                input_df = input_file.GroupEventsAndWriteToHDF5(save = False, start_stop=start_stop)
+                reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_events_processed,\
+                                        input_baseline, fixed_trigger,\
+                                        fit_pulse_flag, is_simulation=is_simulation, num_events=-1)
                 output_df_list.append(reduced_df)
-        except OSError:
-                # This block runs if the input file is not an HDF5 file (meaning it is
-                # assumed to be a ROOT file).
-                from StanfordTPCAnalysis.ParseStruck import NGMRootFile
-                from StanfordTPCAnalysis.ParseSimulation import NEXOOfflineFile
-
-                if is_simulation:
-
-                   path = os.path.dirname(filename) 
-                   pickled_fname = path + '/channel_status.p'
-                   global ch_status
-
-                   with open(pickled_fname,'rb') as f:
-                        ch_status = pickle.load(f)
-                   input_file = NEXOOfflineFile.NEXOOfflineFile( input_filename = filename,\
-                                                  output_directory = output_dir,\
-                                                  config = analysis_config,\
-                                                  add_noise = False, noise_lib_directory='/usr/workspace/nexo/jacopod/noise/')
-                else:
-                   input_file = NGMRootFile.NGMRootFile( input_filename = filename,\
-                                                  output_directory = output_dir,\
-                                                  config = analysis_config)
-
-                print('Channel map loaded:') 
-                print(input_file.channel_map) 
-                print('\n{} active channels.'.format(len(input_file.channel_map))) 
-                n_entries = input_file.GetTotalEntries()
-                n_channels = analysis_config.GetNumberOfChannels()
-                n_events_in_file = n_entries if is_simulation else n_entries/n_channels
-                n_events_to_process = num_events if (num_events < n_events_in_file and num_events>0) else n_events_in_file
-                n_events_processed = 0
-
-                while n_events_processed < n_events_to_process:
-                        print('\tProcessing event {} at {:4.4}s...'.format(n_events_processed,time.time()-start_time))
-                        start_stop = [n_events_processed,(n_events_processed+20)] if (n_events_processed+20 < n_events_to_process)\
-                                else [n_events_processed,n_events_to_process]
-
-                        if not is_simulation:
-                             start_stop[0] = start_stop[0]*n_channels
-                             start_stop[1] = start_stop[1]*n_channels
-
-                        input_df = input_file.GroupEventsAndWriteToHDF5(save = False, start_stop=start_stop)
-                        reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_events_processed,\
-                                                input_baseline, fixed_trigger,\
-                                                fit_pulse_flag, is_simulation=is_simulation, num_events=-1)
-                        output_df_list.append(reduced_df)
-                        n_events_processed += 20
+                n_events_processed += 20
+                #except:
+                #        n_events_processed += 20
+                #        print('\t Error. Skipping to next batch of events...')
+                #        pass
 
         output_df = pd.concat( output_df_list, axis=0, ignore_index=True, sort=False )
         output_df.to_hdf(output_dir + outputfile, key='df')     
@@ -133,7 +139,8 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                         polarity = -1.
                         if analysis_config.run_parameters['Sampling Rate [MHz]'] == 62.5:
                                 polarity = 1.
-
+                        if analysis_config.run_parameters['Sampling Rate [MHz]'] == 25:
+                                polarity = 1.
                         if is_simulation:
                              trigger_position = int( analysis_config.run_parameters['Pretrigger Length [samples]'] *\
                                                      analysis_config.run_parameters['Simulation Sampling Rate [MHz]'] /\

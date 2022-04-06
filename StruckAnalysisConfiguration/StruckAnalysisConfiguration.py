@@ -262,6 +262,7 @@ class StruckAnalysisConfiguration:
       if len(sheet)>31:
           sheet = sheet[:31]
 
+      print(input_file)
       if input_file.split('.')[-1] == 'csv':
           temp_dataframe = pd.read_csv( input_file, delimiter=',' )
       else:

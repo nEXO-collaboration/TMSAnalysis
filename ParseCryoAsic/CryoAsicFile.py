@@ -97,7 +97,7 @@ class CryoAsicFile:
 			print("Something went wrong in reading binary file, got no events")
 			return None
 		elif(numberOfFrames == 1):
-			imgDesc = np.array([self.descramble_cryo_image(allFrames[0])], dtype=float) #Just descramble the 0th element of the length 1 array. 
+			imgDesc = np.array([self.descramble_cryo_image(bytearray(allFrames[0].tobytes()))], dtype=float) #Just descramble the 0th element of the length 1 array. 
 
 		else:
 			if(nevents is None):
@@ -111,16 +111,15 @@ class CryoAsicFile:
 			for i in looper:
 				currentRawData = allFrames[i, :]
 				if(len(imgDesc) == 0):
-					imgDesc = np.array([self.descramble_cryo_image(currentRawData)], dtype=float)
+					imgDesc = np.array([self.descramble_cryo_image(bytearray(currentRawData.tobytes()))], dtype=float)
 				else:
-					temp = self.descramble_cryo_image(currentRawData)
+					temp = self.descramble_cryo_image(bytearray(currentRawData.tobytes()))
 					temp = temp.astype(float, copy=False)
 					imgDesc = np.concatenate((imgDesc, np.array([temp])), 0)
 
 		self.events = imgDesc 
 		print("Done loading " + str(len(self.events)) + " CRYO ASIC events")
 
-		
 		
 
 	#this is distinct from load_raw_data in that it references
@@ -310,15 +309,18 @@ class CryoAsicFile:
 
 	#a utility function for parsing the binary format from the CRYO asic
 	def descramble_cryo_image(self, rawData):
-		header_length = 3 #words of header for our format
+		header_length = 6 #words of header for our format
 		num_ch_per_asic = 64
-		pixel_depth = 16
+
+		if (type(rawData != 'numpy.ndarray')):
+			img = np.frombuffer(rawData,dtype='uint16')
+
 		#calculate the number of samples
-		samples = int((len(rawData) - header_length)/num_ch_per_asic)
+		samples = int((img.shape[0] - header_length)/num_ch_per_asic)
 
 		#these lines are directly copied and thus are not well described (not commented in original code)
 		#(found in Cameras.py::_descrambleCRYO64XNImage)
-		img2 = rawData[header_length:].reshape(samples, num_ch_per_asic) #separate header from data
+		img2 = img[header_length:].reshape(samples, num_ch_per_asic) #separate header from data
 		#descramble image
 
 		imgDesc0 = np.append(img2[:,0:num_ch_per_asic:16].transpose(), img2[:,2:num_ch_per_asic:16].transpose())

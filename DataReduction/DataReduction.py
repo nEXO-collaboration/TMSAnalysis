@@ -51,11 +51,10 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                        global ch_status
                        with open(pickled_fname,'rb') as f:
                            ch_status = pickle.load(f)
-
                    input_file = NEXOOfflineFile.NEXOOfflineFile( input_filename = filename,\
                                                   output_directory = output_dir,\
                                                   config = analysis_config,\
-                                                  add_noise = add_noise, noise_lib_directory='/usr/workspace/nexo/jacopod/noise/')
+                                                  add_noise = add_noise, noise_lib_directory='/usr/workspace/nexo/jacopod/noise_double_ganged/')
                 else:
                    input_file = NGMRootFile.NGMRootFile( input_filename = filename,\
                                                   output_directory = output_dir,\
@@ -105,7 +104,6 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
         key_buffer = None
         row_counter  = 0
         for index, thisrow in input_df.iterrows():
-                #print('INDEX: {}, counter: {}'.format(index,row_counter))
                 skip = False
                 if (event_counter > num_events) and (num_events > 0):
                         break
@@ -207,26 +205,26 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                 if w.analysis_quantities['Pulse Height'] > 3.*w.analysis_quantities['Baseline RMS']:
                                         output_series['NumSiPMChannelsHit'] += 1
                                         output_series['TotalSiPMEnergy'] += w.analysis_quantities['Pulse Area']
-                                if summed_sipm_data is None:
-                                        summed_sipm_data = w.corrected_data
-                                else:
-                                        summed_sipm_data += w.corrected_data
+#                                if summed_sipm_data is None:
+#                                        summed_sipm_data = w.corrected_data
+#                                else:
+#                                        summed_sipm_data += w.corrected_data
 
-                # Create a waveform object for the summed light signal. Should be already calibrated. 
-                if summed_sipm_data is not None:
-                    summed_sipm_wfm = Waveform.Waveform(input_data=summed_sipm_data,\
-                                                        detector_type       = 'SiPM',\
-                                                        sampling_period_ns  = sampling_period_ns,\
-                                                        input_baseline      = input_baseline,\
-                                                        polarity            = 1,\
-                                                        fixed_trigger       = fixed_trigger,\
-                                                        trigger_position    = trigger_position,\
-                                                        decay_time_us       = 1.e9,\
-                                                        calibration_constant = 1. )
-                    summed_sipm_wfm.FindPulsesAndComputeAQs(fit_pulse_flag=fit_pulse_flag)
-                    # Add AQ's from summed waveform to the output
-                    for key in summed_sipm_wfm.analysis_quantities.keys():
-                            output_series['Summed SiPM {}'.format(key)] = summed_sipm_wfm.analysis_quantities[key]
+#                # Create a waveform object for the summed light signal. Should be already calibrated. 
+#                if summed_sipm_data is not None:
+#                    summed_sipm_wfm = Waveform.Waveform(input_data=summed_sipm_data,\
+#                                                        detector_type       = 'SiPM',\
+#                                                        sampling_period_ns  = sampling_period_ns,\
+#                                                        input_baseline      = input_baseline,\
+#                                                        polarity            = 1,\
+#                                                        fixed_trigger       = fixed_trigger,\
+#                                                        trigger_position    = trigger_position,\
+#                                                        decay_time_us       = 1.e9,\
+#                                                        calibration_constant = 1. )
+#                    summed_sipm_wfm.FindPulsesAndComputeAQs(fit_pulse_flag=fit_pulse_flag)
+#                    # Add AQ's from summed waveform to the output
+#                    for key in summed_sipm_wfm.analysis_quantities.keys():
+#                            output_series['Summed SiPM {}'.format(key)] = summed_sipm_wfm.analysis_quantities[key]
 #                    output_series['Summed SiPM Waveform'] = summed_sipm_data 
 
 

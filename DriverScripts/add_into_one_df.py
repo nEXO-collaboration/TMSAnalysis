@@ -30,7 +30,8 @@ for i,fname in enumerate(sorted(glob.glob(path_to_folder + '*reduced.h5'))):
 		print('{} files appended in {:.1f}'.format(i,(time.time() - start_time)))
 	df_list.append(pd.read_hdf(fname))
 df = pd.concat(df_list,ignore_index=True)
-df.to_pickle( path_to_folder + 'reduced_added.p')
+#df.to_pickle( path_to_folder + 'reduced_added.p')
+df.to_hdf( path_to_folder + 'reduced_added.h5',key='k')
 
 full_folder = os.path.dirname(os.path.abspath(path_to_folder))
 os.system('chmod -R 775 {}'.format(full_folder))

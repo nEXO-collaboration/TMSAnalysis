@@ -82,7 +82,7 @@ class Waveform:
 			if 'SiPM' in self.detector_type:
 				#self.data = gaussian_filter( self.data.astype(float), 80./self.sampling_period_ns )
 					# ^Gaussian smoothing with a 80ns width (1sig)
-				self.data = self.data.astype(float)
+				self.data = self.data.to_numpy().astype(float)
 				window_start = self.trigger_position - int(1600/self.sampling_period_ns)
 				window_end = self.trigger_position + int(2400/self.sampling_period_ns)
 				baseline_calc_end = window_start + int(800/self.sampling_period_ns)
@@ -110,7 +110,7 @@ class Waveform:
                                 # charge-sensitive discrete preamps.
 
 				#this is the smoothing time window in ns
-				ns_smoothing_window = 20.0
+				ns_smoothing_window = 500.0
 				self.data = gaussian_filter( self.data.astype(float),\
 				ns_smoothing_window/self.sampling_period_ns ) * self.polarity
 					# ^Gaussian smoothing with a 0.5us width, also, flip polarity if necessary

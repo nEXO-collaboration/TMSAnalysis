@@ -56,7 +56,7 @@ class StruckAnalysisConfiguration:
       if 'TileStrip' in self.channel_map['ChannelType'].loc[mask].values[0] or \
          'SiPM' in self.channel_map['ChannelType'].loc[mask].values[0]:
             try:
-               channel_name = self.channel_map['ChannelName'].loc[mask].values[0]
+               channel_name = str(self.channel_map['ChannelName'].loc[mask].values[0])
                return self.calibration_constants['Calibration'].loc[channel_name]
             except KeyError:
                # If there's no calibration entry for <channel_name>

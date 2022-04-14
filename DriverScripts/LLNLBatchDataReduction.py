@@ -19,7 +19,7 @@ import argparse, os, sys, time, glob
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('inputfile', type=str, help='path + name of input file')
+parser.add_argument('inputdir', type=str, help='path of input files')
 parser.add_argument('outputdir', type=str, help='location to put output files')
 parser.add_argument('configdir', type=str, help='location where config files are stored. '+\
                                                 'Note that this must include three config files:\n'+\
@@ -27,8 +27,9 @@ parser.add_argument('configdir', type=str, help='location where config files are
                                                 ' Calibrations, and\n'+\
                                                 ' Channel_Map')
 parser.add_argument('--sim', help='Simulation flag', action='store_true')
+parser.add_argument('--noise', help='Simulation flag', action='store_true')
 args = parser.parse_args()
-path_to_tier1   = args.inputfile
+path_to_tier1   = args.inputdir
 path_to_reduced = args.outputdir
 path_to_config = args.configdir
 
@@ -57,10 +58,12 @@ for i,fname in enumerate(flist):
 		print('file {}_reduced.h5 already exists'.format(fname_stripped))
 		continue
 	activate_venv = 'source $HOME/uproot/bin/activate && source $HOME/software/StanfordTPCAnalysis/setup.sh'
-	cmd_options = '--export=ALL -p pbatch  -t 02:00:00 -n 1 -J {} -o {}{}.out'.format(i,path_to_reduced,fname_stripped)
+	cmd_options = '--export=ALL -p pbatch  -t 5-10:00:00 -n 1 -J {} -o {}{}.out'.format(i,path_to_reduced,fname_stripped)
 	exe = 'python $HOME/software/StanfordTPCAnalysis/DriverScripts/reduce_data.py {} {} {}'.format(fname,path_to_reduced,path_to_config)
 	if args.sim:
 		exe += ' --sim'
+		if args.noise:
+			exe += ' --noise'
 	cmd_full = '{} && sbatch {} --wrap=\'{}\''.format(activate_venv,cmd_options,exe)
 	os.system(cmd_full)
 	print('job {} sumbitted'.format(i))

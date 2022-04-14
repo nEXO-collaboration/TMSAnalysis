@@ -8,9 +8,8 @@ class LightMap:
         self.tile_half_size = tile_size/2
 
     def load_files(self, fchroma, freduced):
-        with open(fchroma,'rb') as f:
-            self.chroma_sim = pd.DataFrame.from_dict(pickle.load(f)).set_index('index')
-        self.reduced = pd.read_hdf(freduced)
+        self.chroma_sim = pd.DataFrame.from_dict(pd.read_pickle(fchroma)).set_index('index')
+        self.reduced = pd.read_hdf(freduced).iloc[self.chroma_sim.index]
 
     def get_matrix(self, pos_x, pos_y, pos_z, light_energy):
         self.lim_x = np.linspace(-self.tile_half_size,self.tile_half_size,self.bins)

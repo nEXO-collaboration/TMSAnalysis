@@ -89,7 +89,6 @@ class NGMRootFile:
 			output_series['Channels'] = data['_slot']*16+data['_channel']
 			output_series['Timestamp'] = data['_rawclock']
 			output_series['Data'] = data['_waveform']
-			channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data['_slot'],data['_channel'])
 			output_series['ChannelTypes'] = channel_types
 			output_series['ChannelPositions'] = channel_positions
 			df = df.append(output_series,ignore_index=True)	

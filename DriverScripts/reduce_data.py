@@ -43,8 +43,8 @@ if not os.path.exists(output_dir):
 
 print('\nReducing {}'.format( this_file ))
 DataReduction.ReduceFile( this_file, output_dir,\
-				config_dir + '/Run_Parameters_Run32.csv',\
-				config_dir + '/Calibrations_Xe_Run30.csv',\
-				config_dir + '/Channel_Map_Run32.csv',\
+				config_dir + '/Run_Parameters.csv',\
+				config_dir + '/Calibrations_Xe.csv',\
+				config_dir + '/Channel_Map.csv',\
 				fixed_trigger=True,fit_pulse_flag=False,\
                                 num_events=-1,is_simulation=args.sim,add_noise=args.noise)

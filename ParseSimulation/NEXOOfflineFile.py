@@ -168,12 +168,6 @@ class NEXOOfflineFile:
                 output_series['MCSourceLocationZ'] = self.MCtruth['fGenZ'][counter-1]
                 output_series['MCNTE'] = sum(self.MCtruth['fNESTLineageNTE'][counter-1])
                 output_series['MCNOP'] = sum(self.MCtruth['fNESTLineageNOP'][counter-1])
-
-                if sum(self.MCtruth['fNESTLineageNOP'][counter-1]) > 5e6:
-                        output_series['MCBiPoFlag'] = 1
-                else:
-                        output_series['MCBiPoFlag'] = 0
-
                 self.global_noise_file_counter = None
                 self.noise_file_event_counter  = None
                 df = df.append(output_series,ignore_index=True)
@@ -218,7 +212,6 @@ class NEXOOfflineFile:
 
             if self.add_noise:
                noise_waveforms = self.GetNoiseEvent()
-
             for index,row in self.channel_map.iterrows():
 
                 channel_ids.append( row['SoftwareChannel'] )
@@ -253,7 +246,7 @@ class NEXOOfflineFile:
                 summed_wfm = full_wfm
 
                 if self.add_noise and 'TileStrip' in row['ChannelType']:
-                   # Downsample the noise wfm by the sampling rate ratio between sim and data    
+                   # Downsample the noise wfm by the sampling rate ratio between sim and data
                    downsampled_noise_wfm = noise_waveforms[ row['ChannelName'] ][::int(self.wfm_sampling_ratio)] 
                    if len(downsampled_noise_wfm) >= len(summed_wfm):
                       summed_wfm = summed_wfm + \

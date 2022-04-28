@@ -25,6 +25,7 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
         analysis_config.GetCalibrationConstantsFromFile( calibrations_file )
         analysis_config.GetChannelMapFromFile( channel_map_file, dataset )
         input_baseline = int(analysis_config.run_parameters['Baseline Length [samples]'])
+        strip_threshold = int(analysis_config.run_parameters['Strip Threshold [sigma]'])
 
         start_time = time.time()
         #try:
@@ -81,7 +82,8 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                 input_df = input_file.GroupEventsAndWriteToHDF5(save = False, start_stop=start_stop)
                 reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_events_processed,\
                                         input_baseline, fixed_trigger,\
-                                        fit_pulse_flag, is_simulation=is_simulation, num_events=-1)
+                                        fit_pulse_flag, is_simulation=is_simulation, num_events=-1,\
+                                        strip_threshold=strip_threshold)
                 output_df_list.append(reduced_df)
                 n_events_processed += 20
                 #except:
@@ -97,7 +99,7 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
 ##################################################################################################
 def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                 input_baseline, fixed_trigger, \
-                fit_pulse_flag, is_simulation=False, num_events=-1):
+                fit_pulse_flag, is_simulation=False, num_events=-1,strip_threshold=5.):
 
         output_series = pd.Series()
         output_df = pd.DataFrame()
@@ -168,7 +170,8 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                                 fixed_trigger       = fixed_trigger,\
                                                 trigger_position    = trigger_position,\
                                                 decay_time_us       = decay_time_us,\
-                                                calibration_constant = calibration_constant )
+                                                calibration_constant = calibration_constant,\
+                                              strip_threshold = strip_threshold)
                         try:
                                 w.FindPulsesAndComputeAQs(fit_pulse_flag=fit_pulse_flag)
                         except IndexError:
@@ -186,7 +189,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                         # Compute the combined quantities for the tile.
                         if 'TileStrip' in analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ):
 
-                                if (w.analysis_quantities['Charge Energy'] > 5. * w.analysis_quantities['Baseline RMS']) and \
+                                if (w.analysis_quantities['Charge Energy'] > strip_threshold * w.analysis_quantities['Baseline RMS']) and \
                                    (w.analysis_quantities['Charge Energy']>0.5):
                                         output_series['NumTileChannelsHit'] += 1
                                         ch_pos = analysis_config.GetChannelPos(software_ch_num)

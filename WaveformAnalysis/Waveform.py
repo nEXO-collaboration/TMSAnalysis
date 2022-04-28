@@ -43,7 +43,7 @@ class Waveform:
 	def __init__( self, input_data=None, detector_type=None, sampling_period_ns=None, \
 			input_baseline=-1, polarity=-1., \
 			fixed_trigger=False, trigger_position=0, decay_time_us=1.e9,\
-			calibration_constant=1. ):
+			calibration_constant=1., strip_threshold=5. ):
 
 		self.data = input_data                           # <- Waveform in numpy array
 		self.input_baseline = input_baseline             # <- Input baseline (not required)
@@ -55,6 +55,7 @@ class Waveform:
 		self.decay_time_us = decay_time_us               # <- Decay time of preamps (for charge tile)
 		#self.store_corrected_data = store_corrected_data   # <- Flag which allows you to access the processed waveform
 		self.calibration_constant = calibration_constant # <- Calibration constant (for charge tile)
+		self.strip_threshold = strip_threshold           # <- Strip threshold in sigma above baseline RMS
 
 		# Make the default detector type a simple PMT
 		if detector_type == None:
@@ -133,13 +134,14 @@ class Waveform:
 				drift_time = -1.
 				induction_window_ns = 4000
 				ind_window_sample = int(induction_window_ns/self.sampling_period_ns)
-				if charge_energy > 3.*baseline_rms: # Compute timing/position if charge energy is positive and above noise.
+				if charge_energy > self.strip_threshold*baseline_rms: # Compute timing/position if charge energy is positive and above noise.
 					t10 = float( np.where( self.corrected_data > 0.1*charge_energy)[0][0] )
 					t25 = float( np.where( self.corrected_data > 0.25*charge_energy)[0][0] )
 					t50 = float( np.where( self.corrected_data > 0.5*charge_energy)[0][0] )
 					t90 = float( np.where( self.corrected_data > 0.9*charge_energy)[0][0] )
 					# Compute drift time in microseconds (sampling is given in ns)
 					drift_time = (t90 - self.trigger_position) * (self.sampling_period_ns / 1.e3)
+                                        
 				self.analysis_quantities['Baseline'] = baseline * self.calibration_constant
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
 				self.analysis_quantities['Charge Energy'] = charge_energy
@@ -394,7 +396,8 @@ class Event:
 							fixed_trigger       = False,\
 							trigger_position    = analysis_config.run_parameters['Pretrigger Length [samples]'],\
 							decay_time_us       = analysis_config.GetDecayTimeForSoftwareChannel( software_channel[i] ),\
-							calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel(software_channel[i]))
+							  calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel(software_channel[i]),\
+							strip_threshold = analysis_config.run_parameters['Strip Threshold [sigma]'])
 			#same as for Waveform class
 			self.baseline.append(np.mean(ch_waveform[:int(analysis_config.run_parameters['Baseline Length [samples]'])]))
 			#different cases for tile/SiPM
@@ -421,7 +424,7 @@ class Event:
 			p = plt.plot(np.arange(len(self.waveform[v].data))/self.sampling_frequency,self.waveform[v].data-self.baseline[e]+ch_offset*i)
 			plt.text(0,ch_offset*i,'{} {:.1f}'.format(v,self.charge_energy_ch[e]))
 			if risetime and self.charge_energy_ch[e]>0:
-				plt.vlines(self.risetime[e],ch_offset*software_channel[i],ch_offset*software_channel[i]+2*self.charge_energy_ch[e],linestyles='dashed',colors=p[0].get_color())
+				plt.vlines(self.risetime[e],ch_offset*i,ch_offset*i+2*self.charge_energy_ch[e],linestyles='dashed',colors=p[0].get_color())
 
 		plt.xlabel('time [$\mu$s]')
 		plt.title('Event {}, Energy {:.1f} ADC counts'.format(self.event_number,self.tot_charge_energy))

@@ -42,7 +42,7 @@ class Waveform:
 	#######################################################################################
 	def __init__( self, input_data=None, detector_type=None, sampling_period_ns=None, \
 			input_baseline=-1, polarity=-1., \
-			fixed_trigger=False, trigger_position=0, decay_time_us=1.e9,\
+			fixed_trigger=False, trigger_position=0, sipm_trigger_position, decay_time_us=1.e9,\
 			calibration_constant=1., strip_threshold=5. ):
 
 		self.data = input_data                           # <- Waveform in numpy array
@@ -51,6 +51,7 @@ class Waveform:
 							         #      'XWire', 'YWire', 'SiPM', 'TileStrip'
 		self.fixed_trigger = fixed_trigger               # <- Flag which fixes the pulse analysis window
 		self.trigger_position = int(trigger_position)    # <- Location of DAQ trigger in samples
+		self.sipm_trigger_position = int(sipm_trigger_position)
 		self.polarity = polarity                         # <- Polarity switch to make waveforms positive
 		self.decay_time_us = decay_time_us               # <- Decay time of preamps (for charge tile)
 		#self.store_corrected_data = store_corrected_data   # <- Flag which allows you to access the processed waveform
@@ -62,6 +63,7 @@ class Waveform:
 			self.detector_type = 'PMT'
 
 		self.sampling_period_ns = sampling_period_ns
+                
 
 		# All returned quantities will be stored in this
 		# dict and added to the output dataframe in DataReduction.py
@@ -86,15 +88,17 @@ class Waveform:
 				#self.data = gaussian_filter( self.data.astype(float), 80./self.sampling_period_ns )
 					# ^Gaussian smoothing with a 80ns width (1sig)
 				self.data = self.data.astype(float)
-				window_start = self.trigger_position - int(1600/self.sampling_period_ns)
-				window_end = self.trigger_position + int(2400/self.sampling_period_ns)
-				baseline_calc_end = window_start + int(800/self.sampling_period_ns)
+				#window_start = self.sipm_trigger_position - int(80/self.sampling_period_ns)
+				window_start = 0
+				#window_end = self.sipm_trigger_position + int(800/self.sampling_period_ns)
+				window_end = -1
+				baseline_calc_end = window_start + int(200/self.sampling_period_ns)
 				baseline = np.mean(self.data[window_start:baseline_calc_end])
 				baseline_rms = np.std(self.data[window_start:baseline_calc_end])
 				self.corrected_data = (self.data - baseline) * self.calibration_constant
 
 				pulse_area, pulse_height, t5, t10, t20, t80, t90 = \
-					self.GetPulseAreaAndTimingParameters( self.corrected_data[window_start:window_end] )
+					self.GetSiPMPulseAreaAndTimingParameters( self.corrected_data[window_start:window_end] )
 				pulse_time = t10 - int(1600/self.sampling_period_ns)
 				self.analysis_quantities['Baseline'] = baseline
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
@@ -215,10 +219,10 @@ class Waveform:
 
 
 	#######################################################################################
-	def GetPulseAreaAndTimingParameters( self, dat_array ):
+	def GetSiPMPulseAreaAndTimingParameters( self, dat_array ):
 		if len(dat_array) == 0: return 0, 0, 0, 0, 0, 0, 0
 		cumul_pulse = np.cumsum( dat_array * self.polarity )
-		area_window_length = int(800./self.sampling_period_ns) # average over 800ns
+		area_window_length = int(400./self.sampling_period_ns) # average over 400ns
 		pulse_area = np.mean(cumul_pulse[-area_window_length:])
 		try:
 			t5 = np.where( cumul_pulse > 0.05*pulse_area )[0][0]

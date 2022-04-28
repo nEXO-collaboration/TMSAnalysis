@@ -49,10 +49,15 @@ if not os.path.exists(path_to_reduced):
 
 
 flist = glob.glob('{}*.root'.format(path_to_tier1))
+print(len(flist))
+max_files_to_submit = 500
+
 
 for i,fname in enumerate(flist):
+	if i > max_files_to_submit: break
 	fname_stripped = (fname.split('/')[-1]).split('.')[0]
 	outfile = '{}{}_reduced.h5'.format(path_to_reduced,fname_stripped)
+#	print(outfile)
 	if os.path.exists(outfile):
 		print('file {}_reduced.h5 already exists'.format(fname_stripped))
 		continue

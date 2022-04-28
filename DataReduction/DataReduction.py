@@ -10,7 +10,7 @@ from StanfordTPCAnalysis.Clustering import Clustering
 from StanfordTPCAnalysis.Clustering import Signal
 
 ##################################################################################################
-def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, channel_map_file, \
+def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, channel_map_file, save_hdf5=False,\
                         num_events=-1, fixed_trigger=False, fit_pulse_flag=False, is_simulation=False):
 
         filetitle = filename.split('/')[-1]
@@ -26,6 +26,7 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
         analysis_config.GetChannelMapFromFile( channel_map_file, dataset )
         input_baseline = int(analysis_config.run_parameters['Baseline Length [samples]'])
         strip_threshold = int(analysis_config.run_parameters['Strip Threshold [sigma]'])
+
 
         start_time = time.time()
         #try:
@@ -67,25 +68,28 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
         n_events_in_file = n_entries if is_simulation else n_entries/n_channels
         n_events_to_process = num_events if (num_events < n_events_in_file and num_events>0) else n_events_in_file
         n_events_processed = 0
+        loop_counter = 0
 
         while n_events_processed < n_events_to_process:
                 print('\tProcessing event {} at {:4.4}s...'.format(n_events_processed,time.time()-start_time))
 
                 #try:
-                start_stop = [n_events_processed,(n_events_processed+20)] if (n_events_processed+20 < n_events_to_process)\
+                start_stop = [n_events_processed,(n_events_processed+100)] if (n_events_processed+100 < n_events_to_process)\
                         else [n_events_processed,n_events_to_process]
 
                 if not is_simulation:
                      start_stop[0] = start_stop[0]*n_channels
                      start_stop[1] = start_stop[1]*n_channels
 
-                input_df = input_file.GroupEventsAndWriteToHDF5(save = False, start_stop=start_stop)
+                input_df = input_file.GroupEventsAndWriteToHDF5(save = save_hdf5, start_stop=start_stop,\
+                                                                file_counter=loop_counter)
                 reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_events_processed,\
                                         input_baseline, fixed_trigger,\
                                         fit_pulse_flag, is_simulation=is_simulation, num_events=-1,\
                                         strip_threshold=strip_threshold)
                 output_df_list.append(reduced_df)
-                n_events_processed += 20
+                n_events_processed += 100
+                loop_counter += 1
                 #except:
                 #        n_events_processed += 20
                 #        print('\t Error. Skipping to next batch of events...')
@@ -151,6 +155,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                              calibration_constant = 1.
                         else:
                              trigger_position = analysis_config.run_parameters['Pretrigger Length [samples]']
+                             sipm_trigger_position = analysis_config.run_parameters['SiPM Pretrigger Length [samples]']
                              decay_time_us = analysis_config.GetDecayTimeForSoftwareChannel( software_ch_num )
                              calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel( software_ch_num )
 
@@ -169,6 +174,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                                 polarity            = polarity,\
                                                 fixed_trigger       = fixed_trigger,\
                                                 trigger_position    = trigger_position,\
+                                                sipm_trigger_position = sipm_trigger_position,\
                                                 decay_time_us       = decay_time_us,\
                                                 calibration_constant = calibration_constant,\
                                               strip_threshold = strip_threshold)

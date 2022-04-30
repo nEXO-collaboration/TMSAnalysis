@@ -42,28 +42,28 @@ class Waveform:
 	#######################################################################################
 	def __init__( self, input_data=None, detector_type=None, sampling_period_ns=None, \
 			input_baseline=-1, polarity=-1., \
-			fixed_trigger=False, trigger_position=0, sipm_trigger_position, decay_time_us=1.e9,\
+			fixed_trigger=False, trigger_position=0, sipm_trigger_position=0, decay_time_us=1.e9,\
 			calibration_constant=1., strip_threshold=5. ):
 
-		self.data = input_data                           # <- Waveform in numpy array
-		self.input_baseline = input_baseline             # <- Input baseline (not required)
-		self.detector_type = detector_type               # <- Options are: 'NaI', 'Cherenkov', 'PS',
-							         #      'XWire', 'YWire', 'SiPM', 'TileStrip'
-		self.fixed_trigger = fixed_trigger               # <- Flag which fixes the pulse analysis window
-		self.trigger_position = int(trigger_position)    # <- Location of DAQ trigger in samples
+		self.data = input_data				 # <- Waveform in numpy array
+		self.input_baseline = input_baseline		 # <- Input baseline (not required)
+		self.detector_type = detector_type		 # <- Options are: 'NaI', 'Cherenkov', 'PS',
+								 #	'XWire', 'YWire', 'SiPM', 'TileStrip'
+		self.fixed_trigger = fixed_trigger		 # <- Flag which fixes the pulse analysis window
+		self.trigger_position = int(trigger_position)	 # <- Location of DAQ trigger in samples
 		self.sipm_trigger_position = int(sipm_trigger_position)
-		self.polarity = polarity                         # <- Polarity switch to make waveforms positive
-		self.decay_time_us = decay_time_us               # <- Decay time of preamps (for charge tile)
+		self.polarity = polarity			 # <- Polarity switch to make waveforms positive
+		self.decay_time_us = decay_time_us		 # <- Decay time of preamps (for charge tile)
 		#self.store_corrected_data = store_corrected_data   # <- Flag which allows you to access the processed waveform
 		self.calibration_constant = calibration_constant # <- Calibration constant (for charge tile)
-		self.strip_threshold = strip_threshold           # <- Strip threshold in sigma above baseline RMS
+		self.strip_threshold = strip_threshold		 # <- Strip threshold in sigma above baseline RMS
 
 		# Make the default detector type a simple PMT
 		if detector_type == None:
 			self.detector_type = 'PMT'
 
 		self.sampling_period_ns = sampling_period_ns
-                
+		
 
 		# All returned quantities will be stored in this
 		# dict and added to the output dataframe in DataReduction.py
@@ -79,7 +79,7 @@ class Waveform:
 		self.analysis_quantities['Baseline RMS'] =  np.std(self.data[:self.input_baseline])
 
 		# NOTE: almost all analyses are fixed_trigger analyses, so the if statement
-		#       should generally be true.
+		#	should generally be true.
 
 		if self.fixed_trigger:
 
@@ -97,8 +97,10 @@ class Waveform:
 				baseline_rms = np.std(self.data[window_start:baseline_calc_end])
 				self.corrected_data = (self.data - baseline) * self.calibration_constant
 
-				pulse_area, pulse_height, t5, t10, t20, t80, t90 = \
-					self.GetSiPMPulseAreaAndTimingParameters( self.corrected_data[window_start:window_end] )
+				window_length_us = 0.4 # length of window used to calculate pulse area
+				pulse_area, pulse_height, t5, t10, t25, t50, t90 = \
+					self.GetPulseAreaAndTimingParameters( self.corrected_data[window_start:window_end], \
+										  window_length_us )
 				pulse_time = t10 - int(1600/self.sampling_period_ns)
 				self.analysis_quantities['Baseline'] = baseline
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
@@ -107,14 +109,14 @@ class Waveform:
 				self.analysis_quantities['Pulse Height'] = pulse_height
 				self.analysis_quantities['T5'] = t5
 				self.analysis_quantities['T10'] = t10
-				self.analysis_quantities['T20'] = t20
-				self.analysis_quantities['T80'] = t80
+				self.analysis_quantities['T25'] = t25
+				self.analysis_quantities['T50'] = t50
 				self.analysis_quantities['T90'] = t90
 				self.analysis_quantities['Induced Charge'] = 0
 
 			elif 'TileStrip' in self.detector_type:
-                                # 'TileStrip' denotes the strips read out with the
-                                # charge-sensitive discrete preamps.
+				# 'TileStrip' denotes the strips read out with the
+				# charge-sensitive discrete preamps.
 
 				#this is the smoothing time window in ns
 				ns_smoothing_window = 500.0
@@ -124,31 +126,35 @@ class Waveform:
 				baseline = np.mean(self.data[0:self.input_baseline])
 				baseline_rms = np.std(self.data[0:self.input_baseline])
 					# ^Baseline and RMS calculated from first 10us of smoothed wfm
-				self.corrected_data = DecayTimeCorrection( self.data - baseline, \
-									self.decay_time_us, \
-									self.sampling_period_ns ) * \
-						self.calibration_constant
-				charge_energy = np.mean( self.corrected_data[-int(5000./self.sampling_period_ns):] )
+
+				self.corrected_data = Differentiator( self.data - baseline, 100 ) * self.calibration_constant
+
 				baseline_rms *= self.calibration_constant
-				# ^Charge energy calculated from the last 5us of the smoothed, corrected wfm
-				t10 = -1.
-				t25 = -1.
-				t50 = -1.
-				t90 = -1.
-				drift_time = -1.
 				induction_window_ns = 4000
 				ind_window_sample = int(induction_window_ns/self.sampling_period_ns)
+				window_length_us = 5. # calculate energy from last 5 us of cumulative pulse area
+				pulse_area, pulse_height, t5, t10, t25, t50, t90 = \
+					self.GetPulseAreaAndTimingParameters( self.corrected_data, window_length_us )
+
+				charge_energy = pulse_area # can use pulse height or pulse area
+				
 				if charge_energy > self.strip_threshold*baseline_rms: # Compute timing/position if charge energy is positive and above noise.
-					t10 = float( np.where( self.corrected_data > 0.1*charge_energy)[0][0] )
-					t25 = float( np.where( self.corrected_data > 0.25*charge_energy)[0][0] )
-					t50 = float( np.where( self.corrected_data > 0.5*charge_energy)[0][0] )
-					t90 = float( np.where( self.corrected_data > 0.9*charge_energy)[0][0] )
 					# Compute drift time in microseconds (sampling is given in ns)
 					drift_time = (t90 - self.trigger_position) * (self.sampling_period_ns / 1.e3)
-                                        
+				else:
+					t5 = -1.
+					t10 = -1.
+					t25 = -1.
+					t50 = -1.
+					t90 = -1.
+					drift_time = -1.
+					
 				self.analysis_quantities['Baseline'] = baseline * self.calibration_constant
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
 				self.analysis_quantities['Charge Energy'] = charge_energy
+				self.analysis_quantities['Pulse Height'] = pulse_height
+				self.analysis_quantities['Pulse Area'] = pulse_area
+				self.analysis_quantities['T5'] = t5
 				self.analysis_quantities['T10'] = t10
 				self.analysis_quantities['T25'] = t25
 				self.analysis_quantities['T50'] = t50
@@ -219,10 +225,10 @@ class Waveform:
 
 
 	#######################################################################################
-	def GetSiPMPulseAreaAndTimingParameters( self, dat_array ):
+	def GetPulseAreaAndTimingParameters( self, dat_array, window_length_us ):
 		if len(dat_array) == 0: return 0, 0, 0, 0, 0, 0, 0
 		cumul_pulse = np.cumsum( dat_array * self.polarity )
-		area_window_length = int(400./self.sampling_period_ns) # average over 400ns
+		area_window_length = int(window_length_us*1000./self.sampling_period_ns)
 		pulse_area = np.mean(cumul_pulse[-area_window_length:])
 		try:
 			t5 = np.where( cumul_pulse > 0.05*pulse_area )[0][0]
@@ -233,13 +239,13 @@ class Waveform:
 		except IndexError:
 			t10 = 1
 		try:
-			t20 = np.where( cumul_pulse > 0.2*pulse_area )[0][0]
+			t25 = np.where( cumul_pulse > 0.25*pulse_area )[0][0]
 		except IndexError:
-			t20 = 1
+			t25 = 1
 		try:
-			t80 = np.where( cumul_pulse > 0.8*pulse_area )[0][0]
+			t50 = np.where( cumul_pulse > 0.5*pulse_area )[0][0]
 		except IndexError:
-			t80 = 1
+			t50 = 1
 		try:
 			t90 = np.where( cumul_pulse > 0.9*pulse_area )[0][0]
 		except IndexError:
@@ -249,10 +255,10 @@ class Waveform:
 #		print('pulse height: {}'.format(pulse_height))
 #		print('T5: {}'.format(t5))
 #		print('T10: {}'.format(t10))
-#		print('T20: {}'.format(t20))
-#		print('T80: {}'.format(t80))
+#		print('T25: {}'.format(t25))
+#		print('T50: {}'.format(t50))
 #		print('T90: {}'.format(t90))
-		return pulse_area, pulse_height, t5, t10, t20, t80, t90
+		return pulse_area, pulse_height, t5, t10, t25, t50, t90
 
 
 
@@ -313,6 +319,17 @@ def DecayTimeCorrection( input_wfm, decay_time_us, sampling_period_ns ):
 					input_wfm[i+1]
 		return new_wfm
 
+@jit("float64[:](float64[:],float64)",nopython=True)
+def Differentiator( wfm, decay ):
+	# decay parameter is in number of samples
+	z = np.exp(-1/decay)
+	a0 = (1 + z)/2.
+	a1 = -(1+z)/2.
+	b1 = z
+	out = [0]
+	for i in range(1,len(wfm)):
+		out.append( a0 * wfm[i] + a1 * wfm[i-1] + b1 * out[i-1])
+	return np.array(out)
 
 
 class Event:
@@ -336,28 +353,28 @@ class Event:
 		analysis_config.GetCalibrationConstantsFromFile( calibrations_file )
 		analysis_config.GetChannelMapFromFile( channel_map_file, path_to_tier1.split('/')[-3] )
 		channel_number = analysis_config.GetNumberOfChannels()
-		self.event_number 		= event_number
-		self.waveform 			= {}
+		self.event_number		= event_number
+		self.waveform			= {}
 		self.baseline			= []
 		self.charge_energy_ch		= []
-		self.risetime 			= []
+		self.risetime			= []
 		self.sampling_frequency = analysis_config.run_parameters['Sampling Rate [MHz]']
 
 		if path_to_tier1 is not None:
-			path_to_file 		= path_to_tier1
+			path_to_file		= path_to_tier1
 			try:
-				entry_from_reduced 	= pd.read_hdf(reduced, start=self.event_number, stop=self.event_number+1)
+				entry_from_reduced	= pd.read_hdf(reduced, start=self.event_number, stop=self.event_number+1)
 				print(entry_from_reduced)
-				timestamp 		= entry_from_reduced['Timestamp'].values[0]
-				fname 			= entry_from_reduced['File'].values[0]
-				self.tot_charge_energy 	= entry_from_reduced['TotalTileEnergy'].values[0]
-				self.event_number 	= entry_from_reduced['Event'][event_number]
+				timestamp		= entry_from_reduced['Timestamp'].values[0]
+				fname			= entry_from_reduced['File'].values[0]
+				self.tot_charge_energy	= entry_from_reduced['TotalTileEnergy'].values[0]
+				self.event_number	= entry_from_reduced['Event'][event_number]
 			except OSError:
 				entry_from_reduced = pd.read_pickle(reduced).iloc[self.event_number]
-				timestamp 		= entry_from_reduced['Timestamp']
-				fname 			= entry_from_reduced['File']
-				self.tot_charge_energy 	= entry_from_reduced['TotalTileEnergy']
-				self.event_number 	= entry_from_reduced['Event']
+				timestamp		= entry_from_reduced['Timestamp']
+				fname			= entry_from_reduced['File']
+				self.tot_charge_energy	= entry_from_reduced['TotalTileEnergy']
+				self.event_number	= entry_from_reduced['Event']
 			except IndexError:
 				fname = reduced.split('/')[-1]
 
@@ -393,13 +410,13 @@ class Event:
 				continue
 			self.ix_channel.append(software_channel[i])
 			self.waveform[ch_name] = Waveform(input_data = ch_waveform,\
-							detector_type       = ch_type,\
+							detector_type	    = ch_type,\
 							sampling_period_ns  = 1.e3/self.sampling_frequency,\
-							input_baseline      = -1,\
-							polarity            = polarity,\
-							fixed_trigger       = False,\
+							input_baseline	    = -1,\
+							polarity	    = polarity,\
+							fixed_trigger	    = False,\
 							trigger_position    = analysis_config.run_parameters['Pretrigger Length [samples]'],\
-							decay_time_us       = analysis_config.GetDecayTimeForSoftwareChannel( software_channel[i] ),\
+							decay_time_us	    = analysis_config.GetDecayTimeForSoftwareChannel( software_channel[i] ),\
 							  calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel(software_channel[i]),\
 							strip_threshold = analysis_config.run_parameters['Strip Threshold [sigma]'])
 			#same as for Waveform class
@@ -458,21 +475,21 @@ class Simulated_Event:
 		analysis_config.GetCalibrationConstantsFromFile( calibrations_file )
 		analysis_config.GetChannelMapFromFile( channel_map_file )
 		channel_number = analysis_config.GetNumberOfChannels()
-		self.event_number 		= event_number
-		self.waveform 			= {}
+		self.event_number		= event_number
+		self.waveform			= {}
 		self.baseline			= []
 		self.baseline_rms		= []
 		self.charge_energy_ch		= []
-		self.risetime 			= []
+		self.risetime			= []
 		self.sampling_frequency = analysis_config.run_parameters['Simulation Sampling Rate [MHz]']
 
 		if path_to_tier1 is not None:
-			path_to_file 		= path_to_tier1
-			entry_from_reduced 	= pd.read_hdf(reduced, start=self.event_number, stop=self.event_number+1)
-			timestamp 		= entry_from_reduced['Timestamp'].values[0]
-			fname 			= entry_from_reduced['File'].values[0]
-			self.tot_charge_energy 	= entry_from_reduced['TotalTileEnergy'].values[0]
-			self.event_number 	= entry_from_reduced['Event'][event_number]
+			path_to_file		= path_to_tier1
+			entry_from_reduced	= pd.read_hdf(reduced, start=self.event_number, stop=self.event_number+1)
+			timestamp		= entry_from_reduced['Timestamp'].values[0]
+			fname			= entry_from_reduced['File'].values[0]
+			self.tot_charge_energy	= entry_from_reduced['TotalTileEnergy'].values[0]
+			self.event_number	= entry_from_reduced['Event'][event_number]
 
 		else:
 			print('No reduced file found, charge energy and risetime information not present')
@@ -506,13 +523,13 @@ class Simulated_Event:
 				ch_waveform = np.random.normal(mean,sigma,len(ch_waveform))
 
 			self.waveform[ch_name] = Waveform(input_data = ch_waveform,\
-							detector_type       = ch_type,\
+							detector_type	    = ch_type,\
 							sampling_period_ns  = 1.e3/self.sampling_frequency,\
-							input_baseline      = -1,\
-							polarity            = -1,\
-							fixed_trigger       = False,\
+							input_baseline	    = -1,\
+							polarity	    = -1,\
+							fixed_trigger	    = False,\
 							trigger_position    = analysis_config.run_parameters['Pretrigger Length [samples]'],\
-							decay_time_us       = analysis_config.GetDecayTimeForSoftwareChannel( i ),\
+							decay_time_us	    = analysis_config.GetDecayTimeForSoftwareChannel( i ),\
 							calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel(i))
 			#same as for Waveform class
 			self.baseline.append(np.mean(ch_waveform[:analysis_config.run_parameters['Baseline Length [samples]']]))

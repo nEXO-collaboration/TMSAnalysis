@@ -32,7 +32,7 @@ Board,InputChannel,SoftwareChannel,ChannelType,ChannelName,NumDevicesInChannel,I
 1,14,30,TileStrip,Y29/30,2,TRUE,FALSE,0,36,61.62,,no,
 1,15,31,TileStrip,Y6,1,TRUE,TRUE,0,-34.5,60,,no,
 2,0,32,TileStrip,X1/2,2,TRUE,FALSE,-48,0,"1,2,3,4,5,6,7,8,9,10,11,12",,no,
-2,1,33,TileStrip,X3/4,2,TRUE,TRUE,-42,0,13,,no,32000
+2,1,33,TileStrip,X3/4,2,TRUE,FALSE,-42,0,13,,no,32000
 2,2,34,TileStrip,X5/6,2,TRUE,FALSE,-36,0,14,,no,
 2,3,35,TileStrip,X7/8,2,TRUE,FALSE,-30,0,15,,no,
 2,4,36,TileStrip,X9/10,2,TRUE,FALSE,-24,0,16,,no,26550
@@ -40,7 +40,7 @@ Board,InputChannel,SoftwareChannel,ChannelType,ChannelName,NumDevicesInChannel,I
 2,6,38,TileStrip,X13/14,2,TRUE,FALSE,-12,0,18,,no,19350
 2,7,39,TileStrip,X15/16,2,TRUE,FALSE,-6,0,19,,no,64900
 2,8,40,TileStrip,X17/18,2,TRUE,FALSE,0,0,20,,no,31700
-2,9,41,TileStrip,X19,1,TRUE,FALSE,4.5,0,21,,no,31700
+2,9,41,TileStrip,X19,1,TRUE,TRUE,4.5,0,21,,no,31700
 2,10,42,TileStrip,X20,1,TRUE,FALSE,7.5,0,22,,no,
 2,11,43,TileStrip,X21/22,2,TRUE,FALSE,12,0,23.24,,no,
 2,12,44,TileStrip,X23,1,TRUE,FALSE,16.5,0,25.26,,no,32500

@@ -11,4 +11,4 @@ Baseline Length [samples],150
 SiPM Waveform Length [samples],50
 SiPM Pretrigger Length [samples],8
 SiPM Baseline Length [samples],5
-Strip Threshold [sigma],5
+Strip Threshold [sigma],10

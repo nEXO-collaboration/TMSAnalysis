@@ -42,7 +42,7 @@ class Waveform:
 	#######################################################################################
 	def __init__( self, input_data=None, detector_type=None, sampling_period_ns=None, \
 			input_baseline=-1, polarity=-1., \
-			fixed_trigger=False, trigger_position=0, sipm_trigger_position, decay_time_us=1.e9,\
+			fixed_trigger=False, trigger_position=0, sipm_trigger_position=0, decay_time_us=1.e9,\
 			calibration_constant=1., strip_threshold=5. ):
 
 		self.data = input_data                           # <- Waveform in numpy array

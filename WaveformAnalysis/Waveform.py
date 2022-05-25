@@ -87,7 +87,7 @@ class Waveform:
 			if 'SiPM' in self.detector_type:
 				#self.data = gaussian_filter( self.data.astype(float), 80./self.sampling_period_ns )
 					# ^Gaussian smoothing with a 80ns width (1sig)
-				self.data = self.data.astype(float)
+				self.data = self.data.astype(float) * self.polarity
 				#window_start = self.sipm_trigger_position - int(80/self.sampling_period_ns)
 				window_start = 0
 				#window_end = self.sipm_trigger_position + int(800/self.sampling_period_ns)
@@ -119,15 +119,14 @@ class Waveform:
 				# charge-sensitive discrete preamps.
 				
 				# this is the smoothing time window in ns
-				ns_smoothing_window = 500.0
+				ns_smoothing_window = 2000.0
 
-				# raw, unfiltered, uncorrected data
-				self.data = self.data.astype(float)
+				# raw, unfiltered, uncorrected data, with polarity flipped if necessary
+				self.data = self.data.astype(float) * self.polarity
 				
-				# smooth data with Gaussian filter and flip polarity if necessary
+				# smooth data with Gaussian filter
 				self.data = gaussian_filter( self.data, \
-							     ns_smoothing_window/self.sampling_period_ns ) \
-							     * self.polarity
+							     ns_smoothing_window/self.sampling_period_ns )
 
 				# get channel baseline after smoothing but before decay time correction or filtering
 				# mostly used for shifting waveforms when plotting, so NOT corrected using
@@ -153,6 +152,11 @@ class Waveform:
 				induction_window_ns = 4000
 				ind_window_sample = int(induction_window_ns/self.sampling_period_ns)
 				window_length_us = 5. # calculate energy from last 5 us of cumulative pulse area
+
+				# scale baseline RMS for integrated filtered waveform
+				area_window_sample = int(window_length_us*1000./self.sampling_period_ns)
+				# factor of 1.5 corrects for non-gaussianity of noise on integrated waveform
+				area_baseline_rms = 1.5*baseline_rms*np.sqrt(area_window_sample)
 				
 				# now calculate pulse area, pulse height, and timing parameters from filtered waveform
 				pulse_area, pulse_height, t5, t10, t25, t50, t90 = \
@@ -162,7 +166,8 @@ class Waveform:
 				# can use pulse height or pulse area to compute charge energy
 				charge_energy = pulse_height
 				
-				if charge_energy > self.strip_threshold*baseline_rms: # Compute timing/position if charge energy is positive and above noise.
+				if (pulse_height > self.strip_threshold*baseline_rms) \
+				   & (pulse_area > 3*area_baseline_rms): # Compute timing/position if charge energy is positive and above noise.
 					# Compute drift time in microseconds (sampling is given in ns)
 					drift_time = (t90 - self.trigger_position) * (self.sampling_period_ns / 1.e3)
 				else:
@@ -184,10 +189,12 @@ class Waveform:
 				pulse_height = pulse_height * self.calibration_constant
 				pulse_area = pulse_area * self.calibration_constant
 				baseline_rms = baseline_rms * self.calibration_constant
-				
+				area_baseline_rms = area_baseline_rms * self.calibration_constant
+
 				# save all AQs
 				self.analysis_quantities['Baseline'] = baseline
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
+				self.analysis_quantities['Integrated RMS'] = area_baseline_rms
 				self.analysis_quantities['Charge Energy'] = charge_energy
 				self.analysis_quantities['Pulse Height'] = pulse_height
 				self.analysis_quantities['Pulse Area'] = pulse_area
@@ -264,30 +271,37 @@ class Waveform:
 	#######################################################################################
 	def GetPulseAreaAndTimingParameters( self, dat_array, window_length_us ):
 		if len(dat_array) == 0: return 0, 0, 0, 0, 0, 0, 0
-		cumul_pulse = np.cumsum( dat_array * self.polarity )
+		t_peak = np.argmax(abs(dat_array))
+		pulse_polarity = np.sign(dat_array[t_peak] - np.mean(dat_array))
+		cumul_pulse = np.cumsum( dat_array )
 		area_window_length = int(window_length_us*1000./self.sampling_period_ns)
 		pulse_area = np.mean(cumul_pulse[-area_window_length:])
+		pulse_height = dat_array[t_peak]
 		try:
-			t5 = np.where( cumul_pulse > 0.05*pulse_area )[0][0]
+			#t5 = np.where( cumul_pulse > 0.05*pulse_area )[0][0]
+			t5 = np.where(dat_array[:t_peak]*pulse_polarity < 0.05*pulse_height*pulse_polarity)[0][-1]
 		except IndexError:
 			t5 = 1
 		try:
-			t10 = np.where( cumul_pulse > 0.1*pulse_area )[0][0]
+			#t10 = np.where( cumul_pulse > 0.1*pulse_area )[0][0]
+			t10 = np.where(dat_array[:t_peak]*pulse_polarity < 0.1*pulse_height*pulse_polarity)[0][-1]
 		except IndexError:
 			t10 = 1
 		try:
-			t25 = np.where( cumul_pulse > 0.25*pulse_area )[0][0]
+			#t25 = np.where( cumul_pulse > 0.25*pulse_area )[0][0]
+			t25 = np.where(dat_array[:t_peak]*pulse_polarity < 0.25*pulse_height*pulse_polarity)[0][-1]
 		except IndexError:
 			t25 = 1
 		try:
-			t50 = np.where( cumul_pulse > 0.5*pulse_area )[0][0]
+			#t50 = np.where( cumul_pulse > 0.5*pulse_area )[0][0]
+			t50 = np.where(dat_array[:t_peak]*pulse_polarity < 0.5*pulse_height*pulse_polarity)[0][-1]
 		except IndexError:
 			t50 = 1
 		try:
-			t90 = np.where( cumul_pulse > 0.9*pulse_area )[0][0]
+			#t90 = np.where( cumul_pulse > 0.9*pulse_area )[0][0]
+			t90 = np.where(dat_array[:t_peak]*pulse_polarity < 0.9*pulse_height*pulse_polarity)[0][-1]			  
 		except IndexError:
 			t90 = 1
-		pulse_height = self.polarity * np.max( np.abs(dat_array) )
 #		print('Pulse area: {}'.format(pulse_area))
 #		print('pulse height: {}'.format(pulse_height))
 #		print('T5: {}'.format(t5))

@@ -119,7 +119,7 @@ class Waveform:
 				# charge-sensitive discrete preamps.
 				
 				# this is the smoothing time window in ns
-				ns_smoothing_window = 2000.0
+				ns_smoothing_window = 500.0
 
 				# raw, unfiltered, uncorrected data, with polarity flipped if necessary
 				self.data = self.data.astype(float) * self.polarity
@@ -131,32 +131,55 @@ class Waveform:
 				# get channel baseline after smoothing but before decay time correction or filtering
 				# mostly used for shifting waveforms when plotting, so NOT corrected using
 				# channel calibration constant
-				baseline = np.mean(self.data[0:self.input_baseline])
-
+				baseline = np.mean(self.data[:self.input_baseline])
+				baseline_rms = np.std(self.data[:self.input_baseline])
+				
 				# apply decay time correction to smoothed data
 				self.corrected_data = DecayTimeCorrection( self.data - baseline, \
 									   self.decay_time_us, \
 									   self.sampling_period_ns )
-
-				# apply differentiator to filter out low-frequency noise from corrected data
-				self.corrected_data = Differentiator( self.corrected_data, 100)
-
-				# get baseline after filtering to subtract off before energy is calculated
-				corrected_baseline = np.mean(self.corrected_data[0:self.input_baseline])
-
-				# baseline RMS is calculated from filtered waveform so that charge energy and
-				# baseline RMS can be compared directly to one another
-				baseline_rms = np.std(self.corrected_data[0:self.input_baseline])
 
 				# set window lengths
 				induction_window_ns = 4000
 				ind_window_sample = int(induction_window_ns/self.sampling_period_ns)
 				window_length_us = 5. # calculate energy from last 5 us of cumulative pulse area
 
+				# apply differentiator to filter out low-frequency noise from corrected data
+				diff_data = Differentiator( self.corrected_data, 100)
+
+				# get baseline after filtering to subtract off before energy is calculated
+				diff_baseline = np.mean(diff_data[:self.input_baseline])
+
+				# baseline RMS is calculated from filtered waveform so that charge energy and
+				# baseline RMS can be compared directly to one another
+				diff_baseline_rms = self.polarity*np.std(diff_data[:self.input_baseline])
+
+				# look at differentiated pulse to determine if this is a real event
+				# if it is, calculate the charge energy from the undifferentiated waveform
+				# if not, charge energy is 0 and no timing parameters
+				diff_pulse_height = self.polarity*( diff_data[np.argmax(abs(diff_data))] - diff_baseline )
+				if ( diff_pulse_height > self.strip_threshold*diff_baseline_rms ):
+					self.corrected_data = LinearDriftCorrection( self.corrected_data, self.input_baseline )
+					charge_energy = np.mean( self.corrected_data[-int(window_length_us/self.sampling_period_ns):] )
+					t5 = float( np.where( self.corrected_data > 0.05*charge_energy)[0][0] )
+					t10 = float( np.where( self.corrected_data > 0.1*charge_energy)[0][0] )
+					t25 = float( np.where( self.corrected_data > 0.25*charge_energy)[0][0] )
+					t50 = float( np.where( self.corrected_data > 0.5*charge_energy)[0][0] )
+					t90 = float( np.where( self.corrected_data > 0.9*charge_energy)[0][0] )
+					drift_time = (t90 - self.trigger_position) * (self.sampling_period_ns / 1.e3)
+				else:
+					t5 = -1.
+					t10 = -1.
+					t25 = -1.
+					t50 = -1.
+					t90 = -1.
+					drift_time = -1.
+					charge_energy = 0.
+
+				"""
 				# scale baseline RMS for integrated filtered waveform
-				area_window_sample = int(window_length_us*1000./self.sampling_period_ns)
 				# factor of 1.5 corrects for non-gaussianity of noise on integrated waveform
-				area_baseline_rms = 1.5*baseline_rms*np.sqrt(area_window_sample)
+				area_baseline_rms = baseline_rms*np.sqrt(self.input_baseline)
 				
 				# now calculate pulse area, pulse height, and timing parameters from filtered waveform
 				pulse_area, pulse_height, t5, t10, t25, t50, t90 = \
@@ -184,20 +207,21 @@ class Waveform:
 				# differentiated, baseline-subtracted waveform, to the true energy deposited.
 				# for this reason the calibration constants are applied to the baseline_rms,
 				# pulse_height, pulse_area, and charge_energy at the end
+				"""
 				self.corrected_data = self.corrected_data * self.calibration_constant
 				charge_energy = charge_energy * self.calibration_constant
-				pulse_height = pulse_height * self.calibration_constant
-				pulse_area = pulse_area * self.calibration_constant
+				#pulse_height = pulse_height * self.calibration_constant
+				#pulse_area = pulse_area * self.calibration_constant
 				baseline_rms = baseline_rms * self.calibration_constant
-				area_baseline_rms = area_baseline_rms * self.calibration_constant
+				#area_baseline_rms = area_baseline_rms * self.calibration_constant
 
 				# save all AQs
 				self.analysis_quantities['Baseline'] = baseline
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
-				self.analysis_quantities['Integrated RMS'] = area_baseline_rms
+				#self.analysis_quantities['Integrated RMS'] = area_baseline_rms
 				self.analysis_quantities['Charge Energy'] = charge_energy
-				self.analysis_quantities['Pulse Height'] = pulse_height
-				self.analysis_quantities['Pulse Area'] = pulse_area
+				#self.analysis_quantities['Pulse Height'] = pulse_height
+				#self.analysis_quantities['Pulse Area'] = pulse_area
 				self.analysis_quantities['T5'] = t5
 				self.analysis_quantities['T10'] = t10
 				self.analysis_quantities['T25'] = t25
@@ -382,6 +406,17 @@ def Differentiator( wfm, decay ):
 		out.append( a0 * wfm[i] + a1 * wfm[i-1] + b1 * out[i-1])
 	return np.array(out)
 
+@jit("float64[:](float64[:],float64)",nopython=True)
+def LinearDriftCorrection( input_wfm, baseline_samples ):
+	# linear least squares fit to baseline
+	# then subtract linear fit from full waveform
+	samples = np.arange(len(input_wfm))
+	denom = len(input_wfm[:baseline_samples])*np.sum(samples[:baseline_samples]**2)-np.sum(samples[:baseline_samples])**2
+	m = (len(input_wfm[:baseline_samples])*np.sum(samples[:baseline_samples]*input_wfm[:baseline_samples]) \
+	     - np.sum(samples[:baseline_samples])*np.sum(input_wfm[:baseline_samples]))/denom
+	b = (np.sum(samples[:baseline_samples]**2)*np.sum(input_wfm[:baseline_samples]) \
+	     - np.sum(samples[:baseline_samples])*np.sum(samples[:baseline_samples]*input_wfm[:baseline_samples]))/denom
+	return input_wfm - (m*samples + b)
 
 class Event:
 
@@ -415,7 +450,6 @@ class Event:
 			path_to_file		= path_to_tier1
 			try:
 				entry_from_reduced	= pd.read_hdf(reduced, start=self.event_number, stop=self.event_number+1)
-				print(entry_from_reduced)
 				timestamp		= entry_from_reduced['Timestamp'].values[0]
 				fname			= entry_from_reduced['File'].values[0]
 				self.tot_charge_energy	= entry_from_reduced['TotalTileEnergy'].values[0]

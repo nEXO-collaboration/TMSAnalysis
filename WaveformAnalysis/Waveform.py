@@ -380,7 +380,7 @@ def Differentiator( wfm, decay ):
 	out = [0]
 	for i in range(1,len(wfm)):
 		out.append( a0 * wfm[i] + a1 * wfm[i-1] + b1 * out[i-1])
-	return np.array(out)
+	return np.array(out, dtype=np.float64)
 
 
 class Event:
@@ -394,7 +394,7 @@ class Event:
 		import uproot
 
 		try :
-			if path_to_tier1[-1] is not '/':
+			if path_to_tier1[-1] != '/':
 				path_to_tier1 += '/'
 		except TypeError:
 			pass
@@ -437,21 +437,21 @@ class Event:
 			self.tot_charge_energy = 0.0
 
 		tier1_tree = uproot.open('{}{}'.format(path_to_file,fname))['HitTree']
-		tier1_ev = tier1_tree.arrays( entrystart=self.event_number*channel_number, entrystop=(self.event_number+1)*channel_number)
+		tier1_ev = tier1_tree.arrays( entry_start=self.event_number*channel_number, entry_stop=(self.event_number+1)*channel_number, library="np")
 		#the events picked from the reduced file and from the tier1 root file are cross-checked with their timestamp
 		try:
-			if not np.array_equal(np.unique(tier1_ev[ b'_rawclock']),np.unique(timestamp)):
+			if not np.array_equal(np.unique(tier1_ev['_rawclock']),np.unique(timestamp)):
 				raise RuntimeError('Timestamps not matching')
 
 		except NameError:
 			pass
 
 		global software_channel 
-		software_channel = tier1_ev[b'_slot']*16+tier1_ev[b'_channel']
+		software_channel = tier1_ev['_slot']*16+tier1_ev['_channel']
 		if analysis_config.run_parameters['Sampling Rate [MHz]'] == 62.5 or analysis_config.run_parameters['Sampling Rate [MHz]'] == 25:
 			polarity = 1.
 
-		waveform = np.array(tier1_ev[ b'_waveform'])
+		waveform = np.array(tier1_ev[ '_waveform'])
 		self.ix_channel = []
 		#looping through channels and fill the waveforms
 		for i,ch_waveform in enumerate(waveform):
@@ -516,7 +516,7 @@ class Simulated_Event:
 		import pickle
 
 		try :
-			if path_to_tier1[-1] is not '/':
+			if path_to_tier1[-1] != '/':
 				path_to_tier1 += '/'
 		except TypeError:
 			pass

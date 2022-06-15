@@ -259,7 +259,6 @@ class StruckAnalysisConfiguration:
       # The input file needs two columns: 'Parameter' and 'Value'
       # We will end up with a dict called run_parameters
 
-      print(input_file)
       if input_file.split('.')[-1] == 'csv':
           temp_dataframe = pd.read_csv( input_file, delimiter=',' )
       else:

@@ -31,6 +31,6 @@ for i,fname in enumerate(sorted(glob.glob(path_to_folder + '*reduced.h5'))):
 	df_list.append(pd.read_hdf(fname))
 df = pd.concat(df_list,ignore_index=True)
 df.to_pickle( path_to_folder + 'reduced_added.p')
-
+print('Pickled dataframe written. Changing file permissions...')
 full_folder = os.path.dirname(os.path.abspath(path_to_folder))
 os.system('chmod -R 775 {}'.format(full_folder))

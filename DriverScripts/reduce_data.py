@@ -14,10 +14,12 @@ parser.add_argument('configdir', type=str, help='location where config files are
 						' Calibrations, and\n'+\
 						' Channel_Map')
 parser.add_argument('--sim', help='Simulation flag', action='store_true')
+parser.add_argument('--save_raw', help='Save HDF5 of raw data', action='store_true',default=False)
 args = parser.parse_args()
 this_file  = args.inputfile
 output_dir = args.outputdir
 config_dir = args.configdir
+save_hdf5 = args.save_raw
 input_foldername = os.path.dirname(this_file)
 channel_status_file = input_foldername + '/channel_status.p'
 
@@ -46,4 +48,4 @@ DataReduction.ReduceFile( this_file, output_dir,\
 				config_dir + '/Calibrations_Xe.csv',\
 				config_dir + '/Channel_Map.csv',\
 				fixed_trigger=True,fit_pulse_flag=False,\
-                                num_events=-1,is_simulation=args.sim,save_hdf5=True)
+                                num_events=-1,is_simulation=args.sim,save_hdf5=save_hdf5)

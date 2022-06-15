@@ -100,7 +100,7 @@ class Waveform:
 				window_length_us = 0.4 # length of window used to calculate pulse area
 				pulse_area, pulse_height, t5, t10, t25, t50, t90 = \
 					self.GetPulseAreaAndTimingParameters( self.corrected_data[window_start:window_end], \
-										  window_length_us )
+										  window_length_us, sipm=True )
 				pulse_time = t10 - int(1600/self.sampling_period_ns)
 				self.analysis_quantities['Baseline'] = baseline
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
@@ -119,7 +119,7 @@ class Waveform:
 				# charge-sensitive discrete preamps.
 				
 				# this is the smoothing time window in ns
-				ns_smoothing_window = 2000.0
+				ns_smoothing_window = 1000.0
 
 				# raw, unfiltered, uncorrected data, with polarity flipped if necessary
 				self.data = self.data.astype(float) * self.polarity
@@ -128,46 +128,40 @@ class Waveform:
 				self.data = gaussian_filter( self.data, \
 							     ns_smoothing_window/self.sampling_period_ns )
 
-				# get channel baseline after smoothing but before decay time correction or filtering
-				# mostly used for shifting waveforms when plotting, so NOT corrected using
-				# channel calibration constant
-				baseline = np.mean(self.data[0:self.input_baseline])
+				# get channel baseline and baseline rms after smoothing but before decay time correction or filtering
+				baseline = np.mean(self.data[:self.input_baseline])
+				baseline_rms = np.std(self.data[:self.input_baseline])
 
 				# apply decay time correction to smoothed data
 				self.corrected_data = DecayTimeCorrection( self.data - baseline, \
 									   self.decay_time_us, \
 									   self.sampling_period_ns )
 
+				# time parameter used for filtering
+				filter_time = 25. # samples
+				
 				# apply differentiator to filter out low-frequency noise from corrected data
-				self.corrected_data = Differentiator( self.corrected_data, 100)
+				self.corrected_data = Differentiator( self.corrected_data, filter_time)
 
 				# get baseline after filtering to subtract off before energy is calculated
-				corrected_baseline = np.mean(self.corrected_data[0:self.input_baseline])
-
-				# baseline RMS is calculated from filtered waveform so that charge energy and
-				# baseline RMS can be compared directly to one another
-				baseline_rms = np.std(self.corrected_data[0:self.input_baseline])
+				corrected_baseline = np.mean(self.corrected_data[:self.input_baseline])
 
 				# set window lengths
 				induction_window_ns = 4000
 				ind_window_sample = int(induction_window_ns/self.sampling_period_ns)
 				window_length_us = 5. # calculate energy from last 5 us of cumulative pulse area
 
-				# scale baseline RMS for integrated filtered waveform
-				area_window_sample = int(window_length_us*1000./self.sampling_period_ns)
-				# factor of 1.5 corrects for non-gaussianity of noise on integrated waveform
-				area_baseline_rms = 1.5*baseline_rms*np.sqrt(area_window_sample)
-				
 				# now calculate pulse area, pulse height, and timing parameters from filtered waveform
 				pulse_area, pulse_height, t5, t10, t25, t50, t90 = \
 					self.GetPulseAreaAndTimingParameters( self.corrected_data - corrected_baseline, \
-									      window_length_us )			    
+									      window_length_us )    
 
-				# can use pulse height or pulse area to compute charge energy
-				charge_energy = pulse_height
-				
-				if (pulse_height > self.strip_threshold*baseline_rms) \
-				   & (pulse_area > 3*area_baseline_rms): # Compute timing/position if charge energy is positive and above noise.
+				# pulse area is from waveform that has been filtered and reintegrated
+				# so needs to be scaled by time parameter used by differentiator
+				charge_energy = pulse_area/filter_time
+
+				# Compute timing/position if charge energy is positive and above noise.
+				if (charge_energy > self.strip_threshold*baseline_rms) & (charge_energy > 0.5):
 					# Compute drift time in microseconds (sampling is given in ns)
 					drift_time = (t90 - self.trigger_position) * (self.sampling_period_ns / 1.e3)
 				else:
@@ -179,22 +173,15 @@ class Waveform:
 					drift_time = -1.
 
 				# finally, apply calibration constant correction
-				# note: calibration constants are defined to be the numbers that scale the
-				# final energy on a channel, calculated from the smoothed, decay corrected,
-				# differentiated, baseline-subtracted waveform, to the true energy deposited.
-				# for this reason the calibration constants are applied to the baseline_rms,
-				# pulse_height, pulse_area, and charge_energy at the end
 				self.corrected_data = self.corrected_data * self.calibration_constant
 				charge_energy = charge_energy * self.calibration_constant
 				pulse_height = pulse_height * self.calibration_constant
 				pulse_area = pulse_area * self.calibration_constant
 				baseline_rms = baseline_rms * self.calibration_constant
-				area_baseline_rms = area_baseline_rms * self.calibration_constant
 
 				# save all AQs
 				self.analysis_quantities['Baseline'] = baseline
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
-				self.analysis_quantities['Integrated RMS'] = area_baseline_rms
 				self.analysis_quantities['Charge Energy'] = charge_energy
 				self.analysis_quantities['Pulse Height'] = pulse_height
 				self.analysis_quantities['Pulse Area'] = pulse_area
@@ -269,37 +256,47 @@ class Waveform:
 
 
 	#######################################################################################
-	def GetPulseAreaAndTimingParameters( self, dat_array, window_length_us ):
+	def GetPulseAreaAndTimingParameters( self, dat_array, window_length_us, sipm=False ):
 		if len(dat_array) == 0: return 0, 0, 0, 0, 0, 0, 0
 		t_peak = np.argmax(abs(dat_array))
 		pulse_polarity = np.sign(dat_array[t_peak] - np.mean(dat_array))
 		cumul_pulse = np.cumsum( dat_array )
 		area_window_length = int(window_length_us*1000./self.sampling_period_ns)
-		pulse_area = np.mean(cumul_pulse[-area_window_length:])
 		pulse_height = dat_array[t_peak]
 		try:
-			#t5 = np.where( cumul_pulse > 0.05*pulse_area )[0][0]
-			t5 = np.where(dat_array[:t_peak]*pulse_polarity < 0.05*pulse_height*pulse_polarity)[0][-1]
+			ti = np.where(dat_array[:t_peak]*pulse_polarity < 0.05*dat_array[t_peak]*pulse_polarity)[0][-1]
 		except IndexError:
-			t5 = 1
+			ti = 1
 		try:
-			#t10 = np.where( cumul_pulse > 0.1*pulse_area )[0][0]
-			t10 = np.where(dat_array[:t_peak]*pulse_polarity < 0.1*pulse_height*pulse_polarity)[0][-1]
+			tf = np.where(dat_array[t_peak:]*pulse_polarity < 0.05*dat_array[t_peak]*pulse_polarity)[0][0]+t_peak
+		except IndexError:
+			tf = -1
+		if sipm:
+		    upper = np.mean(cumul_pulse[-area_window_length:])
+		    lower = 0
+		else:
+		    lower = np.mean(cumul_pulse[max(ti-area_window_length,0):ti])
+		    upper = np.mean(cumul_pulse[tf:min(tf+area_window_length,len(dat_array))])
+		pulse_area = upper - lower
+		try:
+			t5 = np.where( (cumul_pulse[ti:] - lower)*pulse_polarity > 0.05*pulse_area*pulse_polarity )[0][0] + ti
+		except IndexError:
+			t5 = 1		
+
+		try:
+			t10 = np.where( (cumul_pulse[ti:] - lower)*pulse_polarity > 0.1*pulse_area*pulse_polarity )[0][0] + ti
 		except IndexError:
 			t10 = 1
 		try:
-			#t25 = np.where( cumul_pulse > 0.25*pulse_area )[0][0]
-			t25 = np.where(dat_array[:t_peak]*pulse_polarity < 0.25*pulse_height*pulse_polarity)[0][-1]
+			t25 = np.where( (cumul_pulse[ti:] - lower)*pulse_polarity > 0.25*pulse_area*pulse_polarity )[0][0] + ti
 		except IndexError:
 			t25 = 1
 		try:
-			#t50 = np.where( cumul_pulse > 0.5*pulse_area )[0][0]
-			t50 = np.where(dat_array[:t_peak]*pulse_polarity < 0.5*pulse_height*pulse_polarity)[0][-1]
+			t50 = np.where( (cumul_pulse[ti:] - lower)*pulse_polarity > 0.5*pulse_area*pulse_polarity )[0][0] + ti
 		except IndexError:
 			t50 = 1
 		try:
-			#t90 = np.where( cumul_pulse > 0.9*pulse_area )[0][0]
-			t90 = np.where(dat_array[:t_peak]*pulse_polarity < 0.9*pulse_height*pulse_polarity)[0][-1]			  
+			t90 = np.where( (cumul_pulse[ti:] - lower)*pulse_polarity > 0.9*pulse_area*pulse_polarity )[0][0] + ti
 		except IndexError:
 			t90 = 1
 #		print('Pulse area: {}'.format(pulse_area))

@@ -57,7 +57,10 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                                                   config = analysis_config,\
                                                   add_noise = True, noise_lib_directory='/usr/workspace/nexo/jacopod/dedicated_noise_run/')
                 else:
-                   input_file = NGMRootFile.NGMRootFile( input_filename = filename,\
+#                   input_file = NGMRootFile.NGMRootFile( input_filename = filename,\
+#                                                  output_directory = output_dir,\
+#                                                  config = analysis_config)
+                   input_file = NGMBinaryFile.NGMBinaryFile( input_filename = filename,\
                                                   output_directory = output_dir,\
                                                   config = analysis_config)
 

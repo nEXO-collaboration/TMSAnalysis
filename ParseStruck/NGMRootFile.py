@@ -69,6 +69,7 @@ class NGMRootFile:
 		start_time = time.time()
 		print('{} entries per event.'.format(len(self.channel_map)))
 
+		# Grabs data in chunks; the chunk size corresponds to the number of active channels in the acquisition.
 		for data in self.intree.iterate(['_waveform','_rawclock','_slot','_channel'],\
 						namedecode='utf-8',\
 						entrysteps=len(self.channel_map),\
@@ -126,6 +127,7 @@ class NGMRootFile:
 
 		for index,row in self.channel_map.iterrows():
 			
+			### Get the index of the correct slot/chan pair in the data columns
 			slot_mask = np.where(slot_column==row['Board'])
 			chan_mask = np.where(channel_column==row['InputChannel'])
 			intersection = np.intersect1d(slot_mask,chan_mask)
@@ -133,6 +135,7 @@ class NGMRootFile:
 				this_index = intersection[0]
 			else:
 				 continue
+			###
 			channel_types[this_index] = row['ChannelType']
 			channel_positions[this_index] = row['ChannelPosX'] if row['ChannelPosX'] != 0 else row['ChannelPosY']
 			if row['ChannelType']=='Off':

@@ -73,35 +73,65 @@ class NGMBinaryFile:
                 # all the active channels simultaneously. This is the typical operating mode
                 # for the Stanford TPC, but may not be transferrable to other setups using the
                 # Struck digitizers.
-                for spill_dict in self.spills_list:
-                    spill_data = spill_dict['spill']
-                    num_channels = len(spill_data)
+		for spill_dict in self.spills_list:
+			spill_data = spill_dict['spill']
+			num_channels = len(spill_data)
+			
+			# Get the number of events in the spill. The loop is there because some channels
+			# are off and will have no events, which would cause problems.
+			num_events = 0
+			for i in num_channels:
+				if len(spill_data[i]['data']['events']) > num_events:
+					num_events = len(spill_data[i]['data']['events'])
+			
+			
+			for i in range(num_events):
+			    
+				output_dict = {'Channels': [],
+						'Timestamp': [],
+						'Data': [],
+						'ChannelTypes': [],
+						'ChannelPositions': []}
+			    
 
-                    # Get the number of events in the spill. The loop is there because some channels
-                    # are off and will have no events, which would cause problems.
-                    num_events = 0
-                    for i in num_channels:
-                        if len(spill_data[i]['data']['events']) > num_events:
-                           num_events = len(spill_data[i]['data']['events'])
+				# In the binary files, the order of channels is always sequential. Meaning, the
+				# channels go in order of (slot,chan) indexed from 0.
+				for ch, channel_data in enumerate(spill_data):
 
-                    
-                    for i in range(num_events):
-                        
-                        output_dict = {'Channels': [],
-                                       'Timestamp': [],
-                                       'Data': [],
-                                       'ChannelTypes': [],
-                                       'ChannelPositions': []}
-                        
-                        for ch, channel_data in enumerate(spill_data):
-                           if channel_mask[ch]:
-                             output_dict['Channels'].append(channel_data['card']*16 + channel_data['chan'])
-                             output_dict['Timestamp'].append(channel_data['data']['events'][i]['timestamp_full'])
-                             output_dict['Data'].append(np.array(channel_data['data']['events'][i]['samples'],dtype=int))
-                             output_dict['ChannelTypes'].append( channel_types[ch] )
-                             output_dict['ChannelPositions'].append( channel_positions[ch] )
+					chan_mask = ( channel_data['card'] == self.channel_map['Board'] ) \
+							& ( channel_data['chan'] == self.channel_map['InputChannel'] )
+					if np.sum(chan_mask) < 1:
+						print('************ ERROR IN NGMBinaryFile.py ********')
+						print('(card,chan) == ({},{}) not found in channel map'.format(\
+								channel_data['card'], channel_data['chan'] ))
+						sys.exit(1)
 
-                        output_event_list.append(output_dict)
+					# Strip out 'Off' channels
+					if self.channel_map.loc[chan_mask].values[0] != 'Off':
+						output_dict['Channels'].append( channel_data['card']*16 + channel_data['chan'] )
+						output_dict['Timestamp'].append( \
+							channel_data['data']['events'][i]['timestamp_full'] )
+						output_dict['Data'].append( \
+							np.array(channel_data['data']['events'][i]['samples'], dtype=int) )
+						output_dict['ChannelTypes'].append( channel_types[ch] )
+						output_dict['ChannelPositions'].append( channel_positions[ch] )
+			
+				output_event_list.append(output_dict)
+			
+				global_evt_counter += 1
+				local_evt_counter += 1
+				if local_evt_counter > 200 and save:
+					temp_df = pd.DataFrame( output_event_list[-200:] )
+					output_filename = '{}{}_{:0>3}.h5'.format( self.output_directory,\
+										self.GetFileTitle(str(self.infile.name)),\
+										file_counter )
+					temp_df.to_hdf( output_filename, key='raw' )
+					local_evt_counter = 0
+					file_counter += 1
+					print('Written to {} at {:4.4} seconds'.format(output_filename, time.time()-start_time))
+			
+		df = pd.DataFrame(output_event_list)
+		return df 
 
 
 #		for data in self.intree.iterate(['_waveform','_rawclock','_slot','_channel'],\
@@ -257,7 +287,7 @@ class NGMBinaryFile:
             spill_dict['spillhdr'] = spill_header
         
             if spill_header[0] == '0xe0f0e0f':
-                return spill_dict, 0
+                return spill_dict, 0, spill_header[-1]
         
             data_list = []
             previous_card_id = 9999999

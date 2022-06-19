@@ -10,7 +10,7 @@ from StanfordTPCAnalysis.Clustering import Clustering
 from StanfordTPCAnalysis.Clustering import Signal
 
 ##################################################################################################
-def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, channel_map_file, \
+def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, channel_map_file, save_hdf5=False,\
                         num_events=-1, fixed_trigger=False, fit_pulse_flag=False, is_simulation=False):
 
         filetitle = filename.split('/')[-1]
@@ -28,15 +28,68 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
         analysis_config.GetCalibrationConstantsFromFile( calibrations_file )
         analysis_config.GetChannelMapFromFile( channel_map_file, dataset )
         input_baseline = int(analysis_config.run_parameters['Baseline Length [samples]'])
+        strip_threshold = int(analysis_config.run_parameters['Strip Threshold [sigma]'])
+
 
         start_time = time.time()
-        try:
-                # This block runs if the input file is in an HDF5 format. Othwerise, it
-                # will raise an OSError
-                input_df = pd.read_hdf(filename)
-                n_ev = 0
-                reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_ev,\
-                                        input_baseline, fixed_trigger, fit_pulse_flag, num_events=-1)
+        #try:
+        #        # This block runs if the input file is in an HDF5 format. Othwerise, it
+        #        # will raise an OSError
+        #        input_df = pd.read_hdf(filename)
+        #        n_ev = 0
+        #        reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_ev,\
+        #                                input_baseline, fixed_trigger, fit_pulse_flag, num_events=-1)
+        #        output_df_list.append(reduced_df)
+        #except:
+        # This block runs if the input file is not an HDF5 file (meaning it is
+        # assumed to be a ROOT file).
+        from StanfordTPCAnalysis.ParseStruck import NGMRootFile
+        from StanfordTPCAnalysis.ParseSimulation import NEXOOfflineFile
+
+        if is_simulation:
+
+           path = os.path.dirname(filename) 
+           pickled_fname = path + '/channel_status.p'
+           global ch_status
+
+           with open(pickled_fname,'rb') as f:
+                ch_status = pickle.load(f)
+           input_file = NEXOOfflineFile.NEXOOfflineFile( input_filename = filename,\
+                                          output_directory = output_dir,\
+                                          config = analysis_config,\
+                                          add_noise = False, noise_lib_directory='/usr/workspace/nexo/jacopod/noise/')
+        else:
+           input_file = NGMRootFile.NGMRootFile( input_filename = filename,\
+                                          output_directory = output_dir,\
+                                          config = analysis_config)
+
+        print('Channel map loaded:') 
+        print(input_file.channel_map) 
+        print('\n{} active channels.'.format(len(input_file.channel_map))) 
+        n_entries = input_file.GetTotalEntries()
+        n_channels = analysis_config.GetNumberOfChannels()
+        n_events_in_file = n_entries if is_simulation else n_entries/n_channels
+        n_events_to_process = num_events if (num_events < n_events_in_file and num_events>0) else n_events_in_file
+        n_events_processed = 0
+        loop_counter = 0
+
+        while n_events_processed < n_events_to_process:
+                print('\tProcessing event {} at {:4.4}s...'.format(n_events_processed,time.time()-start_time))
+
+                #try:
+                start_stop = [n_events_processed,(n_events_processed+100)] if (n_events_processed+100 < n_events_to_process)\
+                        else [n_events_processed,n_events_to_process]
+
+                if not is_simulation:
+                     start_stop[0] = start_stop[0]*n_channels
+                     start_stop[1] = start_stop[1]*n_channels
+
+                input_df = input_file.GroupEventsAndWriteToHDF5(save = save_hdf5, start_stop=start_stop,\
+                                                                file_counter=loop_counter)
+                reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_events_processed,\
+                                        input_baseline, fixed_trigger,\
+                                        fit_pulse_flag, is_simulation=is_simulation, num_events=-1,\
+                                        strip_threshold=strip_threshold)
                 output_df_list.append(reduced_df)
         except OSError:
                 # This block runs if the input file is not an HDF5 file (meaning it is
@@ -97,7 +150,7 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
 ##################################################################################################
 def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                 input_baseline, fixed_trigger, \
-                fit_pulse_flag, is_simulation=False, num_events=-1):
+                fit_pulse_flag, is_simulation=False, num_events=-1,strip_threshold=5.):
 
         NOISE_WFM_DEBUGGING = False
         NOISE_WFM_SUBTRACTION = False
@@ -146,7 +199,8 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                         polarity = -1.
                         if analysis_config.run_parameters['Sampling Rate [MHz]'] == 62.5:
                                 polarity = 1.
-
+                        if analysis_config.run_parameters['Sampling Rate [MHz]'] == 25:
+                                polarity = 1.
                         if is_simulation:
                              trigger_position = int( analysis_config.run_parameters['Pretrigger Length [samples]'] *\
                                                      analysis_config.run_parameters['Simulation Sampling Rate [MHz]'] /\
@@ -158,6 +212,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                              calibration_constant = 1.
                         else:
                              trigger_position = analysis_config.run_parameters['Pretrigger Length [samples]']
+                             sipm_trigger_position = analysis_config.run_parameters['SiPM Pretrigger Length [samples]']
                              decay_time_us = analysis_config.GetDecayTimeForSoftwareChannel( software_ch_num )
                              calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel( software_ch_num )
 
@@ -178,8 +233,10 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                                 polarity            = polarity,\
                                                 fixed_trigger       = fixed_trigger,\
                                                 trigger_position    = trigger_position,\
+                                                sipm_trigger_position = sipm_trigger_position,\
                                                 decay_time_us       = decay_time_us,\
-                                                calibration_constant = calibration_constant )
+                                                calibration_constant = calibration_constant,\
+                                              strip_threshold = strip_threshold)
                         try:
                                 w.FindPulsesAndComputeAQs(fit_pulse_flag=fit_pulse_flag)
                         except IndexError:
@@ -200,7 +257,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 
                                 charge_channel_dict[software_ch_num] = w 
 
-                                if (w.analysis_quantities['Charge Energy'] > 5. * w.analysis_quantities['Baseline RMS']) and \
+                                if (w.analysis_quantities['Charge Energy'] > strip_threshold * w.analysis_quantities['Baseline RMS']) and \
                                    (w.analysis_quantities['Charge Energy']>0.5):
                                      if 'X' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ):
                                          hit_channel_positions_x.append( analysis_config.GetChannelPos(software_ch_num)[0] )

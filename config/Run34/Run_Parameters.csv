@@ -1,0 +1,14 @@
+Parameter,Value
+Sampling Rate [MHz],25
+Simulation Sampling Rate [MHz],7.8125
+Electrons/ADC [electrons],11.9
+Drift Length [mm],140
+Drift Velocity [mm/us],1.71
+Num Struck Boards,3
+Waveform Length [samples],3000
+Pretrigger Length [samples],500
+Baseline Length [samples],400
+SiPM Waveform Length [samples],500
+SiPM Pretrigger Length [samples],200
+SiPM Baseline Length [samples],150
+Strip Threshold [sigma],10

@@ -20,16 +20,11 @@ class StruckAnalysisConfiguration:
   ###############################################################################
   def GetChannelMapFromFile( self, input_file, sheet = None ):
 
-      if sheet==None:
-         print('No sheet selected in channel map! Please provide sheet name and try again.')
-         return
-
-      if len(sheet)>31:
-          sheet = sheet[:31]
-
       if input_file.split('.')[-1] == 'csv':
           self.channel_map = pd.read_csv( input_file, delimiter=',' )
       else:
+          if len(sheet)>31:
+             sheet = sheet[:31]
           self.channel_map = pd.read_excel( input_file, sheet_name = sheet)
 
       if self.update_cal:
@@ -270,16 +265,12 @@ class StruckAnalysisConfiguration:
       # The input file needs two columns: 'Parameter' and 'Value'
       # We will end up with a dict called run_parameters
 
-      if sheet==None:
-         print('No sheet selected in RunParameters file! Please provide sheet name and try again.')
-         return
-
-      if len(sheet)>31:
-          sheet = sheet[:31]
-
+      print(input_file)
       if input_file.split('.')[-1] == 'csv':
           temp_dataframe = pd.read_csv( input_file, delimiter=',' )
       else:
+          if len(sheet)>31:
+             sheet = sheet[:31]
           temp_dataframe = pd.read_excel( input_file, sheet_name = sheet)
 
       self.run_parameters = dict(zip(temp_dataframe['Parameter'],temp_dataframe['Value']))

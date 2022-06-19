@@ -51,7 +51,7 @@ class NGMRootFile:
 		
 
         ####################################################################
-	def GroupEventsAndWriteToHDF5( self, nevents = -1, save = True, start_stop = None ):
+	def GroupEventsAndWriteToHDF5( self, nevents = -1, save = True, start_stop = None, file_counter = 0 ):
 		
 		try:
 			self.infile
@@ -62,7 +62,6 @@ class NGMRootFile:
 			self.start_stop = start_stop	
 
 		start_time = time.time()		
-		file_counter = 0
 		global_evt_counter = 0
 		local_evt_counter = 0
 		df = pd.DataFrame(columns=['Channels','Timestamp','Data','ChannelTypes','ChannelPositions'])
@@ -78,7 +77,6 @@ class NGMRootFile:
 			if nevents > 0:
 				if global_evt_counter > nevents:
 					break
-
 			data_series = pd.Series(data)
 			channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data['_slot'],data['_channel'])
                          
@@ -97,15 +95,15 @@ class NGMRootFile:
 
 			global_evt_counter += 1
 			local_evt_counter += 1
-			if local_evt_counter > 200 and save:
-				output_filename = '{}{}_{:0>3}.h5'.format( self.output_directory,\
-									self.GetFileTitle(str(self.infile.name)),\
-									file_counter )
-				df.to_hdf(output_filename,key='raw')
-				local_evt_counter = 0
-				file_counter += 1
-				df = pd.DataFrame(columns=['Channels','Timestamp','Data','ChannelTypes','ChannelPositions'])
-				print('Written to {} at {:4.4} seconds'.format(output_filename,time.time()-start_time))	
+#			if local_evt_counter > 200 and save:
+#				output_filename = '{}{}_{:0>3}.h5'.format( self.output_directory,\
+#									self.GetFileTitle(str(self.infile.name)),\
+#									file_counter )
+#				df.to_hdf(output_filename,key='raw')
+#				local_evt_counter = 0
+#				file_counter += 1
+#				df = pd.DataFrame(columns=['Channels','Timestamp','Data','ChannelTypes','ChannelPositions'])
+#				print('Written to {} at {:4.4} seconds'.format(output_filename,time.time()-start_time))	
 		
 
 		if save:
@@ -115,6 +113,7 @@ class NGMRootFile:
 			df.to_hdf(output_filename,key='raw')
 			end_time = time.time()
 			print('{} events written in {:4.4} seconds.'.format(global_evt_counter,end_time-start_time))
+			return df
 		else:
 			return df
 	

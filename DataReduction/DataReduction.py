@@ -88,7 +88,9 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
         loop_counter = 0
 
         while n_events_processed < n_events_to_process:
-                print('\tProcessing event {} at {:4.4}s...'.format(n_events_processed,time.time()-start_time))
+                print('\tProcessing event {}/{} at {:4.4}s...'.format(n_events_processed,\
+                                                                      n_events_to_process,\
+                                                                      time.time()-start_time))
 
           # try:
                 start_stop = [n_events_processed,(n_events_processed+100)] if (n_events_processed+100 < n_events_to_process)\
@@ -97,14 +99,17 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                 if not is_simulation:
                      start_stop[0] = start_stop[0]*n_channels
                      start_stop[1] = start_stop[1]*n_channels
-
+                print('Begin GroupEventsAndWrite...')
                 input_df = input_file.GroupEventsAndWriteToHDF5(save = save_hdf5, start_stop=start_stop )
+                print('Begin FillH5Reduced...')
                 reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_events_processed,\
                                         input_baseline, fixed_trigger,\
                                         fit_pulse_flag, is_simulation=is_simulation, num_events=-1,\
                                         strip_threshold=strip_threshold)
                 output_df_list.append(reduced_df)
+                n_events_processed += len(reduced_df)
                 loop_counter += 1
+                
 #           except OSError:
 #                # This block runs if the input file is not an HDF5 file (meaning it is
 #                # assumed to be a ROOT file).
@@ -177,7 +182,13 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                              else 1./(analysis_config.run_parameters['Simulation Sampling Rate [MHz]']/1.e3)
         key_buffer = None
         row_counter  = 0
+        start_time = time.time()
+        print('Reducing {} events.'.format(len(input_df)))
         for index, thisrow in input_df.iterrows():
+                if row_counter % 25 == 0:
+                   print('Processing event {}/{} at {:4.4} min'.format(row_counter, \
+                                                                       len(input_df), \
+                                                                       (time.time()-start_time)/60.))
                 #print('INDEX: {}, counter: {}'.format(index,row_counter))
                 skip = False
                 if (event_counter > num_events) and (num_events > 0):
@@ -262,16 +273,17 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                 continue
                         for key in w.analysis_quantities.keys():
                                 output_series['{} {} {}'.format(\
-                                                                analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ),\
-                                                                analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ),\
-                                                                key)] = w.analysis_quantities[key]
+                                                       analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ),\
+                                                       analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ),\
+                                                       key)] = w.analysis_quantities[key]
 
                         # Store hit data and waveform for charge signals, for use in noise subtraction.
                         if 'TileStrip' in analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ):
 
                                 charge_channel_dict[software_ch_num] = w 
 
-                                if (w.analysis_quantities['Charge Energy'] > strip_threshold * w.analysis_quantities['Baseline RMS']) and \
+                                if (w.analysis_quantities['Charge Energy'] > \
+                                             strip_threshold * w.analysis_quantities['Baseline RMS']) and \
                                    (w.analysis_quantities['Charge Energy']>0.5):
                                      if 'X' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ):
                                          hit_channel_positions_x.append( analysis_config.GetChannelPos(software_ch_num)[0] )
@@ -318,23 +330,33 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                     # If there's a signal, skip this one.
                     if (w.analysis_quantities['Charge Energy'] > 5. * w.analysis_quantities['Baseline RMS']) and \
                        (w.analysis_quantities['Charge Energy']>0.5):
-                          if NOISE_WFM_DEBUGGING: print('Too much energy on channel {}'.format(analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )))
+                          if NOISE_WFM_DEBUGGING: \
+                             print('Too much energy on channel {}'.format(\
+                                      analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )))
                           continue
                     
                     # If the channel is within NOISE_DISTANCE of a hit channel, skip it.
                     NOISE_DISTANCE = 7. # units: mm
                     if 'X' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ) and \
-                       any( [np.abs(analysis_config.GetChannelPos(software_ch_num)[0] - xhit) < NOISE_DISTANCE for xhit in hit_channel_positions_x] ) :
-                         if NOISE_WFM_DEBUGGING: print('{} too close to a hit in X'.format(analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )))
+                       any( [np.abs(analysis_config.GetChannelPos(software_ch_num)[0] - xhit) < NOISE_DISTANCE \
+                                              for xhit in hit_channel_positions_x] ) :
+                         if NOISE_WFM_DEBUGGING: 
+                            print('{} too close to a hit in X'.format(\
+                                         analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )))
                          continue
                     if 'Y' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ) and \
-                       any( [np.abs(analysis_config.GetChannelPos(software_ch_num)[1] - yhit) < NOISE_DISTANCE for yhit in hit_channel_positions_y] ) :
-                         if NOISE_WFM_DEBUGGING: print('{} too close to a hit in Y'.format( analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )))
+                       any( [np.abs(analysis_config.GetChannelPos(software_ch_num)[1] - yhit) < NOISE_DISTANCE \
+                                                     for yhit in hit_channel_positions_y] ) :
+                         if NOISE_WFM_DEBUGGING: 
+                            print('{} too close to a hit in Y'.format(\
+                                          analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )))
                          continue
 
                     # If the channel is one of the big ganged channels, skip it.
                     if analysis_config.GetNumDevicesInChannelForSoftwareChannel( software_ch_num ) > 2:
-                         if NOISE_WFM_DEBUGGING: print('{} is a big ganged channel'.format(analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )))
+                         if NOISE_WFM_DEBUGGING: 
+                            print('{} is a big ganged channel'.format(\
+                                          analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )))
                          continue
 
                     num_noise_strips += analysis_config.GetNumDevicesInChannelForSoftwareChannel( software_ch_num ) 

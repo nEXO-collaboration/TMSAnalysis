@@ -70,11 +70,13 @@ class NGMBinaryFile:
           start_time = time.time()
           print('{} entries per event.'.format(len(self.channel_map)))
 
+          spill_counter = 0
                 # Note: this code assumes that the data is acquired in a way that records
                 # all the active channels simultaneously. This is the typical operating mode
                 # for the Stanford TPC, but may not be transferrable to other setups using the
                 # Struck digitizers.
           for spill_dict in self.spills_list:
+
                spill_data = spill_dict['spill_data']
                num_channels = len(spill_data)
                
@@ -84,7 +86,10 @@ class NGMBinaryFile:
                for i in range(num_channels):
                     if len(spill_data[i]['data']['events']) > num_events:
                          num_events = len(spill_data[i]['data']['events'])
-               
+               print('Bulding {} events from spill {} at {:4.4} min'.format(num_events, \
+                                                                            spill_counter,\
+                                                                            (time.time()-start_time)/60.))
+               spill_counter += 1
                
                for i in range(num_events):
                    
@@ -180,11 +185,10 @@ class NGMBinaryFile:
               max_evts_per_chan = 0
               for channel in spill['spill_data']:
                   #print(channel)
-                  if len(channel['data']) > max_evts_per_chan:
-                     max_evts_per_chan = len(channel['data'])
+                  if len(channel['data']['events']) > max_evts_per_chan:
+                     max_evts_per_chan = len(channel['data']['events'])
 
               total_entries += max_evts_per_chan
-
           return total_entries
     
      ####################################################################
@@ -209,10 +213,8 @@ class NGMBinaryFile:
              first_word_of_spillhdr = hex(struct.unpack("<I", infile.read(4))[0])
      
              while True:
-                 # print('\n')
                  spill_time = (time.time() - start_time)  # / 60.
                  print('Reading spill {} at {:4.4} sec'.format(spill_counter, spill_time))
-                 # print('First word of spillhdr: {}'.format(first_word_of_spillhdr))
      
                  # this allows us to check if we're actually on a new spill or not
                  if first_word_of_spillhdr == '0xabbaabba':

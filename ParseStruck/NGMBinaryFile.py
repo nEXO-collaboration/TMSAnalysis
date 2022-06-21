@@ -199,44 +199,154 @@ class NGMBinaryFile:
          spills_list = []
          run_header = []
          spill_counter = 0
-       
-         # The basic unit in which data are stored in the NGM binary files is the
-         # "spill", which consists of a full read of a memory bank on the Struck
-         # board. The spill contains some header information and then all of the data stored
-         # in the memory bank, sorted sequentially by card and then by channel within the card. 
-         with open(filename, 'rb') as infile:
-     
-             # Read in the runhdr (one per file)
-             for i in range(100):
-                 run_header.append(hex(struct.unpack("<I", infile.read(4))[0]))
-     
-             first_word_of_spillhdr = hex(struct.unpack("<I", infile.read(4))[0])
-     
+         READ_WHOLE_FILE = True 
+
+         if READ_WHOLE_FILE:
+
+
+             # Read entire file as a numpy array of 32-bit integers
+             with open(filename, 'rb') as infile:
+                  file_content_array = np.fromfile( infile, dtype=np.uint32 )
+
+             # 'fileidx' is the index of where we are in the file. It should
+             # be set to the end of the last operation.
+             fileidx = 0
+
+             run_header = file_content_array[0:100]
+             fileidx += 100
+
              while True:
-                 spill_time = (time.time() - start_time)  # / 60.
-                 print('Reading spill {} at {:4.4} sec'.format(spill_counter, spill_time))
-     
-                 # this allows us to check if we're actually on a new spill or not
-                 if first_word_of_spillhdr == '0xabbaabba':
-                     spill_dict, words_read, last_word_read = \
-                         self.ReadSpill(infile, first_word_of_spillhdr)
-                 elif first_word_of_spillhdr == '0xe0f0e0f':
-                     break
-                 spills_list.append(spill_dict)
-                 total_words_read += words_read
-                 spill_counter += 1
-                 first_word_of_spillhdr = last_word_read
-     
-                 if (spill_counter > max_num_of_spills) and \
-                         (max_num_of_spills >= 0):
-                     break
-     
-         end_time = time.time()
-         print('\nTime elapsed: {:4.4} min'.format((end_time - start_time) / 60.))
+                   spill_time = (time.time() - start_time)
+                   print('Reading spill {} at {:4.4} sec'.format(spill_counter, spill_time))
+
+                   first_word_of_spillhdr = hex(file_content_array[fileidx])
+                   if first_word_of_spillhdr == '0xabbaabba':
+                      spill_dict, words_read, last_word_read = \
+                            self.ReadSpill2( file_content_array, fileidx )
+                      fileidx += words_read
+                   elif first_word_of_spillhdr == '0xe0f0e0f':
+                      break
+                   else: 
+                      print('\n****** ERROR *******')
+                      print('Unrecognizable first word of spillhdr: {}'.format(\
+                                       first_word_of_spillhdr))
+
+                   spill_list.append( spill_dict )
+                   total_words_read += words_read
+                   spill_counter += 1
+                   
+
+         else:
+             # The basic unit in which data are stored in the NGM binary files is the
+             # "spill", which consists of a full read of a memory bank on the Struck
+             # board. The spill contains some header information and then all of the data stored
+             # in the memory bank, sorted sequentially by card and then by channel within the card. 
+             with open(filename, 'rb') as infile:
+         
+                 # Read in the runhdr (one per file)
+                 for i in range(100):
+                     run_header.append(hex(struct.unpack("<I", infile.read(4))[0]))
+         
+                 first_word_of_spillhdr = hex(struct.unpack("<I", infile.read(4))[0])
+         
+                 while True:
+                     spill_time = (time.time() - start_time)  # / 60.
+                     print('Reading spill {} at {:4.4} sec'.format(spill_counter, spill_time))
+         
+                     # this allows us to check if we're actually on a new spill or not
+                     if first_word_of_spillhdr == '0xabbaabba':
+                         spill_dict, words_read, last_word_read = \
+                             self.ReadSpill(infile, first_word_of_spillhdr)
+                     elif first_word_of_spillhdr == '0xe0f0e0f':
+                         break
+                     spills_list.append(spill_dict)
+                     total_words_read += words_read
+                     spill_counter += 1
+                     first_word_of_spillhdr = last_word_read
+         
+                     if (spill_counter > max_num_of_spills) and \
+                             (max_num_of_spills >= 0):
+                         break
+         
+             end_time = time.time()
+             print('\nTime elapsed: {:4.4} min'.format((end_time - start_time) / 60.))
      
          return run_header, spills_list, words_read, spill_counter
 
+     
+     ####################################################################
+     def ReadSpill2( self, file_content_array, fileidx ):
 
+         debug = True
+ 
+         spill_dict = {}
+         spill_words_read = 0
+
+         spill_header = file_content_array[ fileidx:fileidx+10 ]
+         fileidx += 10
+         
+         if spill_header[0] == '0xe0f0e0f':
+            return spill_dict, 0, spill_header[-1]
+         
+         data_list = []
+         previous_card_id = 9999999
+
+         while True:
+             data_dict = {}
+             hdrid = 0
+
+             hdrid_temp = file_content_array[ fileidx ]
+          
+             # Break the loop if we've reached the next spill
+             if hex(hdrid_temp) == '0xabbaabba' or\
+                   hex(hdrid_temp) == '0xe0f0e0f':
+                last_word_read = hex(hdrid_temp)
+             
+             this_card_id = (0xff000000 & hdrid_temp) >> 24
+             if debug:
+                 print('hdrid_temp: {}'.format(hex(hdrid_temp)))
+                 print('Card ID: {}'.format(this_card_id))
+             data_dict['card'] = this_card_id
+
+             if (this_card_id != previous_card_id) and (hdrid_temp & 0xff0000 == 0):
+                 # If we've switched to a new card and are on channel 0, there should
+                 # be a phdrid; two 32-bit words long.
+     
+                 # print('\nREADING NEXT CARD')
+                 data_dict['phdrid'] = file_content_array[fileidx:fileidx+2]
+                 fileidx += 2
+                 if debug:
+                     print('phdrid:')
+                     for val in data_dict['phdrid']:
+                         print('\t{}'.format(hex(val)))
+     
+                 hdrid = file_content_array[fileidx]
+                 fileidx += 1
+
+                 previous_card_id = this_card_id
+             else:
+                 # if not, then the hdrid_temp must be the hdrid for the channel the individual channel
+                 hdrid = hdrid_temp
+                 fileidx += 1
+
+             data_dict['hdrid'] = hex(hdrid)
+             if debug: print('hdrid: {}'.format(data_dict['hdrid']))
+     
+             channel_id = ((0xc00000 & hdrid) >> 22) * 4 + ((0x300000 & hdrid) >> 20)
+             if debug: print('channelid: {}'.format(channel_id))
+     
+             data_dict['chan'] = channel_id
+     
+             channel_dict, words_read = self.ReadChannel2( file_content_array, fileidx )
+             data_dict['data'] = channel_dict
+             fileidx += words_read    
+ 
+             spill_words_read += words_read
+             data_list.append(data_dict)
+     
+         spill_dict['spill_data'] = data_list
+     
+         return spill_dict, spill_words_read, last_word_read
 
      ####################################################################
      def ReadSpill( self, infile, first_entry_of_spillhdr ):
@@ -361,6 +471,45 @@ class NGMBinaryFile:
       
           return channel_dict, total_words_read
 
+     ####################################################################
+     def ReadChannel2( self, file_content_array, fileidx ):
+          # Assumes we've already read in the hdrid
+          trigger_stat_spill = []
+      
+          channel_dict = {}
+      
+          # Trigger stat. counters are defined in Chapter 4.9 of Struck manual
+          # 0 - Internal trigger counter
+          # 1 - Hit trigger counter
+          # 2 - Dead time trigger counter
+          # 3 - Pileup trigger counter
+          # 4 - Veto trigger counter
+          # 5 - High-Energy trigger counter
+          channel_dict['trigger_stat_spill'] = file_content_array[fileidx:fileidx+6]
+          fileidx += 6
+      
+          # data_buffer_size stores the number of words needed to read all the
+          # events for a channel in the current spill. Its size should be an integer
+          # multiple of:
+          # (# of header words, defined by format bits) + (# of samples/waveform)/2.
+          channel_dict['data_buffer_size'] = file_content_array[fileidx]
+          fileidx += 1
+          print('data_buffer_size: {}'.format(hex(channel_dict['data_buffer_size']))     
+ 
+          total_words_read = 0 
+          num_loops = 0 
+          events = []
+      
+          while total_words_read < channel_dict['data_buffer_size']:
+              # if num_loops%10==0: print('On loop {}'.format(num_loops))
+              words_read, event = self.ReadEvent2( file_content_array, fileidx )
+              total_words_read += words_read
+              events.append(event)
+              num_loops += 1
+      
+          channel_dict['events'] = events
+      
+          return channel_dict, total_words_read
        
      ####################################################################
      def ReadEvent( self, infile):
@@ -473,5 +622,101 @@ class NGMBinaryFile:
                  event['maw_test_data'].append((word >> 16) & 0x0000ffff)
      
          words_read = bytes_read / 4
+         return words_read, event
+    
+ 
+     ####################################################################
+     def ReadEvent2( self, file_content_array, fileidx ):
+         # The "event" structure is defined in Chapter 4.6 of the Struck manual.
+         # This starts with the Timestamp and ends with ADC raw data (we do not use
+         # the MAW test data at this time)
+     
+         event = {}
+         initial_fileidx = fileidx    
+     
+         # First word contains format bits, chan ID, and beginning of timestamp
+         event['format_bits'] = 0xf & file_content_array[fileidx]
+         event['channel_id'] = 0xff0 & file_content_array[fileidx]
+         event['timestamp_47_to_32'] = 0xffff0000 & file_content_array[fileidx]
+         fileidx += 1
+ 
+         # Next word completes the timestamp
+         event['timestamp_full'] = file_content_array[fileidx] | (event['timestamp_47_to_32'] << 32)
+         fileidx += 1
+       
+         # Read the various event metadata, specificed by the format bits
+         if bin(event['format_bits'])[-1] == '1':
+             event['peakhigh_val'] = 0x0000ffff & file_content_array[fileidx]
+             event['index_peakhigh_val'] = 0xffff0000 & file_content_array[fileidx]
+             fileidx += 1
+     
+             event['information'] = 0xff00000 & file_content_array[fileidx]
+             event['acc_g1'] = 0x00ffffff & file_content_array[fileidx]
+             fileidx += 1
+     
+             event['acc_g2'] = 0x00ffffff & file_content_array[fileidx]
+             fileidx += 1
+     
+             event['acc_g3'] = 0x00ffffff & file_content_array[fileidx]
+             fileidx += 1    
+ 
+             event['acc_g4'] = 0x00ffffff & file_content_array[fileidx]
+             fileidx += 1    
+     
+             event['acc_g5'] = 0x00ffffff & file_content_array[fileidx]
+             fileidx += 1    
+     
+             event['acc_g6'] = 0x00ffffff & file_content_array[fileidx]
+             fileidx += 1    
+     
+         if bin(event['format_bits'] >> 1)[-1] == '1':
+             event['acc_g7'] = 0x00ffffff & file_content_array[fileidx]
+             fileidx += 1    
+     
+             event['acc_g8'] = 0x00ffffff & file_content_array[fileidx]
+             fileidx += 1    
+     
+         if bin(event['format_bits'] >> 2)[-1] == '1':
+             event['maw_max_val'] = 0x00ffffff & file_content_array[fileidx]
+             fileidx += 1    
+     
+             event['maw_val_pre_trig'] = 0x00ffffff & file_content_array[fileidx]
+             fileidx += 1    
+     
+             event['maw_val_post_trig'] = 0x00ffffff & file_content_array[fileidx]
+             fileidx += 1    
+     
+         if bin(event['format_bits'] >> 3)[-1] == '1':
+             event['start_energy_val'] = 0x00ffffff & file_content_array[fileidx]
+             fileidx += 1    
+     
+             event['max_energy_val'] = 0x00ffffff & file_content_array[fileidx]
+             fileidx += 1    
+     
+         # Read the sampling information
+         event['num_raw_samples'] = 0x03ffffff & file_content_array[fileidx]
+         event['maw_test_flag'] = 0x08000000 & file_content_array[fileidx]
+         event['status_flag'] = 0x04000000 & file_content_array[fileidx]
+         fileidx += 1
+     
+         # Read the actual ADC samples. Note that each 32bit word contains
+         # two samples, so we need to split them and zip them together using ravel.
+         temp_samples = file_content_array[ fileidx : fileidx + event['num_raw_samples'] ]
+         first_samples = temp_samples & 0x0000ffff
+         second_samples = (temp_samples >> 16) & 0x0000ffff
+         event['samples'] = np.ravel([first_samples,second_samples],'F')
+         fileidx += event['num_raw_samples']
+ 
+         # There is an option (never used in the Gratta group to my knowledge) to have
+         # the digitizers perform on-board shaping with a moving-average window (MAW)
+         # and then save the resulting waveform:
+         if event['maw_test_flag'] == 1:
+             temp_maw_samples = file_content_array[ fileidx : fileidx + event['num_raw_samples'] ]
+             first_maw_samples = temp_maw_samples & 0x0000ffff
+             second_maw_samples = (temp_maw_samples >> 16) & 0x0000ffff
+             event['maw_test_data'] = np.ravel([first_maw_samples,second_maw_samples],'F')
+             fileidx += event['num_raw_samples']
+     
+         words_read = fileidx - initial_fileidx
          return words_read, event
      

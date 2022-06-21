@@ -43,9 +43,13 @@ if args.sim and not os.path.exists(channel_status_file):
 #	sys.exit('\n')
 
 print('\nReducing {}'.format( this_file ))
-DataReduction.ReduceFile( this_file, output_dir,\
-				config_dir + '/Run_Parameters.csv',\
-				config_dir + '/Calibrations_Xe.csv',\
-				config_dir + '/Channel_Map.csv',\
-				fixed_trigger=True,fit_pulse_flag=False,\
-                                num_events=-1,is_simulation=args.sim,save_hdf5=False)
+DataReduction.ReduceFile( this_file,\
+                          output_dir,\
+                          config_dir + '/Run_Parameters.csv',\
+                          config_dir + '/Calibrations_Xe.csv',\
+                          config_dir + '/Channel_Map.csv',\
+                          fixed_trigger = True,\
+                          fit_pulse_flag = False,\
+                          num_events = -1,\
+                          is_simulation = args.sim,\
+                          save_hdf5=False)

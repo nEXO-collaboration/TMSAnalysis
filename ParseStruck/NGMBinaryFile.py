@@ -223,7 +223,7 @@ class NGMBinaryFile:
                    first_word_of_spillhdr = hex(file_content_array[fileidx])
                    if first_word_of_spillhdr == '0xabbaabba':
                       spill_dict, words_read, last_word_read = \
-                            self.ReadSpill2( file_content_array, fileidx )
+                            self.ReadSpillFast( file_content_array, fileidx )
                       fileidx += words_read
                    elif first_word_of_spillhdr == '0xe0f0e0f':
                       break
@@ -276,7 +276,7 @@ class NGMBinaryFile:
 
      
      ####################################################################
-     def ReadSpill2( self, file_content_array, fileidx ):
+     def ReadSpillFast( self, file_content_array, fileidx ):
 
          debug = False
  
@@ -344,7 +344,7 @@ class NGMBinaryFile:
      
              data_dict['chan'] = channel_id
      
-             channel_dict, words_read = self.ReadChannel2( file_content_array, fileidx )
+             channel_dict, words_read = self.ReadChannelFast( file_content_array, fileidx )
              data_dict['data'] = channel_dict
              fileidx += words_read    
  
@@ -481,7 +481,7 @@ class NGMBinaryFile:
           return channel_dict, total_words_read
 
      ####################################################################
-     def ReadChannel2( self, file_content_array, fileidx ):
+     def ReadChannelFast( self, file_content_array, fileidx ):
 
           initial_fileidx = fileidx
 
@@ -511,7 +511,7 @@ class NGMBinaryFile:
       
           while total_words_read < channel_dict['data_buffer_size']:
               # if num_loops%10==0: print('On loop {}'.format(num_loops))
-              words_read, event = self.ReadEvent2( file_content_array, fileidx )
+              words_read, event = self.ReadEventFast( file_content_array, fileidx )
               total_words_read += words_read
               fileidx += words_read
               events.append(event)
@@ -637,7 +637,7 @@ class NGMBinaryFile:
     
  
      ####################################################################
-     def ReadEvent2( self, file_content_array, fileidx ):
+     def ReadEventFast( self, file_content_array, fileidx ):
          # The "event" structure is defined in Chapter 4.6 of the Struck manual.
          # This starts with the Timestamp and ends with ADC raw data (we do not use
          # the MAW test data at this time)

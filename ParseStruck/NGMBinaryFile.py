@@ -214,6 +214,7 @@ class NGMBinaryFile:
 
              run_header = file_content_array[0:100]
              fileidx += 100
+             print('fileidx after run_header = {}'.format(fileidx))
 
              while True:
                    spill_time = (time.time() - start_time)
@@ -231,7 +232,7 @@ class NGMBinaryFile:
                       print('Unrecognizable first word of spillhdr: {}'.format(\
                                        first_word_of_spillhdr))
 
-                   spill_list.append( spill_dict )
+                   spills_list.append( spill_dict )
                    total_words_read += words_read
                    spill_counter += 1
                    
@@ -277,14 +278,19 @@ class NGMBinaryFile:
      ####################################################################
      def ReadSpill2( self, file_content_array, fileidx ):
 
-         debug = True
+         debug = False
  
          spill_dict = {}
          spill_words_read = 0
+         initial_fileidx = fileidx
 
          spill_header = file_content_array[ fileidx:fileidx+10 ]
          fileidx += 10
-         
+         if debug:
+            print('Spill header: {}'.format(spill_header))
+            print('fileidx: {}'.format(fileidx))         
+
+
          if spill_header[0] == '0xe0f0e0f':
             return spill_dict, 0, spill_header[-1]
          
@@ -301,7 +307,8 @@ class NGMBinaryFile:
              if hex(hdrid_temp) == '0xabbaabba' or\
                    hex(hdrid_temp) == '0xe0f0e0f':
                 last_word_read = hex(hdrid_temp)
-             
+                break             
+
              this_card_id = (0xff000000 & hdrid_temp) >> 24
              if debug:
                  print('hdrid_temp: {}'.format(hex(hdrid_temp)))
@@ -341,9 +348,11 @@ class NGMBinaryFile:
              data_dict['data'] = channel_dict
              fileidx += words_read    
  
-             spill_words_read += words_read
+             #spill_words_read += words_read
              data_list.append(data_dict)
-     
+
+         spill_words_read = fileidx - initial_fileidx    
+ 
          spill_dict['spill_data'] = data_list
      
          return spill_dict, spill_words_read, last_word_read
@@ -473,9 +482,10 @@ class NGMBinaryFile:
 
      ####################################################################
      def ReadChannel2( self, file_content_array, fileidx ):
+
+          initial_fileidx = fileidx
+
           # Assumes we've already read in the hdrid
-          trigger_stat_spill = []
-      
           channel_dict = {}
       
           # Trigger stat. counters are defined in Chapter 4.9 of Struck manual
@@ -487,14 +497,13 @@ class NGMBinaryFile:
           # 5 - High-Energy trigger counter
           channel_dict['trigger_stat_spill'] = file_content_array[fileidx:fileidx+6]
           fileidx += 6
-      
+ 
           # data_buffer_size stores the number of words needed to read all the
           # events for a channel in the current spill. Its size should be an integer
           # multiple of:
           # (# of header words, defined by format bits) + (# of samples/waveform)/2.
           channel_dict['data_buffer_size'] = file_content_array[fileidx]
           fileidx += 1
-          print('data_buffer_size: {}'.format(hex(channel_dict['data_buffer_size']))     
  
           total_words_read = 0 
           num_loops = 0 
@@ -504,11 +513,13 @@ class NGMBinaryFile:
               # if num_loops%10==0: print('On loop {}'.format(num_loops))
               words_read, event = self.ReadEvent2( file_content_array, fileidx )
               total_words_read += words_read
+              fileidx += words_read
               events.append(event)
               num_loops += 1
       
           channel_dict['events'] = events
-      
+          total_words_read = fileidx - initial_fileidx      
+
           return channel_dict, total_words_read
        
      ####################################################################

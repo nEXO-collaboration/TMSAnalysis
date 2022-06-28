@@ -51,7 +51,7 @@ class NGMBinaryFile:
                print('Spills_list is empty... no spills found in file.')     
 
      ####################################################################
-     def GroupEventsAndWriteToHDF5( self, nevents = -1, save = True, start_stop = None ):
+     def GroupEventsAndWriteToHDF5( self, nevents = -1, save = False, start_stop = None ):
           
           try:
                self.spills_list
@@ -218,7 +218,7 @@ class NGMBinaryFile:
 
              while True:
                    spill_time = (time.time() - start_time)
-                   print('Reading spill {} at {:4.4} sec'.format(spill_counter, spill_time))
+                   print('Reading spill {} at {:4.4} sec'.format(spill_counter, spill_time), end="\r")
 
                    first_word_of_spillhdr = hex(file_content_array[fileidx])
                    if first_word_of_spillhdr == '0xabbaabba':
@@ -730,4 +730,63 @@ class NGMBinaryFile:
      
          words_read = fileidx - initial_fileidx
          return words_read, event
-     
+
+     #a utility function for extracting just one event out of a
+     #binary file that has been read. Used in "Waveform.py:Event" to 
+     #plot individual events. 
+     def getEventFromReducedIndex(self, event_no):
+         try:
+             self.spills_list
+         except NameError:
+             self.LoadBinaryFile( self.filename )
+
+         # Note: this code assumes that the data is acquired in a way that records
+         # all the active channels simultaneously. This is the typical operating mode
+         # for the Stanford TPC, but may not be transferrable to other setups using the
+         # Struck digitizers.
+         catch_event_in_spill = False #catches which spill this event is in. 
+         global_evt_counter = 0
+         last_spills_max_event = 0
+         for spill_dict in self.spills_list:
+
+             spill_data = spill_dict['spill_data']
+             num_channels = len(spill_data)
+
+             # Get the number of events in the spill. The loop is there because some channels
+             # are off and will have no events, which would cause problems.
+             num_events = 0
+             for i in range(num_channels):
+                 if len(spill_data[i]['data']['events']) > num_events:
+                     num_events = len(spill_data[i]['data']['events'])
+             
+             global_evt_counter += num_events #total number of events indexed so far
+             #if the event number is less than the current spill/event index, continue to next spill
+             if(event_no > global_evt_counter):
+                 last_spills_max_event
+                 continue
+
+             #otherwise, the event index is within this spill,
+             #and we can modulate it by the last spill's max event
+             spill_evt_idx = event_no - last_spills_max_event
+             
+             #waveform object to be returned
+             waveforms = {}
+
+             # In the binary files, the order of channels is always sequential. Meaning, the
+             # channels go in order of (slot,chan) indexed from 0.
+             for ch, channel_data in enumerate(spill_data):
+                 waveforms[ch] = channel_data["data"]["events"][spill_evt_idx]["samples"]
+
+             break #end the loop here, we found the event we needed. 
+
+
+         if(waveforms == {}):
+             print("Could not find the event " + str(event_no) + " within the binary file. Maybe you've listed the wrong filename")
+             return None
+         else:
+             return waveforms 
+
+            
+
+
+

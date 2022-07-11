@@ -104,6 +104,11 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
         key_buffer = None
         row_counter  = 0
         for index, thisrow in input_df.iterrows():
+                if not thisrow['ChannelTypes'][0] in ['SiPM','TileStrip']:
+                    print('Skipping Event %i'%event_counter)
+                    event_counter += 1
+                    row_counter += 1
+                    continue
                 skip = False
                 if (event_counter > num_events) and (num_events > 0):
                         break
@@ -113,11 +118,14 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 
                 output_series['TotalTileEnergy'] = 0.
                 output_series['TotalSiPMEnergy'] = 0.
+                output_series['TotalSiPMEnergyBPolar'] = 0.
                 output_series['NumTileChannelsHit'] = 0
                 output_series['NumXTileChannelsHit'] = 0
                 output_series['NumYTileChannelsHit'] = 0
                 output_series['NumSiPMChannelsHit'] = 0
+                output_series['NumSiPMChannelsHitBPolar'] = 0
                 output_series['TimeOfMaxChannel'] = 0
+                output_series['LightSaturated'] = False
                 
                 max_channel_val = 0.
                 sig_array  = SignalArray.SignalArray()
@@ -159,6 +167,11 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                                 calibration_constant = calibration_constant )
                         try:
                                 w.FindPulsesAndComputeAQs(fit_pulse_flag=fit_pulse_flag)
+                                #print(thisrow['ChannelTypes'][ch_num],analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ))
+                                #print(thisrow['Channels'][ch_num],analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ))
+                                #print(w.__dict__.keys())
+                                if w.flag:
+                                    output_series['LightSaturated'] = True
                         except IndexError:
                                 print('Null waveform found in channel {}, event {} skipped'.format(ch_num,event_counter))
                                 key_buffer = output_df[row_counter-1].keys() # Grab keys from previous event
@@ -197,14 +210,13 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                                 output_series['TimeOfMaxChannel'] = w.analysis_quantities['T90']
 
                         if 'SiPM' in analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ):
-#                                output_series['{} {} {}'.format(\
-#                                                                analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ),\
-#                                                                analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ),\
-#                                                                'Waveform')] = w.corrected_data
 
-                                if w.analysis_quantities['Pulse Height'] > 3.*w.analysis_quantities['Baseline RMS']:
-                                        output_series['NumSiPMChannelsHit'] += 1
-                                        output_series['TotalSiPMEnergy'] += w.analysis_quantities['Pulse Area']
+                                if w.analysis_quantities['Pulse Height'] > 5.*w.analysis_quantities['Baseline RMS'] and abs(w.analysis_quantities['Pulse Time'] - trigger_position)<30:
+                                        if w.TagLightPulse():
+                                            output_series['NumSiPMChannelsHit'] += 1
+                                            output_series['TotalSiPMEnergy'] += w.analysis_quantities['Pulse Area']
+                                        output_series['NumSiPMChannelsHitBPolar'] += 1
+                                        output_series['TotalSiPMEnergyBPolar'] += w.analysis_quantities['Pulse Area']
 #                                if summed_sipm_data is None:
 #                                        summed_sipm_data = w.corrected_data
 #                                else:
@@ -251,15 +263,6 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                 output_series['Cluster Drift Time'] = [c.GetTime() for c in cluster.clusters]
                 output_series['Cluster Z-Pos'] = [c.GetTime()*analysis_config.GetDriftVelocity() for c in cluster.clusters]
                 
-        
-                #print("E1: %.2f, E2: %.2f, X: %.2f, Y: %.2f, N: %i, N3D: %i, Is3D:%i"%(output_series['TotalTileEnergy'],
-                #                                 sig_array.GetEnergy(),
-                #                                 output_series['WeightedPosX'], 
-                #                                 output_series['WeightedPosY'], 
-                #                                 output_series['NumberOfClusters'],
-                #                                 output_series['Number3DClusters'],
-                #                                 output_series['IsFull3D']))
-
                 # Append this event to the output dataframe
                 output_series['File'] = filetitle
                 output_series['Event'] = event_counter

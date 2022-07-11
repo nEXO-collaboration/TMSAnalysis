@@ -67,7 +67,6 @@ class NGMRootFile:
 		local_evt_counter = 0
 		df = pd.DataFrame(columns=['Channels','Timestamp','Data','ChannelTypes','ChannelPositions'])
 		start_time = time.time()
-		print('{} entries per event.'.format(len(self.channel_map)))
 
 		for data in self.intree.iterate(['_waveform','_rawclock','_slot','_channel'],\
 						step_size=len(self.channel_map),\

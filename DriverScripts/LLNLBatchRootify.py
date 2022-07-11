@@ -20,6 +20,7 @@ import argparse, os, sys, time, glob
 parser = argparse.ArgumentParser()
 parser.add_argument('inputfolder', type=str, help='binary files location')
 parser.add_argument('outputdir', type=str, help='location to put output files')
+parser.add_argument('-l', action='store_true')
 args = parser.parse_args()
 path_to_bin   = args.inputfolder
 path_to_tier1 = args.outputdir
@@ -51,5 +52,8 @@ for i,fname in enumerate(flist):
 	cmd_options = '--export=ALL -p pbatch  -t 02:00:00 -n 1 -J {} -o {}{}.out'.format(i,path_to_tier1,fname_stripped)
 	exe = 'python $HOME/software/StanfordTPCAnalysis/DriverScripts/toRoot.py {} {}'.format(path_to_tier1,fname)
 	cmd_full = 'sbatch {} --wrap=\'{}\''.format(cmd_options,exe)
-	os.system(cmd_full)
-	print('job {} sumbitted'.format(i))
+	if args.l:
+		os.system(exe)
+	else:
+		os.system(cmd_full)
+		print('job {} sumbitted'.format(i))

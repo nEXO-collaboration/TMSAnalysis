@@ -7,6 +7,7 @@ TMSUtilities/GetCuts.py
 TMSUtilities/cut_driver.py
 StruckAnalysisConfiguration/test.py
 WaveformAnalysis/event_driver.py
+config/
 *.swp
 *.txt
 *.h5

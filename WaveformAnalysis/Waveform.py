@@ -84,18 +84,15 @@ class Waveform:
 					# ^Gaussian smoothing with a 80ns width (1sig)
 				self.data = self.data.to_numpy().astype(float)
 				window_start = self.trigger_position - int(1600/self.sampling_period_ns)
-				window_end = self.trigger_position + int(2400/self.sampling_period_ns)
 				baseline_calc_end = window_start + int(800/self.sampling_period_ns)
-				baseline = np.mean(self.data[window_start:baseline_calc_end])
-				baseline_rms = np.std(self.data[window_start:baseline_calc_end])
-				self.corrected_data = (self.data - baseline) * self.calibration_constant
-
+				self.baseline = (np.mean(self.data[window_start:baseline_calc_end]) + 2*np.mean(self.data[-2*baseline_calc_end:]))/3
+				self.baseline_rms = max(np.std(self.data[window_start:baseline_calc_end]),np.std(self.data[-2*baseline_calc_end:]))
+				self.corrected_data = (self.data - self.baseline) * self.calibration_constant
+				self.analysis_quantities['Baseline'] = self.baseline
+				self.analysis_quantities['Baseline RMS'] = self.baseline_rms
+				self.analysis_quantities['Pulse Time'] = np.argmax(self.corrected_data*self.polarity)
 				pulse_area, pulse_height, t5, t10, t20, t80, t90 = \
-					self.GetPulseAreaAndTimingParameters( self.corrected_data[window_start:window_end] )
-				pulse_time = t10 - int(1600/self.sampling_period_ns)
-				self.analysis_quantities['Baseline'] = baseline
-				self.analysis_quantities['Baseline RMS'] = baseline_rms
-				self.analysis_quantities['Pulse Time'] = pulse_time
+					self.GetPulseAreaAndTimingParameters( self.corrected_data )
 				self.analysis_quantities['Pulse Area'] = pulse_area
 				self.analysis_quantities['Pulse Height'] = pulse_height
 				self.analysis_quantities['T5'] = t5
@@ -103,15 +100,21 @@ class Waveform:
 				self.analysis_quantities['T20'] = t20
 				self.analysis_quantities['T80'] = t80
 				self.analysis_quantities['T90'] = t90
-				self.analysis_quantities['Induced Charge'] = 0
+				# Tag for saturated signal
+				self.flag = False
+				diff = np.abs(np.diff(self.corrected_data))
+				diff_diff = np.diff(np.where(diff<3)[0])
+				if sum(diff_diff==1)>=int(56.0/self.sampling_period_ns):
+					self.flag = True
 
 			elif 'TileStrip' in self.detector_type:
                                 # 'TileStrip' denotes the strips read out with the
                                 # charge-sensitive discrete preamps.
 
 				#this is the smoothing time window in ns
+				self.flag = False
 				ns_smoothing_window = 500.0
-				self.data = gaussian_filter( self.data.astype(float),\
+				self.data = gaussian_filter( self.data,\
 				ns_smoothing_window/self.sampling_period_ns ) * self.polarity
 					# ^Gaussian smoothing with a 0.5us width, also, flip polarity if necessary
 				baseline = np.mean(self.data[0:self.input_baseline])
@@ -190,6 +193,14 @@ class Waveform:
 					np.append( self.analysis_quantities['Pulse Heights'], np.min(self.data[start:end]-baseline) )
 
 
+	#######################################################################################
+	def TagLightPulse(self):
+		#import matplotlib.pyplot as plt
+		#plt.plot(np.cumsum( self.corrected_data[:self.end_window])/100)
+		#plt.plot(self.corrected_data)
+		#plt.hlines(np.mean(np.cumsum( self.corrected_data[:self.end_window])[-6:])/100,plt.gca().get_xlim()[0],plt.gca().get_xlim()[1])
+		#plt.show()
+		return abs(min(self.corrected_data[self.trigger_position-60:self.trigger_position]))<3.5*self.baseline_rms
 
 	#######################################################################################
 	def GetPulseArea( self, dat_array ):
@@ -213,8 +224,10 @@ class Waveform:
 	#######################################################################################
 	def GetPulseAreaAndTimingParameters( self, dat_array ):
 		if len(dat_array) == 0: return 0, 0, 0, 0, 0, 0, 0
-		cumul_pulse = np.cumsum( dat_array * self.polarity )
-		area_window_length = int(800./self.sampling_period_ns) # average over 800ns
+		pulse_height = self.polarity * np.max( dat_array )
+		end_window = self.trigger_position + int(400.0/self.sampling_period_ns*np.log(pulse_height/self.baseline_rms))
+		cumul_pulse = np.cumsum( dat_array[:end_window] * self.polarity )
+		area_window_length = int(50./self.sampling_period_ns) # average over 800ns
 		pulse_area = np.mean(cumul_pulse[-area_window_length:])
 		try:
 			t5 = np.where( cumul_pulse > 0.05*pulse_area )[0][0]
@@ -236,14 +249,6 @@ class Waveform:
 			t90 = np.where( cumul_pulse > 0.9*pulse_area )[0][0]
 		except IndexError:
 			t90 = 1
-		pulse_height = self.polarity * np.max( np.abs(dat_array) )
-#		print('Pulse area: {}'.format(pulse_area))
-#		print('pulse height: {}'.format(pulse_height))
-#		print('T5: {}'.format(t5))
-#		print('T10: {}'.format(t10))
-#		print('T20: {}'.format(t20))
-#		print('T80: {}'.format(t80))
-#		print('T90: {}'.format(t90))
 		return pulse_area, pulse_height, t5, t10, t20, t80, t90
 
 

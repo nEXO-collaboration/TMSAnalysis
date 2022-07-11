@@ -104,7 +104,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
         key_buffer = None
         row_counter  = 0
         for index, thisrow in input_df.iterrows():
-                if not thisrow['ChannelTypes'][0] in ['SiPM','TileStrip']:
+                if any([ch not in ['SiPM','TileStrip'] for ch in thisrow['ChannelTypes']]):
                     print('Skipping Event %i'%event_counter)
                     event_counter += 1
                     row_counter += 1

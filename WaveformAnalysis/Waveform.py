@@ -158,7 +158,7 @@ class Waveform:
 
 				# pulse area is from waveform that has been filtered and reintegrated
 				# so needs to be scaled by time parameter used by differentiator
-				pulse_area = pulse_area/filter_samples
+				pulse_area = pulse_area/filter_time
 
 				# Compute timing/position if charge energy is positive and above noise.
 				if (charge_energy > self.strip_threshold*baseline_rms) & (charge_energy > 0.5):

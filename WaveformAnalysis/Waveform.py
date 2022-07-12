@@ -119,7 +119,7 @@ class Waveform:
 				# charge-sensitive discrete preamps.
 				
 				# this is the smoothing time window in ns
-				ns_smoothing_window = 1000.0
+				ns_smoothing_window = 500.0
 
 				# raw, unfiltered, uncorrected data, with polarity flipped if necessary
 				self.data = self.data.astype(float) * self.polarity
@@ -138,7 +138,7 @@ class Waveform:
 									   self.sampling_period_ns )
 
 				# time parameter used for filtering
-				filter_time = 25. # samples
+				filter_time = 1000. # samples
 				
 				# apply differentiator to filter out low-frequency noise from corrected data
 				self.corrected_data = Differentiator( self.corrected_data, filter_time)
@@ -152,13 +152,13 @@ class Waveform:
 				window_length_us = 5. # calculate energy from last 5 us of cumulative pulse area
 
 				# now calculate pulse area, pulse height, and timing parameters from filtered waveform
-				pulse_area, pulse_height, t5, t10, t25, t50, t90 = \
+				pulse_area, charge_energy, t5, t10, t25, t50, t90 = \
 					self.GetPulseAreaAndTimingParameters( self.corrected_data - corrected_baseline, \
 									      window_length_us )    
 
 				# pulse area is from waveform that has been filtered and reintegrated
 				# so needs to be scaled by time parameter used by differentiator
-				charge_energy = pulse_area/filter_time
+				pulse_area = pulse_area/filter_samples
 
 				# Compute timing/position if charge energy is positive and above noise.
 				if (charge_energy > self.strip_threshold*baseline_rms) & (charge_energy > 0.5):
@@ -175,7 +175,6 @@ class Waveform:
 				# finally, apply calibration constant correction
 				self.corrected_data = self.corrected_data * self.calibration_constant
 				charge_energy = charge_energy * self.calibration_constant
-				pulse_height = pulse_height * self.calibration_constant
 				pulse_area = pulse_area * self.calibration_constant
 				baseline_rms = baseline_rms * self.calibration_constant
 
@@ -183,7 +182,7 @@ class Waveform:
 				self.analysis_quantities['Baseline'] = baseline
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
 				self.analysis_quantities['Charge Energy'] = charge_energy
-				self.analysis_quantities['Pulse Height'] = pulse_height
+				self.analysis_quantities['Pulse Height'] = charge_energy
 				self.analysis_quantities['Pulse Area'] = pulse_area
 				self.analysis_quantities['T5'] = t5
 				self.analysis_quantities['T10'] = t10
@@ -282,7 +281,6 @@ class Waveform:
 			t5 = np.where( (cumul_pulse[ti:] - lower)*pulse_polarity > 0.05*pulse_area*pulse_polarity )[0][0] + ti
 		except IndexError:
 			t5 = 1		
-
 		try:
 			t10 = np.where( (cumul_pulse[ti:] - lower)*pulse_polarity > 0.1*pulse_area*pulse_polarity )[0][0] + ti
 		except IndexError:

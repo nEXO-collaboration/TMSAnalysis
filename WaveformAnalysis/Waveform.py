@@ -123,7 +123,7 @@ class Waveform:
 
 				# raw, unfiltered, uncorrected data, with polarity flipped if necessary
 				self.data = self.data.astype(float) * self.polarity
-				
+
 				# smooth data with Gaussian filter
 				self.data = gaussian_filter( self.data, \
 							     ns_smoothing_window/self.sampling_period_ns )
@@ -131,7 +131,7 @@ class Waveform:
 				# get channel baseline and baseline rms after smoothing but before decay time correction or filtering
 				baseline = np.mean(self.data[:self.input_baseline])
 				baseline_rms = np.std(self.data[:self.input_baseline])
-
+				
 				# apply decay time correction to smoothed data
 				self.corrected_data = DecayTimeCorrection( self.data - baseline, \
 									   self.decay_time_us, \
@@ -261,49 +261,35 @@ class Waveform:
 		pulse_polarity = np.sign(dat_array[t_peak] - np.mean(dat_array))
 		cumul_pulse = np.cumsum( dat_array )
 		area_window_length = int(window_length_us*1000./self.sampling_period_ns)
+		pulse_area = np.mean(cumul_pulse[-area_window_length:])
 		pulse_height = dat_array[t_peak]
 		try:
-			ti = np.where(dat_array[:t_peak]*pulse_polarity < 0.05*dat_array[t_peak]*pulse_polarity)[0][-1]
+			t5 = np.where(dat_array[:t_peak]*pulse_polarity < 0.05*pulse_height*pulse_polarity)[0][-1]
 		except IndexError:
-			ti = 1
+			t5 = 1
 		try:
-			tf = np.where(dat_array[t_peak:]*pulse_polarity < 0.05*dat_array[t_peak]*pulse_polarity)[0][0]+t_peak
-		except IndexError:
-			tf = -1
-		if sipm:
-		    upper = np.mean(cumul_pulse[-area_window_length:])
-		    lower = 0
-		else:
-		    lower = np.mean(cumul_pulse[max(ti-area_window_length,0):ti])
-		    upper = np.mean(cumul_pulse[tf:min(tf+area_window_length,len(dat_array))])
-		pulse_area = upper - lower
-		try:
-			t5 = np.where( (cumul_pulse[ti:] - lower)*pulse_polarity > 0.05*pulse_area*pulse_polarity )[0][0] + ti
-		except IndexError:
-			t5 = 1		
-		try:
-			t10 = np.where( (cumul_pulse[ti:] - lower)*pulse_polarity > 0.1*pulse_area*pulse_polarity )[0][0] + ti
+			t10 = np.where(dat_array[:t_peak]*pulse_polarity < 0.1*pulse_height*pulse_polarity)[0][-1]
 		except IndexError:
 			t10 = 1
 		try:
-			t25 = np.where( (cumul_pulse[ti:] - lower)*pulse_polarity > 0.25*pulse_area*pulse_polarity )[0][0] + ti
+			t25 = np.where(dat_array[:t_peak]*pulse_polarity < 0.25*pulse_height*pulse_polarity)[0][-1]
 		except IndexError:
 			t25 = 1
 		try:
-			t50 = np.where( (cumul_pulse[ti:] - lower)*pulse_polarity > 0.5*pulse_area*pulse_polarity )[0][0] + ti
+			t50 = np.where(dat_array[:t_peak]*pulse_polarity < 0.5*pulse_height*pulse_polarity)[0][-1]
 		except IndexError:
 			t50 = 1
 		try:
-			t90 = np.where( (cumul_pulse[ti:] - lower)*pulse_polarity > 0.9*pulse_area*pulse_polarity )[0][0] + ti
+			t90 = np.where(dat_array[:t_peak]*pulse_polarity < 0.9*pulse_height*pulse_polarity)[0][-1]  
 		except IndexError:
 			t90 = 1
-#		print('Pulse area: {}'.format(pulse_area))
-#		print('pulse height: {}'.format(pulse_height))
-#		print('T5: {}'.format(t5))
-#		print('T10: {}'.format(t10))
-#		print('T25: {}'.format(t25))
-#		print('T50: {}'.format(t50))
-#		print('T90: {}'.format(t90))
+		#		print('Pulse area: {}'.format(pulse_area))
+		#		print('pulse height: {}'.format(pulse_height))
+		#		print('T5: {}'.format(t5))
+		#		print('T10: {}'.format(t10))
+		#		print('T25: {}'.format(t25))
+		#		print('T50: {}'.format(t50))
+		#		print('T90: {}'.format(t90))
 		return pulse_area, pulse_height, t5, t10, t25, t50, t90
 
 

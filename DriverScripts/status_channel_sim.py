@@ -21,8 +21,8 @@ import argparse
 import pickle
 
 parser = argparse.ArgumentParser()
-parser.add_argument('data_df', type=str, help='data df from which pull the channel status')
-parser.add_argument('sim_raw_folder', type=str, help='folder to store the file')
+parser.add_argument('--data_df', type=str, help='data df from which pull the channel status')
+parser.add_argument('--sim_raw_folder', type=str, help='folder to store the file')
 args = parser.parse_args()
 this_file  = args.data_df
 output_dir = args.sim_raw_folder

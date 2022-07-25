@@ -49,16 +49,21 @@ if not os.path.exists(path_to_reduced):
 
 
 flist = glob.glob('{}*.root'.format(path_to_tier1))
+print(len(flist))
+max_files_to_submit = 2500
+
 
 for i,fname in enumerate(flist):
+	if i > max_files_to_submit: break
 	fname_stripped = (fname.split('/')[-1]).split('.')[0]
 	outfile = '{}{}_reduced.h5'.format(path_to_reduced,fname_stripped)
+#	print(outfile)
 	if os.path.exists(outfile):
 		print('file {}_reduced.h5 already exists'.format(fname_stripped))
 		continue
-	activate_venv = 'source $HOME/uproot/bin/activate && source $HOME/software/StanfordTPCAnalysis/setup.sh'
-	cmd_options = '--export=ALL -p pbatch  -t 02:00:00 -n 1 -J {} -o {}{}.out'.format(i,path_to_reduced,fname_stripped)
-	exe = 'python $HOME/software/StanfordTPCAnalysis/DriverScripts/reduce_data.py {} {} {}'.format(fname,path_to_reduced,path_to_config)
+	activate_venv = 'source $HOME/StanfordTPC/uproot/bin/activate && source $HOME/StanfordTPC/StanfordTPCAnalysis/setup.sh'
+	cmd_options = '--export=ALL -p pbatch  -t 60 -n 1 -J {} -o {}{}.out'.format(i,path_to_reduced,fname_stripped)
+	exe = 'python $HOME/StanfordTPC/StanfordTPCAnalysis/DriverScripts/reduce_data.py {} {} {}'.format(fname,path_to_reduced,path_to_config)
 	if args.sim:
 		exe += ' --sim'
 	cmd_full = '{} && sbatch {} --wrap=\'{}\''.format(activate_venv,cmd_options,exe)

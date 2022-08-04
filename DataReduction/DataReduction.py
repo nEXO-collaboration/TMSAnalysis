@@ -114,7 +114,11 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
         key_buffer = None
         row_counter  = 0
         for index, thisrow in input_df.iterrows():
-                #print('INDEX: {}, counter: {}'.format(index,row_counter))
+                if any([ch not in ['SiPM','TileStrip'] for ch in thisrow['ChannelTypes']]):
+                    print('Skipping Event %i'%event_counter)
+                    event_counter += 1
+                    row_counter += 1
+                    continue
                 skip = False
                 if (event_counter > num_events) and (num_events > 0):
                         break

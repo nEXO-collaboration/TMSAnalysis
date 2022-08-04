@@ -21,6 +21,8 @@ output_dir = args.outputdir
 config_dir = args.configdir
 save_hdf5 = args.save_raw
 input_foldername = os.path.dirname(this_file)
+print('\n\nInput foldername:')
+print(input_foldername)
 channel_status_file = input_foldername + '/channel_status.p'
 
 #if all((this_file,output_dir,config_dir)):

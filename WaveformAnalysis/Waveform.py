@@ -33,6 +33,7 @@ import scipy.optimize as opt
 from numba import jit
 import pandas as pd
 import numpy as np
+import sys
 import copy
 
 
@@ -365,101 +366,54 @@ def Differentiator( wfm, decay ):
 
 
 class Event:
-
-	def __init__( self, reduced, path_to_tier1, event_number,\
-			run_parameters_file,\
-			calibrations_file,\
-			channel_map_file):
+	#One significant change to this class has been made recently (July 2022). 
+	#This event now takes in the binary file object, an NGMBinaryFile as opposed
+	#to filenames, and leaves it up to the notebook or script to determine which
+	#binary file should be indexed for a particular event. This is because the output_dataframes
+	#in a reduced dataset contain a column for the filename, so each event can be indexed to a binary
+	#file and then the list of events to plot may be sorted by their filename - allowing one to
+	#load one binary file, plot many events, then load another binary file, plot many events; as opposed
+	#to loading the same binary file over and over again for each event.
+	def __init__( self, bin_file, event_number, analysis_config):
 
 		from StanfordTPCAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfiguration
-		import uproot
+		from StanfordTPCAnalysis.ParseStruck import NGMBinaryFile
+		
+		if(bin_file is None):
+			print("Please use your plotting script or notebook to pass a binary file, this function received None")
+			return None 
 
-		try :
-			if path_to_tier1[-1] is not '/':
-				path_to_tier1 += '/'
-		except TypeError:
-			pass
-
-		analysis_config = StruckAnalysisConfiguration.StruckAnalysisConfiguration()
-		analysis_config.GetRunParametersFromFile( run_parameters_file, path_to_tier1.split('/')[-3] )
-		analysis_config.GetCalibrationConstantsFromFile( calibrations_file )
-		analysis_config.GetChannelMapFromFile( channel_map_file, path_to_tier1.split('/')[-3] )
 		channel_number = analysis_config.GetNumberOfChannels()
 		self.event_number		= event_number
 		self.waveform			= {}
 		self.baseline			= []
-		self.charge_energy_ch		= []
-		self.risetime			= []
+		self.charge_energy_ch		= [] #these were taken out, as the reduced file is no longer involved in this function; can be put back in
+		self.risetime			= [] #these were taken out, as the reduced file is no longer involved in this function; can be put back in
 		self.sampling_frequency = analysis_config.run_parameters['Sampling Rate [MHz]']
 
-		if path_to_tier1 is not None:
-			path_to_file		= path_to_tier1
-			try:
-				entry_from_reduced	= pd.read_hdf(reduced, start=self.event_number, stop=self.event_number+1)
-				print(entry_from_reduced)
-				timestamp		= entry_from_reduced['Timestamp'].values[0]
-				fname			= entry_from_reduced['File'].values[0]
-				self.tot_charge_energy	= entry_from_reduced['TotalTileEnergy'].values[0]
-				self.event_number	= entry_from_reduced['Event'][event_number]
-			except OSError:
-				entry_from_reduced = pd.read_pickle(reduced).iloc[self.event_number]
-				timestamp		= entry_from_reduced['Timestamp']
-				fname			= entry_from_reduced['File']
-				self.tot_charge_energy	= entry_from_reduced['TotalTileEnergy']
-				self.event_number	= entry_from_reduced['Event']
-			except IndexError:
-				fname = reduced.split('/')[-1]
+		#Read the binary file and get spills from it. 
 
-
-		else:
-			print('No reduced file found, charge energy and risetime information not present')
-			fname = reduced.split('/')[-1]
-			path_to_file = reduced[:-len(fname)]
-			self.tot_charge_energy = 0.0
-
-		tier1_tree = uproot.open('{}{}'.format(path_to_file,fname))['HitTree']
-		tier1_ev = tier1_tree.arrays( entrystart=self.event_number*channel_number, entrystop=(self.event_number+1)*channel_number)
-		#the events picked from the reduced file and from the tier1 root file are cross-checked with their timestamp
-		try:
-			if not np.array_equal(np.unique(tier1_ev[ b'_rawclock']),np.unique(timestamp)):
-				raise RuntimeError('Timestamps not matching')
-
-		except NameError:
-			pass
-
-		global software_channel 
-		software_channel = tier1_ev[b'_slot']*16+tier1_ev[b'_channel']
-		if analysis_config.run_parameters['Sampling Rate [MHz]'] == 62.5 or analysis_config.run_parameters['Sampling Rate [MHz]'] == 25:
-			polarity = 1.
-
-		waveform = np.array(tier1_ev[ b'_waveform'])
+		waveforms_from_binary = bin_file.getEventFromReducedIndex(event_number) #Extracts just that event's data from the binary file. 
 		self.ix_channel = []
 		#looping through channels and fill the waveforms
-		for i,ch_waveform in enumerate(waveform):
-			ch_type = analysis_config.GetChannelTypeForSoftwareChannel(software_channel[i])
-			ch_name = analysis_config.GetChannelNameForSoftwareChannel(software_channel[i])
+		for i, ch_waveform in waveforms_from_binary.items():
+			ch_type = analysis_config.GetChannelTypeForSoftwareChannel(i)
+			ch_name = analysis_config.GetChannelNameForSoftwareChannel(i)
 			if ch_name == 'Off':
 				continue
-			self.ix_channel.append(software_channel[i])
+			self.ix_channel.append(i)
 			self.waveform[ch_name] = Waveform(input_data = ch_waveform,\
 							detector_type	    = ch_type,\
 							sampling_period_ns  = 1.e3/self.sampling_frequency,\
 							input_baseline	    = -1,\
-							polarity	    = polarity,\
 							fixed_trigger	    = False,\
 							trigger_position    = analysis_config.run_parameters['Pretrigger Length [samples]'],\
-							decay_time_us	    = analysis_config.GetDecayTimeForSoftwareChannel( software_channel[i] ),\
-							  calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel(software_channel[i]),\
+							decay_time_us	    = analysis_config.GetDecayTimeForSoftwareChannel( i),\
+							  calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel(i),\
 							strip_threshold = analysis_config.run_parameters['Strip Threshold [sigma]'])
 			#same as for Waveform class
 			self.baseline.append(np.mean(ch_waveform[:int(analysis_config.run_parameters['Baseline Length [samples]'])]))
-			#different cases for tile/SiPM
-			try:
-				self.charge_energy_ch.append(entry_from_reduced['{} {} Charge Energy'.format(ch_type,ch_name)].values[0])
-				self.risetime.append(entry_from_reduced['{} {} T90'.format(ch_type,ch_name)].values[0]/self.sampling_frequency)
-			except (KeyError, UnboundLocalError, AttributeError):
-				self.charge_energy_ch.append(0)
-				self.risetime.append(0)
+
 
 
 	#smoothing function, the waveform is overwritten, time_width is in us
@@ -475,12 +429,8 @@ class Event:
 		for i,e in enumerate(np.argsort(self.ix_channel)):
 			v = list(self.waveform.keys())[e]
 			p = plt.plot(np.arange(len(self.waveform[v].data))/self.sampling_frequency,self.waveform[v].data-self.baseline[e]+ch_offset*i)
-			plt.text(0,ch_offset*i,'{} {:.1f}'.format(v,self.charge_energy_ch[e]))
-			if risetime and self.charge_energy_ch[e]>0:
-				plt.vlines(self.risetime[e],ch_offset*i,ch_offset*i+2*self.charge_energy_ch[e],linestyles='dashed',colors=p[0].get_color())
-
+			
 		plt.xlabel('time [$\mu$s]')
-		plt.title('Event {}, Energy {:.1f} ADC counts'.format(self.event_number,self.tot_charge_energy))
 		plt.tight_layout()
 		return(plt)
 
@@ -497,7 +447,7 @@ class Simulated_Event:
 		import pickle
 
 		try :
-			if path_to_tier1[-1] is not '/':
+			if path_to_tier1[-1] != '/':
 				path_to_tier1 += '/'
 		except TypeError:
 			pass

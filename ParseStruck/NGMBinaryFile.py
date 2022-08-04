@@ -208,6 +208,12 @@ class NGMBinaryFile:
              with open(filename, 'rb') as infile:
                   file_content_array = np.fromfile( infile, dtype=np.uint32 )
 
+             if(np.shape(file_content_array)==(0,)):
+                  print('Empty file')
+                  return '',[],0,0
+             print(np.shape(file_content_array))
+                  
+                  
              # 'fileidx' is the index of where we are in the file. It should
              # be set to the end of the last operation.
              fileidx = 0

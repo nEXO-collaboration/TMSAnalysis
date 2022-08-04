@@ -161,8 +161,11 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
 #                        output_df_list.append(reduced_df)
 #                        n_events_processed += 20
 
-        output_df = pd.concat( output_df_list, axis=0, ignore_index=True, sort=False )
-        output_df.to_hdf(output_dir + outputfile, key='df')     
+        if len(output_df_list) > 0:
+                output_df = pd.concat( output_df_list, axis=0, ignore_index=True, sort=False )
+                output_df.to_hdf(output_dir + outputfile, key='df')
+        else:
+                print('No events found in file. Exiting')
         print('Run time: {:4.4}'.format(time.time()-start_time))
 
 

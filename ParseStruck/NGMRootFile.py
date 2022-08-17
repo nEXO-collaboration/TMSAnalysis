@@ -77,7 +77,6 @@ class NGMRootFile:
 					break
 
 			channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data['_slot'],data['_channel'])
-                         
                         # Remove 'Off' channels from the data stream, uproot3 version
 			#for column in data_series.items():
 			#	data_series[ column[0] ] = np.array(data_series[column[0]][channel_mask])
@@ -88,8 +87,8 @@ class NGMRootFile:
 			output_series['Channels'] = data['_slot']*16+data['_channel']
 			output_series['Timestamp'] = data['_rawclock']
 			output_series['Data'] = data['_waveform']
-			output_series['ChannelTypes'] = channel_types
-			output_series['ChannelPositions'] = channel_positions
+			output_series['ChannelTypes'] = np.array(channel_types)[channel_mask]
+			output_series['ChannelPositions'] = channel_positions[channel_mask]
 			df = df.append(output_series,ignore_index=True)	
 
 
@@ -124,7 +123,6 @@ class NGMRootFile:
 		channel_positions = np.zeros(len(slot_column),dtype=int)
 
 		for index,row in self.channel_map.iterrows():
-			
 			slot_mask = np.where(slot_column==row['Board'])
 			chan_mask = np.where(channel_column==row['InputChannel'])
 			intersection = np.intersect1d(slot_mask,chan_mask)

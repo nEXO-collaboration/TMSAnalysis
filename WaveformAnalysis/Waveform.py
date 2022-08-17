@@ -54,6 +54,7 @@ class Waveform:
 		#self.store_corrected_data = store_corrected_data   # <- Flag which allows you to access the processed waveform
 		self.calibration_constant = calibration_constant # <- Calibration constant (for charge tile)
 		self.strip_threshold = strip_threshold		 # <- Strip threshold in sigma above baseline RMS
+		self.flag = False
 
 
 		# Make the default detector type a simple PMT
@@ -103,105 +104,145 @@ class Waveform:
 				self.analysis_quantities['T50'] = t50
 				self.analysis_quantities['T90'] = t90
 				# Tag for saturated signal
-				self.flag = False
 				diff = np.abs(np.diff(self.corrected_data))
 				diff_diff = np.diff(np.where(diff<3)[0])
 				if sum(diff_diff==1)>=int(56.0/self.sampling_period_ns):
 					self.flag = True
 
 			elif 'TileStrip' in self.detector_type:
-                                # 'TileStrip' denotes the strips read out with the
-                                # charge-sensitive discrete preamps.
+                                ######################### 2022/08/16 Jacopo testing the old charge recon algorithm on Run34/DS08
+                                ## 'TileStrip' denotes the strips read out with the
+                                ## charge-sensitive discrete preamps.
 
-				#this is the smoothing time window in ns
-				self.flag = False
-				ns_smoothing_window = 500.0
+				##this is the smoothing time window in ns
+				#ns_smoothing_window = 500.0
 
-				# raw, unfiltered, uncorrected data, with polarity flipped if necessary
-				self.data = self.data.to_numpy().astype(float) * self.polarity
+				## raw, unfiltered, uncorrected data, with polarity flipped if necessary
+				#self.data = self.data.to_numpy().astype(float) * self.polarity
 
 				
 				# smooth data with Gaussian filter
-				self.data = gaussian_filter( self.data, \
-							     ns_smoothing_window/self.sampling_period_ns )
+				#self.data = gaussian_filter( self.data, \
+				#			     ns_smoothing_window/self.sampling_period_ns )
 
 				# get channel baseline after smoothing but before decay time correction or filtering
 				# mostly used for shifting waveforms when plotting, so NOT corrected using
 				# channel calibration constant
-				baseline = np.mean(self.data[0:self.input_baseline])
+				#baseline = np.mean(self.data[0:self.input_baseline])
 
 				# apply decay time correction to smoothed data
+				#self.corrected_data = DecayTimeCorrection( self.data - baseline, \
+				#					   self.decay_time_us, \
+				#					   self.sampling_period_ns )
+
+				## apply differentiator to filter out low-frequency noise from corrected data
+				#self.corrected_data = Differentiator( self.corrected_data, 100)
+
+				## get baseline after filtering to subtract off before energy is calculated
+				#corrected_baseline = np.mean(self.corrected_data[0:self.input_baseline])
+
+				## baseline RMS is calculated from filtered waveform so that charge energy and
+				## baseline RMS can be compared directly to one another
+				#baseline_rms = np.std(self.corrected_data[0:self.input_baseline])
+
+				## set window lengths
+				#induction_window_ns = 4000
+				#ind_window_sample = int(induction_window_ns/self.sampling_period_ns)
+				#window_length_us = 5. # calculate energy from last 5 us of cumulative pulse area
+
+				## scale baseline RMS for integrated filtered waveform
+				#area_window_sample = int(window_length_us*1000./self.sampling_period_ns)
+				## factor of 1.5 corrects for non-gaussianity of noise on integrated waveform
+				##area_baseline_rms = 1.5*baseline_rms*np.sqrt(area_window_sample)
+				
+				## now calculate pulse area, pulse height, and timing parameters from filtered waveform
+				#pulse_area, pulse_height, t5, t10, t25, t50, t90 = \
+				#	self.GetPulseAreaAndTimingParameters( self.corrected_data - corrected_baseline, \
+				#					      window_length_us )			    
+
+				## can use pulse height or pulse area to compute charge energy
+				#charge_energy = pulse_height
+				
+				#if (pulse_height > self.strip_threshold*baseline_rms) \
+				#   & (pulse_area > 3*area_baseline_rms): # Compute timing/position if charge energy is positive and above noise.
+				#	# Compute drift time in microseconds (sampling is given in ns)
+				#	drift_time = (t90 - self.trigger_position) * (self.sampling_period_ns / 1.e3)
+				#else:
+				#	t5 = -1.
+				#	t10 = -1.
+				#	t25 = -1.
+				#	t50 = -1.
+				#	t90 = -1.
+				#	drift_time = -1.
+
+				## finally, apply calibration constant correction
+				## note: calibration constants are defined to be the numbers that scale the
+				## final energy on a channel, calculated from the smoothed, decay corrected,
+				## differentiated, baseline-subtracted waveform, to the true energy deposited.
+				## for this reason the calibration constants are applied to the baseline_rms,
+				## pulse_height, pulse_area, and charge_energy at the end
+				#self.corrected_data *= self.calibration_constant
+				#charge_energy *= self.calibration_constant
+				#pulse_height *= self.calibration_constant
+				#pulse_area *= self.calibration_constant
+				#baseline_rms *= self.calibration_constant
+				#area_baseline_rms *= self.calibration_constant
+
+				## save all AQs
+				#self.analysis_quantities['Baseline'] = baseline
+				#self.analysis_quantities['Baseline RMS'] = baseline_rms
+				#self.analysis_quantities['Integrated RMS'] = area_baseline_rms
+				#self.analysis_quantities['Charge Energy'] = charge_energy
+				#self.analysis_quantities['Pulse Height'] = pulse_height
+				#self.analysis_quantities['Pulse Area'] = pulse_area
+				#self.analysis_quantities['T5'] = t5
+				#self.analysis_quantities['T10'] = t10
+				#self.analysis_quantities['T25'] = t25
+				#self.analysis_quantities['T50'] = t50
+				#self.analysis_quantities['T90'] = t90
+				#self.analysis_quantities['Drift Time'] = drift_time
+				#self.analysis_quantities['Induced Charge'] = self.Induction_Charge(ind_window_sample)
+				########################################## OLD RECON STARTS HERE
+				ns_smoothing_window = 500.0
+				self.data = self.data.to_numpy().astype(float) * self.polarity
+				self.data = gaussian_filter( self.data,\
+				ns_smoothing_window/self.sampling_period_ns )
+					# ^Gaussian smoothing with a 0.5us width, also, flip polarity if necessary
+				baseline = np.mean(self.data[0:self.input_baseline])
+				baseline_rms = np.std(self.data[0:self.input_baseline])
+					# ^Baseline and RMS calculated from first 10us of smoothed wfm
 				self.corrected_data = DecayTimeCorrection( self.data - baseline, \
-									   self.decay_time_us, \
-									   self.sampling_period_ns )
-
-				# apply differentiator to filter out low-frequency noise from corrected data
-				self.corrected_data = Differentiator( self.corrected_data, 100)
-
-				# get baseline after filtering to subtract off before energy is calculated
-				corrected_baseline = np.mean(self.corrected_data[0:self.input_baseline])
-
-				# baseline RMS is calculated from filtered waveform so that charge energy and
-				# baseline RMS can be compared directly to one another
-				baseline_rms = np.std(self.corrected_data[0:self.input_baseline])
-
-				# set window lengths
+									self.decay_time_us, \
+									self.sampling_period_ns ) * \
+						self.calibration_constant
+				charge_energy = np.mean( self.corrected_data[-int(5000./self.sampling_period_ns):] )
+				baseline_rms *= self.calibration_constant
+				# ^Charge energy calculated from the last 5us of the smoothed, corrected wfm
+				t10 = -1.
+				t25 = -1.
+				t50 = -1.
+				t90 = -1.
+				drift_time = -1.
 				induction_window_ns = 4000
 				ind_window_sample = int(induction_window_ns/self.sampling_period_ns)
-				window_length_us = 5. # calculate energy from last 5 us of cumulative pulse area
-
-				# scale baseline RMS for integrated filtered waveform
-				area_window_sample = int(window_length_us*1000./self.sampling_period_ns)
-				# factor of 1.5 corrects for non-gaussianity of noise on integrated waveform
-				area_baseline_rms = 1.5*baseline_rms*np.sqrt(area_window_sample)
-				
-				# now calculate pulse area, pulse height, and timing parameters from filtered waveform
-				pulse_area, pulse_height, t5, t10, t25, t50, t90 = \
-					self.GetPulseAreaAndTimingParameters( self.corrected_data - corrected_baseline, \
-									      window_length_us )			    
-
-				# can use pulse height or pulse area to compute charge energy
-				charge_energy = pulse_height
-				
-				if (pulse_height > self.strip_threshold*baseline_rms) \
-				   & (pulse_area > 3*area_baseline_rms): # Compute timing/position if charge energy is positive and above noise.
+				if charge_energy > self.strip_threshold*baseline_rms: # Compute timing/position if charge energy is positive and above noise.
+					t10 = float( np.where( self.corrected_data > 0.1*charge_energy)[0][0] )
+					t25 = float( np.where( self.corrected_data > 0.25*charge_energy)[0][0] )
+					t50 = float( np.where( self.corrected_data > 0.5*charge_energy)[0][0] )
+					t90 = float( np.where( self.corrected_data > 0.9*charge_energy)[0][0] )
 					# Compute drift time in microseconds (sampling is given in ns)
 					drift_time = (t90 - self.trigger_position) * (self.sampling_period_ns / 1.e3)
-				else:
-					t5 = -1.
-					t10 = -1.
-					t25 = -1.
-					t50 = -1.
-					t90 = -1.
-					drift_time = -1.
-
-				# finally, apply calibration constant correction
-				# note: calibration constants are defined to be the numbers that scale the
-				# final energy on a channel, calculated from the smoothed, decay corrected,
-				# differentiated, baseline-subtracted waveform, to the true energy deposited.
-				# for this reason the calibration constants are applied to the baseline_rms,
-				# pulse_height, pulse_area, and charge_energy at the end
-				self.corrected_data *= self.calibration_constant
-				charge_energy *= self.calibration_constant
-				pulse_height *= self.calibration_constant
-				pulse_area *= self.calibration_constant
-				baseline_rms *= self.calibration_constant
-				area_baseline_rms *= self.calibration_constant
-
-				# save all AQs
-				self.analysis_quantities['Baseline'] = baseline
+                                        
+				self.analysis_quantities['Baseline'] = baseline * self.calibration_constant
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
-				self.analysis_quantities['Integrated RMS'] = area_baseline_rms
 				self.analysis_quantities['Charge Energy'] = charge_energy
-				self.analysis_quantities['Pulse Height'] = pulse_height
-				self.analysis_quantities['Pulse Area'] = pulse_area
-				self.analysis_quantities['T5'] = t5
 				self.analysis_quantities['T10'] = t10
 				self.analysis_quantities['T25'] = t25
 				self.analysis_quantities['T50'] = t50
 				self.analysis_quantities['T90'] = t90
 				self.analysis_quantities['Drift Time'] = drift_time
 				self.analysis_quantities['Induced Charge'] = self.Induction_Charge(ind_window_sample)
+				####################################### FINISHES HERE
 
 			else:
 				pulse_area = 0.

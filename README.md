@@ -140,11 +140,13 @@ in ```DataReduction.py```:
 * ```delay_samples```
 * ```charge_min```
 * ```NOISE_DISTANCE```
+```
 in ```Waveform.py```:
 * ```light_pretrigger```
 * ```light_area_end```
 * ```light_area_length```
 * ```ns_smoothing_window```
+```
 if Differentiator scheme is active:
 * ```differentiator_window```
 ```

@@ -132,6 +132,20 @@ The default output files from the digitizer is a `.bin` file coupled with a `-co
 
 ### Binary/Root conversion
 
-The it is possible to do a batch conversion of the binary files by running the script 
+The it is possible to do a batch conversion of the binary files by running the script
+
+### Hardcoded Variables
+in ```DataReduction.py```:
+* ```light_strip_thr```
+* ```delay_samples```
+* ```charge_min```
+* ```NOISE_DISTANCE```
+in ```Waveform.py```:
+* ```light_pretrigger```
+* ```light_area_end```
+* ```light_area_length```
+* ```ns_smoothing_window```
+if Differentiator scheme is active:
+* ```differentiator_window```
 ```
 

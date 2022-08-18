@@ -32,6 +32,8 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
 
 
         start_time = time.time()
+
+###################################### CAN WE REMOVE THIS? ###################################################
         #try:
         #        # This block runs if the input file is in an HDF5 format. Othwerise, it
         #        # will raise an OSError
@@ -109,8 +111,9 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
                 output_df_list.append(reduced_df)
                 n_events_processed += len(reduced_df)
                 loop_counter += 1
-                
-#           except OSError:
+
+
+###################################### CAN WE REMOVE THIS? ###################################################       #           except OSError:
 #                # This block runs if the input file is not an HDF5 file (meaning it is
 #                # assumed to be a ROOT file).
 #                from StanfordTPCAnalysis.ParseStruck import NGMRootFile
@@ -185,6 +188,11 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
         start_time = time.time()
         print('Reducing {} events.'.format(len(input_df)))
         for index, thisrow in input_df.iterrows():
+                if any([ch not in ['SiPM','TileStrip','Off'] for ch in thisrow['ChannelTypes']]):
+                    print('Skipping Event %i'%event_counter)
+                    event_counter += 1
+                    row_counter += 1
+                    continue
                 if row_counter % 25 == 0:
                    print('Processing event {}/{} at {:4.4} min'.format(row_counter, \
                                                                        len(input_df), \
@@ -199,13 +207,17 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 
                 output_series['TotalTileEnergy'] = 0.
                 output_series['TotalSiPMEnergy'] = 0.
+                #output_series['TotalSiPMEnergyBPolar'] = 0.
                 output_series['NumTileChannelsHit'] = 0
                 output_series['NumXTileChannelsHit'] = 0
                 output_series['NumYTileChannelsHit'] = 0
+                #output_series['NumSiPMChannelsHitBPolar'] = 0
                 output_series['NumSiPMChannelsHit'] = 0
                 output_series['TimeOfMaxChannel'] = 0
-                
+                output_series['LightSaturated'] = False
+ 
                 max_channel_val = 0.
+                charge_min = 0.5
                 sig_array  = SignalArray.SignalArray()
                 summed_sipm_data = None
 
@@ -243,6 +255,9 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 
                         wfm_data = thisrow['Data'][ch_num]
 
+
+
+#################################### WHY COMMENTED? #####################################
                         #if is_simulation:
                         #     if analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ) in ch_status.keys():
                         #          mean,sigma = ch_status[analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )]
@@ -261,9 +276,11 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                                 sipm_trigger_position = sipm_trigger_position,\
                                                 decay_time_us       = decay_time_us,\
                                                 calibration_constant = calibration_constant,\
-                                              strip_threshold = strip_threshold)
+                                                strip_threshold = strip_threshold)
                         try:
                                 w.FindPulsesAndComputeAQs(fit_pulse_flag=fit_pulse_flag)
+                                if w.flag:
+                                    output_series['LightSaturated'] = True
                         except IndexError:
                                 print('Null waveform found in channel {}, event {} skipped'.format(ch_num,event_counter))
                                 key_buffer = output_df[row_counter-1].keys() # Grab keys from previous event
@@ -284,7 +301,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 
                                 if (w.analysis_quantities['Charge Energy'] > \
                                              strip_threshold * w.analysis_quantities['Baseline RMS']) and \
-                                   (w.analysis_quantities['Charge Energy']>0.5):
+                                   (w.analysis_quantities['Charge Energy']>charge_min):
                                      if 'X' in analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ):
                                          hit_channel_positions_x.append( analysis_config.GetChannelPos(software_ch_num)[0] )
      
@@ -293,9 +310,15 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 
                         # Compute the combined quantities for the SiPM array. 
                         if 'SiPM' in analysis_config.GetChannelTypeForSoftwareChannel( software_ch_num ):
-                                if w.analysis_quantities['Pulse Height'] > 3.*w.analysis_quantities['Baseline RMS']:
-                                        output_series['NumSiPMChannelsHit'] += 1
-                                        output_series['TotalSiPMEnergy'] += w.analysis_quantities['Pulse Area']
+                                light_ch_thr = 5.0
+                                delay_samples = 30
+                                if w.analysis_quantities['Pulse Height'] > light_ch_thr*w.analysis_quantities['Baseline RMS'] and abs(w.analysis_quantities['Pulse Time'] - trigger_position) < delay_samples:
+                                        if w.TagLightPulse():
+                                            output_series['NumSiPMChannelsHit'] += 1
+                                            output_series['TotalSiPMEnergy'] += w.analysis_quantities['Pulse Area']
+                                        #output_series['NumSiPMChannelsHitBPolar'] += 1
+                                        #output_series['TotalSiPMEnergyBPolar'] += w.analysis_quantities['Pulse Area']
+##################################### JACOPO PROPOSES TO REMOVE THIS PART ###########################################
                                 if summed_sipm_data is None:
                                         summed_sipm_data = w.corrected_data
                                 else:
@@ -316,6 +339,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                     # Add AQ's from summed waveform to the output
                     for key in summed_sipm_wfm.analysis_quantities.keys():
                             output_series['Summed SiPM {}'.format(key)] = summed_sipm_wfm.analysis_quantities[key]
+########################################################################################
 
                 # Create charge noise waveform.
                 noise_data = None
@@ -328,8 +352,8 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                 for software_ch_num, w in charge_channel_dict.items():
 
                     # If there's a signal, skip this one.
-                    if (w.analysis_quantities['Charge Energy'] > 5. * w.analysis_quantities['Baseline RMS']) and \
-                       (w.analysis_quantities['Charge Energy']>0.5):
+                    if (w.analysis_quantities['Charge Energy'] > strip_threshold * w.analysis_quantities['Baseline RMS']) and \
+                       (w.analysis_quantities['Charge Energy']>charge_min):
                           if NOISE_WFM_DEBUGGING: \
                              print('Too much energy on channel {}'.format(\
                                       analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )))
@@ -393,8 +417,8 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                                                 analysis_config.GetChannelNameForSoftwareChannel( software_ch_num ),\
                                                                 key)] = w.analysis_quantities[key]
 
-                    if (w.analysis_quantities['Charge Energy'] > 5. * w.analysis_quantities['Baseline RMS']) and \
-                       (w.analysis_quantities['Charge Energy']>0.5):
+                    if (w.analysis_quantities['Charge Energy'] >strip_threshold * w.analysis_quantities['Baseline RMS']) and \
+                       (w.analysis_quantities['Charge Energy']>charge_min):
                            output_series['NumTileChannelsHit'] += 1
                            ch_pos = analysis_config.GetChannelPos(software_ch_num)
                            

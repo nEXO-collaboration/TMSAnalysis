@@ -138,40 +138,68 @@ class Waveform:
 									   self.decay_time_us, \
 									   self.sampling_period_ns )
 
-				# time parameter used for filtering
-				filter_time = 1000. # samples
-				
-				# apply differentiator to filter out low-frequency noise from corrected data
-				self.corrected_data = Differentiator( self.corrected_data, filter_time)
-
-				# get baseline after filtering to subtract off before energy is calculated
-				corrected_baseline = np.mean(self.corrected_data[:self.input_baseline])
-
 				# set window lengths
 				induction_window_ns = 4000
 				ind_window_sample = int(induction_window_ns/self.sampling_period_ns)
 				window_length_us = 5. # calculate energy from last 5 us of cumulative pulse area
 
-				# now calculate pulse area, pulse height, and timing parameters from filtered waveform
-				pulse_area, charge_energy, t5, t10, t25, t50, t90 = \
-					self.GetPulseAreaAndTimingParameters( self.corrected_data - corrected_baseline, \
-									      window_length_us )    
+				# apply high pass filter before calculating energy
+				# degrades resolution slightly, so should only be used where baseline drift is present
+				hp_filter = False
+				
+				if hp_filter:
+					# time parameter used for filtering
+					filter_time = 1000. # samples
+					
+					# apply differentiator to filter out low-frequency noise from corrected data
+					self.corrected_data = Differentiator( self.corrected_data, filter_time)
+					
+					# get baseline after filtering to subtract off before energy is calculated
+					corrected_baseline = np.mean(self.corrected_data[:self.input_baseline])
+					
+					# now calculate pulse area, pulse height, and timing parameters from filtered waveform
+					pulse_area, pulse_height, t5, t10, t25, t50, t90 = \
+							self.GetPulseAreaAndTimingParameters( self.corrected_data - corrected_baseline, \
+											      window_length_us )    
 
-				# pulse area is from waveform that has been filtered and reintegrated
-				# so needs to be scaled by time parameter used by differentiator
-				pulse_area = pulse_area/filter_time
-
-				# Compute timing/position if charge energy is positive and above noise.
-				if (charge_energy > self.strip_threshold*baseline_rms) & (charge_energy > 0.5):
-					# Compute drift time in microseconds (sampling is given in ns)
-					drift_time = (t90 - self.trigger_position) * (self.sampling_period_ns / 1.e3)
+					# pulse area is from waveform that has been filtered and reintegrated
+					# so needs to be scaled by time parameter used by differentiator
+					pulse_area = pulse_area/filter_time
+					# typically use height of differentiated pulse to calculate charge energy
+					charge_energy = pulse_height
+					
+					# Compute timing/position if charge energy is positive and above noise.
+					if (charge_energy > self.strip_threshold*baseline_rms) & (charge_energy > 0.5):
+						# Compute drift time in microseconds (sampling is given in ns)
+						drift_time = (t90 - self.trigger_position) * (self.sampling_period_ns / 1.e3)
+					else:
+						t5 = -1.
+						t10 = -1.
+						t25 = -1.
+						t50 = -1.
+						t90 = -1.
+						drift_time = -1.
 				else:
+					charge_energy = np.mean( self.corrected_data[-int(window_length_us*1000./self.sampling_period_ns):] )
+					# ^Charge energy calculated from the last 5us of the smoothed, corrected wfm
 					t5 = -1.
 					t10 = -1.
 					t25 = -1.
 					t50 = -1.
 					t90 = -1.
 					drift_time = -1.
+					pulse_height = -1.
+					pulse_area = -1.
+					# Compute timing/position if charge energy is positive and above noise.
+					if (charge_energy > self.strip_threshold*baseline_rms) & (charge_energy > 0.5):
+						# Compute drift time in microseconds (sampling is given in ns)
+						t5 = float( np.where( self.corrected_data > 0.05*charge_energy)[0][0] )
+						t10 = float( np.where( self.corrected_data > 0.1*charge_energy)[0][0] )
+						t25 = float( np.where( self.corrected_data > 0.25*charge_energy)[0][0] )
+						t50 = float( np.where( self.corrected_data > 0.5*charge_energy)[0][0] )
+						t90 = float( np.where( self.corrected_data > 0.9*charge_energy)[0][0] )
+						# Compute drift time in microseconds (sampling is given in ns)
+						drift_time = (t90 - self.trigger_position) * (self.sampling_period_ns / 1.e3)
 
 				# finally, apply calibration constant correction
 				self.corrected_data = self.corrected_data * self.calibration_constant
@@ -183,7 +211,7 @@ class Waveform:
 				self.analysis_quantities['Baseline'] = baseline
 				self.analysis_quantities['Baseline RMS'] = baseline_rms
 				self.analysis_quantities['Charge Energy'] = charge_energy
-				self.analysis_quantities['Pulse Height'] = charge_energy
+				self.analysis_quantities['Pulse Height'] = pulse_height
 				self.analysis_quantities['Pulse Area'] = pulse_area
 				self.analysis_quantities['T5'] = t5
 				self.analysis_quantities['T10'] = t10
@@ -406,7 +434,7 @@ class Event:
 							detector_type	    = ch_type,\
 							sampling_period_ns  = 1.e3/self.sampling_frequency,\
 							input_baseline	    = -1,\
-							fixed_trigger	    = False,\
+							fixed_trigger	    = True,\
 							trigger_position    = analysis_config.run_parameters['Pretrigger Length [samples]'],\
 							decay_time_us	    = analysis_config.GetDecayTimeForSoftwareChannel( i),\
 							  calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel(i),\

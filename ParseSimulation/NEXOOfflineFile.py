@@ -171,16 +171,14 @@ class NEXOOfflineFile:
             counter = 0
             for data in self.electree.iterate(['fElecChannels.fWFAmplitude',\
                                              'fElecChannels.fChannelLocalId'],\
-                                            namedecode='utf-8',\
-                                            entrysteps=1,\
-                                            entrystart=self.start_stop[0],\
-                                            entrystop=self.start_stop[1]):
+                                            entry_start=self.start_stop[0],\
+                                            entry_stop=self.start_stop[1],\
+                                            step_size=1):
                 #print('Event {}'.format(counter))
                 simdata = [thisdata for thisdata in self.simtree.iterate(['fNTE','fInitNOP','fGenX','fGenY','fGenZ'],\
-                                                                         namedecode='utf-8',\
-                                                                         entrysteps=1,\
-                                                                         entrystart=self.start_stop[0]+counter,\
-                                                                         entrystop=self.start_stop[0]+counter+1)][0]
+                                                                         step_size=1,\
+                                                                         entry_start=self.start_stop[0]+counter,\
+                                                                         entry_stop=self.start_stop[0]+counter+1)][0]
                 counter += 1
                 if nevents > 0:
                    if global_evt_counter > nevents:
@@ -314,6 +312,6 @@ class NEXOOfflineFile:
 
         ####################################################################
         def GetTotalEntries( self ):
-            return self.electree.numentries
+            return self.electree.num_entries
 
 

@@ -76,7 +76,6 @@ class NGMRootFile:
 			if nevents > 0:
 				if global_evt_counter > nevents:
 					break
-			data_series = pd.Series(data)
 			channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data['_slot'],data['_channel'])
                          
                         # Remove 'Off' channels from the data stream, uproot v3
@@ -86,9 +85,9 @@ class NGMRootFile:
 			data = data[channel_mask]
 			#######################################################
 			output_series = pd.Series()
-			output_series['Channels'] = data_series['_slot']*16+data_series['_channel']
-			output_series['Timestamp'] = data_series['_rawclock']
-			output_series['Data'] = data_series['_waveform']
+			output_series['Channels'] = data['_slot']*16+data['_channel']
+			output_series['Timestamp'] = data['_rawclock']
+			output_series['Data'] = data['_waveform']
 			output_series['ChannelTypes'] = np.array(channel_types)[channel_mask]
 			output_series['ChannelPositions'] = channel_positions[channel_mask]
 			df = df.append(output_series,ignore_index=True)	

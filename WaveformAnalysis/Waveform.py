@@ -88,7 +88,10 @@ class Waveform:
 			if 'SiPM' in self.detector_type:
 				#self.data = gaussian_filter( self.data.astype(float), 80./self.sampling_period_ns )
 					# ^Gaussian smoothing with a 80ns width (1sig)
-				self.data = self.data.astype(float)
+				try:
+					self.data = self.data.to_numpy().astype(float) * self.polarity
+				except AttributeError:
+					self.data = self.data.astype(float) * self.polarity
 				light_pretrigger = 1600
 				window_start = self.trigger_position - int(light_pretrigger/self.sampling_period_ns)
 				baseline_calc_end = window_start + int(light_pretrigger/(2*self.sampling_period_ns))
@@ -111,7 +114,8 @@ class Waveform:
 				# Tag for saturated signal
 				diff = np.abs(np.diff(self.corrected_data))
 				diff_diff = np.diff(np.where(diff<3)[0])
-				if sum(diff_diff==1)>=int(56.0/self.sampling_period_ns):
+				ns_saturated_window = 56.0
+				if sum(diff_diff==1)>=int(ns_saturated_window/self.sampling_period_ns):
 					self.flag = True
 
 
@@ -317,7 +321,7 @@ class Waveform:
 
 
 	#######################################################################################
-	def GetPulseAreaAndTimingParameters( self, dat_array, window_length_ns ):
+	def GetPulseAreaAndTimingParameters( self, dat_array, window_length_ns=0 ):
 		if len(dat_array) == 0: return 0, 0, 0, 0, 0, 0, 0
 		if 'SiPM' in self.detector_type:
 			pulse_height = self.polarity * np.max( dat_array )

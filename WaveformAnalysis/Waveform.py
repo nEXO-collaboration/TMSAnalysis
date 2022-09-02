@@ -640,4 +640,3 @@ class Simulated_Event:
 		plt.title('Event {}, Energy {:.1f} ADC counts'.format(int(self.event_number),self.tot_charge_energy))
 		plt.tight_layout()
 		return(plt)
-

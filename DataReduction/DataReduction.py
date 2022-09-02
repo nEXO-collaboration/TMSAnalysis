@@ -482,4 +482,3 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                 event_counter += 1
                 row_counter += 1
         return output_df
-

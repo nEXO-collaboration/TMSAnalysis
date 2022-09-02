@@ -119,7 +119,7 @@ from StanfordTPCAnalysis.StruckAnalysisConfiguration import StruckAnalysisConfig
 from StanfordTPCAnalysis.WaveformAnalysis import Waveform
 
 # Augment the path env variable
-sys.path.append('/g/g20/lenardo1/software')
+sys.path.insert(0,'../..')
 
 ###############################################################################################
 

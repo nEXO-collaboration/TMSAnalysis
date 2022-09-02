@@ -68,27 +68,28 @@ class NGMRootFile:
 		start_time = time.time()
 		print('{} entries per event.'.format(len(self.channel_map)))
 
+		# Grabs data in chunks; the chunk size corresponds to the number of active channels in the acquisition.
 		for data in self.intree.iterate(['_waveform','_rawclock','_slot','_channel'],\
-						namedecode='utf-8',\
-						entrysteps=len(self.channel_map),\
-						entrystart=self.start_stop[0],\
-						entrystop=self.start_stop[1]):
+						step_size=len(self.channel_map),\
+						entry_start=self.start_stop[0],\
+						entry_stop=self.start_stop[1]):
 			if nevents > 0:
 				if global_evt_counter > nevents:
 					break
-			data_series = pd.Series(data)
 			channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data['_slot'],data['_channel'])
                          
-                        # Remove 'Off' channels from the data stream
-			for column in data_series.items():
-				data_series[ column[0] ] = np.array(data_series[column[0]][channel_mask])
+                        # Remove 'Off' channels from the data stream, uproot v3
+			#for column in data_series.items():
+			#	data_series[ column[0] ] = np.array(data_series[column[0]][channel_mask])
+			######## uproot4 compatiblility: NOT TESTED YET ####### 2022/08/15 Jacopo
+			data = data[channel_mask]
+			#######################################################
 			output_series = pd.Series()
-			output_series['Channels'] = data_series['_slot']*16+data_series['_channel']
-			output_series['Timestamp'] = data_series['_rawclock']
-			output_series['Data'] = data_series['_waveform']
-			channel_mask, channel_types, channel_positions = self.GenerateChannelMask( data_series['_slot'],data_series['_channel'])
-			output_series['ChannelTypes'] = channel_types
-			output_series['ChannelPositions'] = channel_positions
+			output_series['Channels'] = data['_slot']*16+data['_channel']
+			output_series['Timestamp'] = data['_rawclock']
+			output_series['Data'] = data['_waveform']
+			output_series['ChannelTypes'] = np.array(channel_types)[channel_mask]
+			output_series['ChannelPositions'] = channel_positions[channel_mask]
 			df = df.append(output_series,ignore_index=True)	
 
 
@@ -125,6 +126,7 @@ class NGMRootFile:
 
 		for index,row in self.channel_map.iterrows():
 			
+			### Get the index of the correct slot/chan pair in the data columns
 			slot_mask = np.where(slot_column==row['Board'])
 			chan_mask = np.where(channel_column==row['InputChannel'])
 			intersection = np.intersect1d(slot_mask,chan_mask)
@@ -132,6 +134,7 @@ class NGMRootFile:
 				this_index = intersection[0]
 			else:
 				 continue
+			###
 			channel_types[this_index] = row['ChannelType']
 			channel_positions[this_index] = row['ChannelPosX'] if row['ChannelPosX'] != 0 else row['ChannelPosY']
 			if row['ChannelType']=='Off':
@@ -146,4 +149,4 @@ class NGMRootFile:
 		
 	####################################################################
 	def GetTotalEntries( self ):
-		return self.intree.numentries
+		return self.intree.num_entries

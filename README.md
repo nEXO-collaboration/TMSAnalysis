@@ -17,6 +17,7 @@ Which python packages (and versions) you need to install:
 * [numpy (1.17.4+)](https://numpy.org/)
 * [tables (3.6.1+)](https://www.pytables.org/)
 * [uproot (latest)](https://github.com/scikit-hep/uproot)
+* [awkward (1.0.0+)](https://github.com/scikit-hep/awkward)
 * [scipy (1.2.1+)](https://www.scipy.org/install.html)
 * [numba (latest)](http://numba.pydata.org/)
 

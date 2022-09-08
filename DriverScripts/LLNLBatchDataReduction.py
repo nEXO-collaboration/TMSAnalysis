@@ -27,11 +27,11 @@ parser.add_argument('configdir', type=str, help='location where config files are
                                                 ' Calibrations, and\n'+\
                                                 ' Channel_Map')
 parser.add_argument('--sim', help='Simulation flag', action='store_true')
+parser.add_argument('--save_raw', help='Save HDF5 of raw data', action='store_true',default=False)
 args = parser.parse_args()
 path_to_tier1   = args.inputfile
 path_to_reduced = args.outputdir
 path_to_config = args.configdir
-
 if not os.path.isdir(path_to_tier1):
    print(path_to_tier1)
    print('Not a directory! Skipping...')
@@ -66,6 +66,8 @@ for i,fname in enumerate(flist):
 	exe = 'python $HOME/StanfordTPC/StanfordTPCAnalysis/DriverScripts/reduce_data.py {} {} {}'.format(fname,path_to_reduced,path_to_config)
 	if args.sim:
 		exe += ' --sim'
+	if args.save_raw:
+		exe += ' --save_raw'
 	cmd_full = '{} && sbatch {} --wrap=\'{}\''.format(activate_venv,cmd_options,exe)
 	os.system(cmd_full)
 	print('job {} sumbitted'.format(i))

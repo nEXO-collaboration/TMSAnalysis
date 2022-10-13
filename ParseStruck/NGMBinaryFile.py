@@ -103,7 +103,6 @@ class NGMBinaryFile:
                     # In the binary files, the order of channels is always sequential. Meaning, the
                     # channels go in order of (slot,chan) indexed from 0.
                     for ch, channel_data in enumerate(spill_data):
-
                          chan_mask = ( channel_data['card'] == self.channel_map['Board'] ) \
                                    & ( channel_data['chan'] == self.channel_map['InputChannel'] )
                          if np.sum(chan_mask) < 1:
@@ -114,6 +113,8 @@ class NGMBinaryFile:
 
                          # Strip out 'Off' channels
                          if self.channel_map['ChannelType'].loc[chan_mask].values[0] != 'Off':
+                              if(len(channel_data['data']['events']) <= i):
+                                   continue
 
 
                               output_dict['Channels'].append( channel_data['card']*16 + channel_data['chan'] )
@@ -771,9 +772,6 @@ class NGMBinaryFile:
              
              #waveform object to be returned
              waveforms = {}
-
-             # In the binary files, the order of channels is always sequential. Meaning, the
-             # channels go in order of (slot,chan) indexed from 0.
              for ch, channel_data in enumerate(spill_data):
                  waveforms[ch] = channel_data["data"]["events"][spill_evt_idx]["samples"]
 

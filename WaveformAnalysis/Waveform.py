@@ -92,12 +92,11 @@ class Waveform:
 					self.data = self.data.to_numpy().astype(float) * self.polarity
 				except AttributeError:
 					self.data = self.data.astype(float) * self.polarity
-				light_pretrigger = 1600
-				window_start = self.trigger_position - int(light_pretrigger/self.sampling_period_ns)
-				baseline_calc_end = window_start + int(light_pretrigger/(2*self.sampling_period_ns))
+				window_start = 0
+				baseline_calc_end = self.trigger_position
                                 # The baseline is calculated as weighted average of the averages at the two extremities of the wfm (with more importance at the end to reduce the effect of undershooting before the pulse rise)
-				self.baseline = (np.mean(self.data[window_start:baseline_calc_end]) + 2*np.mean(self.data[-2*baseline_calc_end:]))/3
-				self.baseline_rms = max(np.std(self.data[window_start:baseline_calc_end]),np.std(self.data[-2*baseline_calc_end:]))
+				self.baseline = np.mean(self.data[window_start:baseline_calc_end])
+				self.baseline_rms = np.std(self.data[window_start:baseline_calc_end])
 				self.corrected_data = (self.data - self.baseline) * self.calibration_constant
 				self.analysis_quantities['Baseline'] = self.baseline
 				self.analysis_quantities['Baseline RMS'] = self.baseline_rms
@@ -215,17 +214,22 @@ class Waveform:
 				#self.analysis_quantities['Induced Charge'] = self.Induction_Charge(ind_window_sample)
 				########################################## OLD RECON STARTS HERE
 				ns_smoothing_window = 500.0
-				self.data = self.data.to_numpy().astype(float) * self.polarity
+				try:
+					self.data = self.data.to_numpy().astype(float) * self.polarity
+				except AttributeError:
+					self.data = self.data.astype(float) * self.polarity
+				#self.data = self.data.to_numpy().astype(float) * self.polarity
 				self.data = gaussian_filter( self.data,\
 				ns_smoothing_window/self.sampling_period_ns )
-					# ^Gaussian smoothing with a 0.5us width, also, flip polarity if necessary
+                                # ^Gaussian smoothing with a 0.5us width, also, flip polarity if necessary
 				baseline = np.mean(self.data[0:self.input_baseline])
 				baseline_rms = np.std(self.data[0:self.input_baseline])
-					# ^Baseline and RMS calculated from first 10us of smoothed wfm
-				self.corrected_data = DecayTimeCorrection( self.data - baseline, \
+				# ^Baseline and RMS calculated from first 10us of smoothed wfm
+				self.corrected_data = DecayTimeCorrection( self.data - float(baseline), \
 									self.decay_time_us, \
 									self.sampling_period_ns ) * \
-						self.calibration_constant
+                                                                        float(self.calibration_constant)
+                                
 				charge_energy = np.mean( self.corrected_data[-int(5000./self.sampling_period_ns):] )
 				baseline_rms *= self.calibration_constant
 				# ^Charge energy calculated from the last 5us of the smoothed, corrected wfm
@@ -326,7 +330,7 @@ class Waveform:
 		if 'SiPM' in self.detector_type:
 			pulse_height = self.polarity * np.max( dat_array )
 			light_area_end = 400.0
-			end_window = self.trigger_position + int(light_area_end/self.sampling_period_ns*np.log(pulse_height/self.baseline_rms))
+			end_window = self.sipm_trigger_position + int(light_area_end/self.sampling_period_ns*np.log(pulse_height/self.baseline_rms))
 			cumul_pulse = np.cumsum( dat_array[:end_window] * self.polarity )
 			light_area_length = 50.0
 			area_window_length = int(light_area_length/self.sampling_period_ns) # average over 50ns

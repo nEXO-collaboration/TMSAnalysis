@@ -82,6 +82,7 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
         print(input_file.channel_map) 
         print('\n{} active channels.'.format(len(input_file.channel_map))) 
         n_entries = input_file.GetTotalEntries()
+        print("n entries:", n_entries)
         n_channels = analysis_config.GetNumberOfChannels()
         #n_events_in_file = n_entries if is_simulation else n_entries/n_channels
         n_events_in_file = n_entries/n_channels if is_rootfile else n_entries

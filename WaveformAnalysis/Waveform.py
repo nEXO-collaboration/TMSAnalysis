@@ -290,9 +290,10 @@ class Waveform:
 					else:
 						t90 = max_idx - t90[0]
 					
-					# Compute drift time in microseconds, provided these indices
-					drift_time = (t90 - self.conf['Charge Pretrigger Length [samples]']) * (self.conf['Sampling Period [ns]'] / 1.e3)
-                
+					if(t90 != None):
+						# Compute drift time in microseconds, provided these indices
+						drift_time = (t90 - self.conf['Charge Pretrigger Length [samples]']) * (self.conf['Sampling Period [ns]'] / 1.e3)
+					
 				#only now we apply calibration constant to charge energy
 				cal = self.analysis_config.GetCalibrationConstantForSoftwareChannel(self.sw_ch)
 				self.analysis_quantities['Baseline'] = self.baseline

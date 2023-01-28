@@ -87,7 +87,7 @@ class Waveform:
 				except AttributeError:
 					self.data = self.data.astype(float) * self.polarity
 				baseline_start_idx = int(self.conf['SiPM Baseline Start [samples]'])
-				baseline_end_idx = int(self.conf['SiPM Baseline Length [samples]'])
+				baseline_end_idx = baseline_start_idx + int(self.conf['SiPM Baseline Length [samples]'])
 				trigger_idx = int(self.conf['SiPM Pretrigger Length [samples]'])
 
 				#check to make sure that all of these sample indices are in the data
@@ -223,7 +223,7 @@ class Waveform:
 				self.data = gaussian_filter( self.data, ns_smoothing_window/self.conf['Sampling Period [ns]'] )
 
 				baseline_start_idx = int(self.conf['Charge Baseline Start [samples]'])
-				baseline_end_idx = int(self.conf['Charge Baseline Length [samples]'])
+				baseline_end_idx = baseline_start_idx + int(self.conf['Charge Baseline Length [samples]'])
 				trigger_idx = int(self.conf['Charge Pretrigger Length [samples]'])
 
 				#check to make sure that all of these sample indices are in the data
@@ -297,7 +297,7 @@ class Waveform:
 				#of a fixed magic number! And double check this inudction_charge
 				#function; it may not have been vetted in years. 
 				induction_window_ns = 4000
-				ind_window_sample = int(induction_window_ns/self.sampling_period_ns)
+				ind_window_sample = int(induction_window_ns/self.conf['Sampling Period [ns]'])
 				self.analysis_quantities['Induced Charge'] = self.Induction_Charge(ind_window_sample)
 				####################################### FINISHES HERE
 			else:

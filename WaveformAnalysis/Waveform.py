@@ -220,7 +220,7 @@ class Waveform:
 				except AttributeError:
 					self.data = self.data.astype(float) * self.polarity
 
-				self.data = gaussian_filter( self.data, ns_smoothing_window/self.sampling_period_ns )
+				self.data = gaussian_filter( self.data, ns_smoothing_window/self.conf['Sampling Period [ns]'] )
 
 				baseline_start_idx = int(self.conf['Charge Baseline Start [samples]'])
 				baseline_end_idx = int(self.conf['Charge Baseline Length [samples]'])

@@ -269,13 +269,26 @@ class Waveform:
 					#reverse the wave starting with the peak sample. 
 					trunc_reversed_wave = self.corrected_data[:max_idx+1][::-1]
 					t10 = np.where(trunc_reversed_wave < 0.1*charge_energy)[0]
-					if(len(t10) == 0): t10 = None
+					#if none are found, then no crossing and the waveform is strange
+					if(len(t10) == 0): 
+						t10 = None
+					else:
+						t10 = max_idx - t10[0] #the threshold crossing happens a few samples before max index
 					t25 = np.where(trunc_reversed_wave < 0.25*charge_energy)[0] 
-					if(len(t25) == 0): t25 = None
+					if(len(t25) == 0): 
+						t25 = None
+					else:
+						t10 = max_idx - t25[0]
 					t50 = np.where(trunc_reversed_wave < 0.5*charge_energy)[0] 
-					if(len(t50) == 0): t50 = None
+					if(len(t50) == 0): 
+						t50 = None
+					else:
+						t10 = max_idx - t50[0]
 					t90 = np.where(trunc_reversed_wave < 0.9*charge_energy)[0] 
-					if(len(t90) == 0): t90 = None
+					if(len(t90) == 0): 
+						t90 = None
+					else:
+						t10 = max_idx - t90[0]
 
 					# Compute drift time in microseconds, provided these indices
 					drift_time = (t90 - self.conf['Charge Pretrigger Length [samples]']) * (self.conf['Sampling Period [ns]'] / 1.e3)

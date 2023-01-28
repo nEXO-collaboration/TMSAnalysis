@@ -290,7 +290,6 @@ class Waveform:
 					else:
 						t90 = max_idx - t90[0]
 					
-					print("Timing quantities: ")
 					# Compute drift time in microseconds, provided these indices
 					drift_time = (t90 - self.conf['Charge Pretrigger Length [samples]']) * (self.conf['Sampling Period [ns]'] / 1.e3)
                 

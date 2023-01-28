@@ -41,7 +41,7 @@ import copy
 class Waveform:
 
 	#######################################################################################
-	def __init__( self, input_data=None, sw_ch=None, detector_type=None, analysis_config):
+	def __init__( self, analysis_config, input_data=None, sw_ch=None, detector_type=None):
 
 		self.data = input_data				 # <- Waveform in numpy array
 		self.is_simulation = analysis_config.run_parameters['Is Simulation']

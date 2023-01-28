@@ -169,9 +169,8 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                   mean,sigma = ch_status[analysis_config.GetChannelNameForSoftwareChannel( software_ch_num )]
                                   wfm_data = np.random.normal(mean,sigma,len(wfm_data))
 
-                        w = Waveform.Waveform(input_data=wfm_data, sw_ch=software_ch_num,\
-                                                detector_type = thisrow['ChannelTypes'][ch_num],\
-                                                analysis_config)
+                        w = Waveform.Waveform(analysis_config, input_data=wfm_data, sw_ch=software_ch_num,\
+                                                detector_type = thisrow['ChannelTypes'][ch_num])
                         try:
                                 w.FindPulsesAndComputeAQs()
 

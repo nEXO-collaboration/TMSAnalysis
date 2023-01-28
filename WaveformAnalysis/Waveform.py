@@ -113,7 +113,7 @@ class Waveform:
 				self.analysis_quantities['T50'] = t50
 				self.analysis_quantities['T90'] = t90
 
-				if(pulse_height > self.conf['SiPM Threshold [sigma]']*self.baseline_rms)):
+				if(pulse_height > self.conf['SiPM Threshold [sigma]']*self.baseline_rms):
 					self.analysis_quantities['Passes Threshold'] = True
 				else:
 					self.analysis_quantities['Passes Threshold'] = False

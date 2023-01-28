@@ -113,6 +113,7 @@ class NGMBinaryFile:
 
                          # Strip out 'Off' channels
                          if self.channel_map['ChannelType'].loc[chan_mask].values[0] != 'Off':
+                              #if for some reason, this channel is missing from this event. 
                               if(len(channel_data['data']['events']) <= i):
                                    continue
 

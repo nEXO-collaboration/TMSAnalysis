@@ -41,66 +41,68 @@ import copy
 class Waveform:
 
 	#######################################################################################
-	def __init__( self, input_data=None, detector_type=None, sampling_period_ns=None, \
-			input_baseline=-1, polarity=-1., \
-			fixed_trigger=False, trigger_position=0, sipm_trigger_position=0, decay_time_us=1.e9,\
-			calibration_constant=1., strip_threshold=5. ):
+	def __init__( self, input_data=None, sw_ch=None, detector_type=None, analysis_config):
 
 		self.data = input_data				 # <- Waveform in numpy array
-		self.input_baseline = input_baseline		 # <- Input baseline (not required)
-		self.detector_type = detector_type		 # <- Options are: 'NaI', 'Cherenkov', 'PS',
-								 #	'XWire', 'YWire', 'SiPM', 'TileStrip'
-		self.fixed_trigger = fixed_trigger		 # <- Flag which fixes the pulse analysis window
-		self.trigger_position = int(trigger_position)	 # <- Location of DAQ trigger in samples
-		self.sipm_trigger_position = int(sipm_trigger_position)
-		self.polarity = polarity			 # <- Polarity switch to make waveforms positive
-		self.decay_time_us = decay_time_us		 # <- Decay time of preamps (for charge tile)
-		#self.store_corrected_data = store_corrected_data   # <- Flag which allows you to access the processed waveform
-		self.calibration_constant = calibration_constant # <- Calibration constant (for charge tile)
-		self.strip_threshold = strip_threshold		 # <- Strip threshold in sigma above baseline RMS
+		self.is_simulation = analysis_config.run_parameters['Is Simulation']
+
+		#we're going to be accessing analysis_config.run_parameters quite a bit in the
+		#functions below; lets give it a pnemonic here for quick access. 
+		self.conf = analysis_config.run_parameters
+		self.analysis_config = analysis_config
+		self.sw_ch = sw_ch
+
+		#aparently the struck auto inverts with clock = 125 MHz. 
+		if(analysis_config.run_parameters['DoInvert']):
+			self.polarity = -1
+		else:
+			self.polarity = 1
 		self.flag = False
+
 		# Make the default detector type a simple PMT
 		if detector_type == None:
 			self.detector_type = 'PMT'
-
-		self.sampling_period_ns = sampling_period_ns
-		
+		else:
+			self.detector_type = detector_type
 
 		# All returned quantities will be stored in this
 		# dict and added to the output dataframe in DataReduction.py
-		self.analysis_quantities = dict()
+		self.analysis_quantities = {}
 
 
 	#######################################################################################
-	def FindPulsesAndComputeAQs( self, fit_pulse_flag=False ):
-		self.DataCheck()
-		if self.input_baseline < 0.:
-			self.input_baseline = 500
-		self.analysis_quantities['Baseline'] = np.mean(self.data[:self.input_baseline])
-		self.analysis_quantities['Baseline RMS'] =  np.std(self.data[:self.input_baseline])
-
+	def FindPulsesAndComputeAQs(self):
+		if(self.data is None):
+			raise Exception('No data in waveform.')
+			
 		# NOTE: almost all analyses are fixed_trigger analyses, so the if statement
 		#	should generally be true.
 
-		if self.fixed_trigger:
+		if self.conf['Fixed Trigger']:
 
 			# Here we have different processing algorithms for different sensor channels.
 			if 'SiPM' in self.detector_type:
-				#self.data = gaussian_filter( self.data.astype(float), 80./self.sampling_period_ns )
-					# ^Gaussian smoothing with a 80ns width (1sig)
 				try:
 					self.data = self.data.to_numpy().astype(float) * self.polarity
 				except AttributeError:
 					self.data = self.data.astype(float) * self.polarity
-				window_start = 0
-				baseline_calc_end = self.trigger_position
-                                # The baseline is calculated as weighted average of the averages at the two extremities of the wfm (with more importance at the end to reduce the effect of undershooting before the pulse rise)
-				self.baseline = np.mean(self.data[window_start:baseline_calc_end])
-				self.baseline_rms = np.std(self.data[window_start:baseline_calc_end])
-				self.corrected_data = (self.data - self.baseline) * self.calibration_constant
+				baseline_start_idx = self.conf['SiPM Baseline Start [samples]']
+				baseline_end_idx = self.conf['SiPM Baseline Length [samples]']
+				trigger_idx = self.conf['SiPM Pretrigger Length [samples]']
+
+				#check to make sure that all of these sample indices are in the data
+				if(len(self.data) < trigger_idx or len(self.data) < baseline_end_idx \
+					or len(self.data) < baseline_start_idx or baseline_start_idx > baseline_end_idx):
+					print("ERROR: Check your SiPM baseline parameters in Run_Parameters")
+					sys.exit()
+
+				baseline_data = self.data[baseline_start_idx:baseline_end_idx]
+				self.baseline = np.mean(baseline_data)
+				self.baseline_rms = np.std(baseline_data) #only is RMS if perfect gaussian noise
+				self.corrected_data = (self.data - self.baseline)
 				self.analysis_quantities['Baseline'] = self.baseline
 				self.analysis_quantities['Baseline RMS'] = self.baseline_rms
-				self.analysis_quantities['Pulse Time'] = np.argmax(self.corrected_data*self.polarity)
+				self.analysis_quantities['Peak Time'] = np.argmax(self.corrected_data)
 				pulse_area, pulse_height, t5, t10, t25, t50, t90 = \
 					self.GetPulseAreaAndTimingParameters( self.corrected_data )
 				self.analysis_quantities['Pulse Area'] = pulse_area
@@ -110,18 +112,16 @@ class Waveform:
 				self.analysis_quantities['T25'] = t25
 				self.analysis_quantities['T50'] = t50
 				self.analysis_quantities['T90'] = t90
-				# Tag for saturated signal
-				diff = np.abs(np.diff(self.corrected_data))
-				diff_diff = np.diff(np.where(diff<3)[0])
-				ns_saturated_window = 56.0
-				if sum(diff_diff==1)>=int(ns_saturated_window/self.sampling_period_ns):
-					self.flag = True
 
+				if(pulse_height > self.conf['SiPM Threshold [sigma]']*self.baseline_rms)):
+					self.analysis_quantities['Passes Threshold'] = True
+				else:
+					self.analysis_quantities['Passes Threshold'] = False
 
 			elif 'TileStrip' in self.detector_type:
-                                ######################### 2022/08/16 Jacopo testing the old charge recon algorithm on Run34/DS08
-                                ## 'TileStrip' denotes the strips read out with the
-                                ## charge-sensitive discrete preamps.
+				######################### 2022/08/16 Jacopo testing the old charge recon algorithm on Run34/DS08
+				## 'TileStrip' denotes the strips read out with the
+				## charge-sensitive discrete preamps.
 
 				##this is the smoothing time window in ns
 				#ns_smoothing_window = 500.0
@@ -213,49 +213,91 @@ class Waveform:
 				#self.analysis_quantities['Drift Time'] = drift_time
 				#self.analysis_quantities['Induced Charge'] = self.Induction_Charge(ind_window_sample)
 				########################################## OLD RECON STARTS HERE
+
 				ns_smoothing_window = 500.0
 				try:
 					self.data = self.data.to_numpy().astype(float) * self.polarity
 				except AttributeError:
 					self.data = self.data.astype(float) * self.polarity
-				#self.data = self.data.to_numpy().astype(float) * self.polarity
-				self.data = gaussian_filter( self.data,\
-				ns_smoothing_window/self.sampling_period_ns )
-                                # ^Gaussian smoothing with a 0.5us width, also, flip polarity if necessary
-				baseline = np.mean(self.data[0:self.input_baseline])
-				baseline_rms = np.std(self.data[0:self.input_baseline])
-				# ^Baseline and RMS calculated from first 10us of smoothed wfm
-				self.corrected_data = DecayTimeCorrection( self.data - float(baseline), \
-									self.decay_time_us, \
-									self.sampling_period_ns ) * \
-                                                                        float(self.calibration_constant)
-                                
-				charge_energy = np.mean( self.corrected_data[-int(5000./self.sampling_period_ns):] )
-				baseline_rms *= self.calibration_constant
+
+				self.data = gaussian_filter( self.data, ns_smoothing_window/self.sampling_period_ns )
+
+				baseline_start_idx = self.conf['Charge Baseline Start [samples]']
+				baseline_end_idx = self.conf['Charge Baseline Length [samples]']
+				trigger_idx = self.conf['Charge Pretrigger Length [samples]']
+
+				#check to make sure that all of these sample indices are in the data
+				if(len(self.data) < trigger_idx or len(self.data) < baseline_end_idx \
+					or len(self.data) < baseline_start_idx or baseline_start_idx > baseline_end_idx):
+					print("ERROR: Check your Charge baseline parameters in Run_Parameters")
+					sys.exit()
+
+				baseline_data = self.data[baseline_start_idx:baseline_end_idx]
+				self.baseline = np.mean(baseline_data)
+				self.baseline_rms = np.std(baseline_data) #only is RMS if perfect gaussian noise
+
+				#this adjusts the charge waveform to perform an exponential filter
+				#that corrects for the decay time of the pre-amplifiers. 
+				
+				#get decay time from analysis config
+				decay_time_us = self.analysis_config.GetDecayTimeForSoftwareChannel(self.sw_ch)
+				self.corrected_data = DecayTimeCorrection(self.data - self.baseline, \
+									decay_time_us, \
+									self.conf['Sampling Period [ns]'])
+
+				#at this point, charge energy is calculated using the last 
+				#few microseconds of the exponential decay corrected waveform. 
+				charge_energy_samples = int(self.conf['Charge Energy Calculation Time [us]']*1000/self.conf['Sampling Period [ns]'])      
+				charge_energy = np.mean(self.corrected_data[-1*charge_energy_samples:])
+
 				# ^Charge energy calculated from the last 5us of the smoothed, corrected wfm
-				t10 = -1.
-				t25 = -1.
-				t50 = -1.
-				t90 = -1.
-				drift_time = -1.
-				induction_window_ns = 4000
-				ind_window_sample = int(induction_window_ns/self.sampling_period_ns)
-				if charge_energy > self.strip_threshold*baseline_rms: # Compute timing/position if charge energy is positive and above noise.
-					t10 = float( np.where( self.corrected_data > 0.1*charge_energy)[0][0] )
-					t25 = float( np.where( self.corrected_data > 0.25*charge_energy)[0][0] )
-					t50 = float( np.where( self.corrected_data > 0.5*charge_energy)[0][0] )
-					t90 = float( np.where( self.corrected_data > 0.9*charge_energy)[0][0] )
-					# Compute drift time in microseconds (sampling is given in ns)
-					drift_time = (t90 - self.trigger_position) * (self.sampling_period_ns / 1.e3)
-                                        
-				self.analysis_quantities['Baseline'] = baseline * self.calibration_constant
-				self.analysis_quantities['Baseline RMS'] = baseline_rms
-				self.analysis_quantities['Charge Energy'] = charge_energy
+				t10 = None
+				t25 = None
+				t50 = None
+				t90 = None
+				drift_time = None
+				# Compute timing/position if charge energy is positive and above noise.
+				# One adjustment has been made by Evan on 1/27/23, that I would like
+				# to find the threshold crossing that happens closest to the maximum
+				# of the charge signal. I'll make a separate list that goes from the peak
+				#of the corrected charge signal and steps backwards in time to find the treshold
+				#crossing. If none is found, it sets the timing variable to none.
+				self.analysis_quantities['Passes Threshold'] = False
+				if charge_energy > self.conf['Strip Threshold [sigma]']*self.baseline_rms: 
+					self.analysis_quantities['Passes Threshold'] = True
+					max_idx = np.argmax(self.corrected_data)
+					#reverse the wave starting with the peak sample. 
+					trunc_reversed_wave = self.corrected_data[:max_idx+1][::-1]
+					t10 = np.where(trunc_reversed_wave < 0.1*charge_energy)[0]
+					if(len(t10) == 0): t10 = None
+					t25 = np.where(trunc_reversed_wave < 0.25*charge_energy)[0] 
+					if(len(t25) == 0): t25 = None
+					t50 = np.where(trunc_reversed_wave < 0.5*charge_energy)[0] 
+					if(len(t50) == 0): t50 = None
+					t90 = np.where(trunc_reversed_wave < 0.9*charge_energy)[0] 
+					if(len(t90) == 0): t90 = None
+
+					# Compute drift time in microseconds, provided these indices
+					drift_time = (t90 - self.conf['Charge Pretrigger Length [samples]']) * (self.conf['Sampling Period [ns]'] / 1.e3)
+                
+				#only now we apply calibration constant to charge energy
+				cal = self.analysis_config.GetCalibrationConstantForSoftwareChannel(self.sw_ch)
+				self.analysis_quantities['Baseline'] = self.baseline
+				self.analysis_quantities['Baseline RMS'] = self.baseline_rms
+				self.analysis_quantities['Charge Energy'] = charge_energy*cal
 				self.analysis_quantities['T10'] = t10
 				self.analysis_quantities['T25'] = t25
 				self.analysis_quantities['T50'] = t50
 				self.analysis_quantities['T90'] = t90
 				self.analysis_quantities['Drift Time'] = drift_time
+				
+
+				#If you are using induced charge in an analysis, please
+				#take this moment to convert this to a run parameter instead
+				#of a fixed magic number! And double check this inudction_charge
+				#function; it may not have been vetted in years. 
+				induction_window_ns = 4000
+				ind_window_sample = int(induction_window_ns/self.sampling_period_ns)
 				self.analysis_quantities['Induced Charge'] = self.Induction_Charge(ind_window_sample)
 				####################################### FINISHES HERE
 			else:
@@ -300,10 +342,6 @@ class Waveform:
 					np.append( self.analysis_quantities['Pulse Heights'], np.min(self.data[start:end]-baseline) )
 
 
-	#######################################################################################
-	def TagLightPulse(self):
-		return abs(min(self.corrected_data[self.trigger_position-60:self.trigger_position]))<3.5*self.baseline_rms
-
 
 	#######################################################################################
 	def GetPulseArea( self, dat_array ):
@@ -325,77 +363,49 @@ class Waveform:
 
 
 	#######################################################################################
-	def GetPulseAreaAndTimingParameters( self, dat_array, window_length_ns=0 ):
-		if len(dat_array) == 0: return 0, 0, 0, 0, 0, 0, 0
+	def GetPulseAreaAndTimingParameters( self, dat_array):
+		if len(dat_array) == 0: return None, None, None, None, None, None
+		#data is passed in already baseline subtracted
 		if 'SiPM' in self.detector_type:
-			pulse_height = self.polarity * np.max( dat_array )
-			light_area_end = 400.0
-			end_window = self.sipm_trigger_position + int(light_area_end/self.sampling_period_ns*np.log(pulse_height/self.baseline_rms))
-			cumul_pulse = np.cumsum( dat_array[:end_window] * self.polarity )
-			light_area_length = 50.0
-			area_window_length = int(light_area_length/self.sampling_period_ns) # average over 50ns
-			pulse_area = np.mean(cumul_pulse[-area_window_length:])
-			try:
-				t5 = np.where( cumul_pulse > 0.05*pulse_area )[0][0]
-			except IndexError:
-				t5 = 1
-			try:
-				t10 = np.where( cumul_pulse > 0.1*pulse_area )[0][0]
-			except IndexError:
-				t10 = 1
-			try:
-				t25 = np.where( cumul_pulse > 0.25*pulse_area )[0][0]
-			except IndexError:
-				t25 = 1
-			try:
-				t50 = np.where( cumul_pulse > 0.5*pulse_area )[0][0]
-			except IndexError:
-				t50 = 1
-			try:
-				t90 = np.where( cumul_pulse > 0.9*pulse_area )[0][0]
-			except IndexError:
-				t90 = 1
-		elif (window_length_ns != 0) and ('TileStrip' in self.detector_type):
-			t_peak = np.argmax(abs(dat_array))
-			pulse_polarity = np.sign(dat_array[t_peak] - np.mean(dat_array))
-			cumul_pulse = np.cumsum( dat_array )
-			area_window_length = int(window_length_ns/self.sampling_period_ns)
-			pulse_area = np.mean(cumul_pulse[-area_window_length:])
-			pulse_height = dat_array[t_peak]
-			try:
-				#t5 = np.where( cumul_pulse > 0.05*pulse_area )[0][0]
-				t5 = np.where(dat_array[:t_peak]*pulse_polarity < 0.05*pulse_height*pulse_polarity)[0][-1]
-			except IndexError:
-				t5 = 1
-			try:
-				#t10 = np.where( cumul_pulse > 0.1*pulse_area )[0][0]
-				t10 = np.where(dat_array[:t_peak]*pulse_polarity < 0.1*pulse_height*pulse_polarity)[0][-1]
-			except IndexError:
-				t10 = 1
-			try:
-				#t25 = np.where( cumul_pulse > 0.25*pulse_area )[0][0]
-				t25 = np.where(dat_array[:t_peak]*pulse_polarity < 0.25*pulse_height*pulse_polarity)[0][-1]
-			except IndexError:
-				t25 = 1
-			try:
-				#t50 = np.where( cumul_pulse > 0.5*pulse_area )[0][0]
-				t50 = np.where(dat_array[:t_peak]*pulse_polarity < 0.5*pulse_height*pulse_polarity)[0][-1]
-			except IndexError:
-				t50 = 1
-			try:
-				#t90 = np.where( cumul_pulse > 0.9*pulse_area )[0][0]
-				t90 = np.where(dat_array[:t_peak]*pulse_polarity < 0.9*pulse_height*pulse_polarity)[0][-1]			  
-			except IndexError:
-				t90 = 1
+			pulse_height = np.max(dat_array)
+			integ_begin = self.conf['SiPM Integral Start [samples]']
+			integ_end = self.conf['SiPM Integral End [samples]']
+			pulse_area = np.trapz(dat_array[integ_begin:integ_end], dx=self.conf['Sampling Period [ns]'])
+
+			#can find t10, t90 relative to the area; i.e. points in 
+			#time where the area is 90% of max. 
+			cumul_pulse = np.cumsum(dat_array[integ_begin:integ_end])
+			thresh = np.max(cumul_pulse)
+			t5 = np.where( cumul_pulse > 0.05*thresh )[0]
+			if(len(t5) == 0):
+				t5 = None
+			else:
+				t5 = t5[0]
+			t10 = np.where( cumul_pulse > 0.1*thresh )[0]
+			if(len(t10) == 0):
+				t10 = None
+			else:
+				t10 = t10[0]
+			t25 = np.where( cumul_pulse > 0.25*thresh )[0]
+			if(len(t25) == 0):
+				t25 = None
+			else:
+				t25 = t25[0]
+			t50 = np.where( cumul_pulse > 0.50*thresh )[0]
+			if(len(t50) == 0):
+				t50 = None
+			else:
+				t50 = t50[0]
+			t90 = np.where( cumul_pulse > 0.90*thresh )[0]
+			if(len(t90) == 0):
+				t90 = None
+			else:
+				t90 = t90[0]
+		else:
+			return None, None, None, None, None, None
 		return pulse_area, pulse_height, t5, t10, t25, t50, t90
 
 
-	#######################################################################################
-	def DataCheck( self ):
-		if self.data is not None:
-			return
-		else:
-			raise Exception('No data in waveform.')
 
 	#######################################################################################
 	def Induction_Charge( self, induction_window_sample ):

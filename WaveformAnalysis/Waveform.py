@@ -264,7 +264,6 @@ class Waveform:
 				#crossing. If none is found, it sets the timing variable to none.
 				self.analysis_quantities['Passes Threshold'] = False
 				if charge_energy > self.conf['Strip Threshold [sigma]']*self.baseline_rms: 
-					self.analysis_quantities['Passes Threshold'] = True
 					max_idx = np.argmax(self.corrected_data)
 					#reverse the wave starting with the peak sample. 
 					trunc_reversed_wave = self.corrected_data[:max_idx+1][::-1]
@@ -290,9 +289,12 @@ class Waveform:
 					else:
 						t90 = max_idx - t90[0]
 					
+
 					if(t90 != None):
 						# Compute drift time in microseconds, provided these indices
 						drift_time = (t90 - self.conf['Charge Pretrigger Length [samples]']) * (self.conf['Sampling Period [ns]'] / 1.e3)
+						self.analysis_quantities['Passes Threshold'] = True
+						#note that if for some reason the t90 is not found, the channel "doesnt pass thresh"
 					
 				#only now we apply calibration constant to charge energy
 				cal = self.analysis_config.GetCalibrationConstantForSoftwareChannel(self.sw_ch)

@@ -1,6 +1,6 @@
 Parameter,Value
 Sampling Rate [MHz],25
-Is Simulation,False
+Is Simulation,0
 Simulation Sampling Rate [MHz],20
 Electrons/ADC [electrons],11.9
 Drift Length [mm],21.0
@@ -19,4 +19,4 @@ SiPM Waveform Length [samples],100
 SiPM Threshold [sigma],2
 SiPM Integral Start [samples],0
 SiPM Integral End [samples],80
-Fixed Trigger,True
+Fixed Trigger,1

@@ -86,9 +86,9 @@ class Waveform:
 					self.data = self.data.to_numpy().astype(float) * self.polarity
 				except AttributeError:
 					self.data = self.data.astype(float) * self.polarity
-				baseline_start_idx = self.conf['SiPM Baseline Start [samples]']
-				baseline_end_idx = self.conf['SiPM Baseline Length [samples]']
-				trigger_idx = self.conf['SiPM Pretrigger Length [samples]']
+				baseline_start_idx = int(self.conf['SiPM Baseline Start [samples]'])
+				baseline_end_idx = int(self.conf['SiPM Baseline Length [samples]'])
+				trigger_idx = int(self.conf['SiPM Pretrigger Length [samples]'])
 
 				#check to make sure that all of these sample indices are in the data
 				if(len(self.data) < trigger_idx or len(self.data) < baseline_end_idx \
@@ -222,9 +222,9 @@ class Waveform:
 
 				self.data = gaussian_filter( self.data, ns_smoothing_window/self.sampling_period_ns )
 
-				baseline_start_idx = self.conf['Charge Baseline Start [samples]']
-				baseline_end_idx = self.conf['Charge Baseline Length [samples]']
-				trigger_idx = self.conf['Charge Pretrigger Length [samples]']
+				baseline_start_idx = int(self.conf['Charge Baseline Start [samples]'])
+				baseline_end_idx = int(self.conf['Charge Baseline Length [samples]'])
+				trigger_idx = int(self.conf['Charge Pretrigger Length [samples]'])
 
 				#check to make sure that all of these sample indices are in the data
 				if(len(self.data) < trigger_idx or len(self.data) < baseline_end_idx \
@@ -368,8 +368,8 @@ class Waveform:
 		#data is passed in already baseline subtracted
 		if 'SiPM' in self.detector_type:
 			pulse_height = np.max(dat_array)
-			integ_begin = self.conf['SiPM Integral Start [samples]']
-			integ_end = self.conf['SiPM Integral End [samples]']
+			integ_begin = int(self.conf['SiPM Integral Start [samples]'])
+			integ_end = int(self.conf['SiPM Integral End [samples]'])
 			pulse_area = np.trapz(dat_array[integ_begin:integ_end], dx=self.conf['Sampling Period [ns]'])
 
 			#can find t10, t90 relative to the area; i.e. points in 

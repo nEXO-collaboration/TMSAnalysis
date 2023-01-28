@@ -278,18 +278,19 @@ class Waveform:
 					if(len(t25) == 0): 
 						t25 = None
 					else:
-						t10 = max_idx - t25[0]
+						t25 = max_idx - t25[0]
 					t50 = np.where(trunc_reversed_wave < 0.5*charge_energy)[0] 
 					if(len(t50) == 0): 
 						t50 = None
 					else:
-						t10 = max_idx - t50[0]
+						t50 = max_idx - t50[0]
 					t90 = np.where(trunc_reversed_wave < 0.9*charge_energy)[0] 
 					if(len(t90) == 0): 
 						t90 = None
 					else:
-						t10 = max_idx - t90[0]
-
+						t90 = max_idx - t90[0]
+					
+					print("Timing quantities: ")
 					# Compute drift time in microseconds, provided these indices
 					drift_time = (t90 - self.conf['Charge Pretrigger Length [samples]']) * (self.conf['Sampling Period [ns]'] / 1.e3)
                 

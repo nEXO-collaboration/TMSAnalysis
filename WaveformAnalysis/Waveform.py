@@ -444,6 +444,7 @@ def DecayTimeCorrection( input_wfm, decay_time_us, sampling_period_ns ):
 		return new_wfm
 
 @jit("float64[:](float64[:],float64)",nopython=True)
+<<<<<<< HEAD
 def Differentiator( wfm, decay):
     # decay parameter is in number of samples
     z = np.exp(-1/decay)
@@ -455,6 +456,18 @@ def Differentiator( wfm, decay):
     for i in range(1,len(wfm)):
         out = np.append(out, a0 * wfm[i] + a1 * wfm[i-1] + b1 * out[i-1])
     return out
+=======
+def Differentiator( wfm, decay ):
+	# decay parameter is in number of samples
+	z = np.exp(-1/decay)
+	a0 = (1 + z)/2.
+	a1 = -(1+z)/2.
+	b1 = z
+	out = [0]
+	for i in range(1,len(wfm)):
+		out.append( a0 * wfm[i] + a1 * wfm[i-1] + b1 * out[i-1])
+	return np.array(out)
+>>>>>>> 2ad595c46ee2784a79701e06fe8f32a656868583
 
 
 class Event:

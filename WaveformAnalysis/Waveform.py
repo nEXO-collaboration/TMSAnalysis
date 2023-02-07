@@ -30,7 +30,7 @@ from StanfordTPCAnalysis.TMSUtilities import UsefulFunctionShapes as Ufun
 from StanfordTPCAnalysis.TMSUtilities import TMSWireFiltering as Filter
 from scipy.ndimage import gaussian_filter
 import scipy.optimize as opt
-from numba import jit
+from numba import jit, float64    # 13 October 2022, M. Maroun: Inclusion of 'float64' in imports is necessary for newest numba version
 import pandas as pd
 import numpy as np
 import sys
@@ -444,16 +444,17 @@ def DecayTimeCorrection( input_wfm, decay_time_us, sampling_period_ns ):
 		return new_wfm
 
 @jit("float64[:](float64[:],float64)",nopython=True)
-def Differentiator( wfm, decay ):
-	# decay parameter is in number of samples
-	z = np.exp(-1/decay)
-	a0 = (1 + z)/2.
-	a1 = -(1+z)/2.
-	b1 = z
-	out = [0]
-	for i in range(1,len(wfm)):
-		out.append( a0 * wfm[i] + a1 * wfm[i-1] + b1 * out[i-1])
-	return np.array(out)
+def Differentiator( wfm, decay):
+    # decay parameter is in number of samples
+    z = np.exp(-1/decay)
+    a0 = (1 + z)/2.
+    a1 = -(1+z)/2.
+    b1 = z
+    wfm_len = len(wfm)
+    out = np.array([0],dtype=float64)
+    for i in range(1,len(wfm)):
+        out = np.append(out, a0 * wfm[i] + a1 * wfm[i-1] + b1 * out[i-1])
+    return out
 
 
 class Event:

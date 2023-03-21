@@ -30,7 +30,8 @@ if output_dir[-1] != '/':
 	output_dir += '/'
 
 if not os.path.exists(this_file):
-	sys.exit('\nERROR: input file does not exist\n')
+	print('\nERROR: input file does not exist: \n' + this_file)
+	sys.exit()
 
 if not os.path.exists(output_dir):
 	print('No output directory found - Creating a new one')

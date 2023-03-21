@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python2
 
 #################################################################################################
 #												#
@@ -50,7 +50,7 @@ if not os.path.exists(path_to_reduced):
 
 flist = glob.glob('{}*.bin'.format(path_to_tier1))
 print(len(flist))
-max_files_to_submit = 1
+max_files_to_submit = 2500
 
 
 for i,fname in enumerate(flist):

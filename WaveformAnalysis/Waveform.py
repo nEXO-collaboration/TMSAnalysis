@@ -523,17 +523,14 @@ class Event:
 			if ch_name == 'Off':
 				continue
 			self.ix_channel.append(i)
-			self.waveform[ch_name] = Waveform(input_data = ch_waveform,\
-							detector_type	    = ch_type,\
-							sampling_period_ns  = 1.e3/self.sampling_frequency,\
-							input_baseline	    = -1,\
-							fixed_trigger	    = False,\
-							trigger_position    = analysis_config.run_parameters['Pretrigger Length [samples]'],\
-							decay_time_us	    = analysis_config.GetDecayTimeForSoftwareChannel( i),\
-							  calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel(i),\
-							strip_threshold = analysis_config.run_parameters['Strip Threshold [sigma]'])
-			#same as for Waveform class
-			self.baseline.append(np.mean(ch_waveform[:int(analysis_config.run_parameters['Baseline Length [samples]'])]))
+
+			self.waveform[ch_name] = Waveform(analysis_config,
+                                                        input_data = ch_waveform,\
+                                                        sw_ch = i,\
+						        detector_type = ch_type)
+
+                        #same as for Waveform class, (Jacopo 2023/04/17) only SiPM Baseline Length is taken to avoid to make different cases
+			self.baseline.append(np.mean(ch_waveform[:int(analysis_config.run_parameters['SiPM Baseline Length [samples]'])]))
 
 
 
@@ -625,17 +622,13 @@ class Simulated_Event:
 				mean,sigma = ch_status[ch_name]
 				ch_waveform = np.random.normal(mean,sigma,len(ch_waveform))
 
-			self.waveform[ch_name] = Waveform(input_data = ch_waveform,\
-							detector_type	    = ch_type,\
-							sampling_period_ns  = 1.e3/self.sampling_frequency,\
-							input_baseline	    = -1,\
-							polarity	    = -1,\
-							fixed_trigger	    = False,\
-							trigger_position    = analysis_config.run_parameters['Pretrigger Length [samples]'],\
-							decay_time_us	    = analysis_config.GetDecayTimeForSoftwareChannel( i ),\
-							calibration_constant = analysis_config.GetCalibrationConstantForSoftwareChannel(i))
-			#same as for Waveform class
-			self.baseline.append(np.mean(ch_waveform[:analysis_config.run_parameters['Baseline Length [samples]']]))
+			self.waveform[ch_name] = Waveform(analysis_config,
+                                                        input_data = ch_waveform,\
+                                                        sw_ch = i,\
+						        detector_type = ch_type)
+
+                        #same as for Waveform class
+			self.baseline.append(np.mean(ch_waveform[:analysis_config.run_parameters['SiPM Baseline Length [samples]']]))
 			#different cases for tile/SiPM
 			try:
 				self.charge_energy_ch.append(entry_from_reduced['{} {} Charge Energy'.format(ch_type,ch_name)].values[0])

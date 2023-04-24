@@ -67,34 +67,15 @@ def ReduceFile( filename, output_dir, run_parameters_file, calibrations_file, ch
         n_entries = input_file.GetTotalEntries()
         print("n entries:", n_entries)
         n_channels = analysis_config.GetNumberOfChannels()
-        #n_events_in_file = n_entries if is_simulation else n_entries/n_channels
-        n_events_in_file = n_entries/n_channels if is_rootfile else n_entries
-        n_events_to_process = num_events if (num_events < n_events_in_file and num_events>0) else n_events_in_file
         n_events_processed = 0
-        loop_counter = 0
 
-        while n_events_processed < n_events_to_process:
-                print('\tProcessing event {}/{} at {:4.4}s...'.format(n_events_processed,\
-                                                                      n_events_to_process,\
-                                                                      time.time()-start_time))
-
-                start_stop = [n_events_processed,(n_events_processed+100)] if (n_events_processed+100 < n_events_to_process)\
-                        else [n_events_processed,n_events_to_process]
-
-                if not is_simulation:
-                     start_stop[0] = start_stop[0]*n_channels
-                     start_stop[1] = start_stop[1]*n_channels
-                print('Begin GroupEventsAndWrite...')
-                input_df = input_file.GroupEventsAndWriteToHDF5(save = save_hdf5, start_stop=start_stop )
-                print('Begin FillH5Reduced...')
-                reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_events_processed,\
-                                        fit_pulse_flag, is_simulation=is_simulation, num_events=-1)
-                output_df_list.append(reduced_df)
-                n_events_processed += len(reduced_df)
-                loop_counter += 1
-
-        output_df = pd.concat( output_df_list, axis=0, ignore_index=True, sort=False )
-        output_df.to_hdf(output_dir + outputfile, key='df')     
+        print('Begin GroupEventsAndWrite...')
+        input_df = input_file.GroupEventsAndWriteToHDF5(save = save_hdf5)
+        print('Begin FillH5Reduced...')
+        reduced_df = FillH5Reduced(filetitle, input_df, analysis_config, n_events_processed,\
+                                fit_pulse_flag, is_simulation=is_simulation, num_events=-1)
+        
+        reduced_df.to_hdf(output_dir + outputfile, key='df')     
         print('Run time: {:4.4}'.format(time.time()-start_time))
 
 
@@ -105,8 +86,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
         NOISE_WFM_DEBUGGING = False
         NOISE_WFM_SUBTRACTION = False
 
-        output_series = pd.Series()
-        output_df = pd.DataFrame()
+        output_df = []
         input_columns = input_df.columns
         output_columns = [col for col in input_columns if (col!='Data') and (col!='Channels')]
 
@@ -115,7 +95,8 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
         start_time = time.time()
         print('Reducing {} events.'.format(len(input_df)))
         for index, thisrow in input_df.iterrows():
-                #if the channel type is not yet built for this analysis. 
+                output_series = pd.Series()
+                #if the channel type is not yet built for this analysis.
                 if any([ch not in ['SiPM','TileStrip','Off'] for ch in thisrow['ChannelTypes']]):
                     print('Skipping Event %i'%event_counter)
                     event_counter += 1
@@ -176,8 +157,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
 
                         except IndexError:
                                 print('Null waveform found in channel {}, event {} skipped'.format(ch_num,event_counter))
-                                key_buffer = output_df[row_counter-1].keys() # Grab keys from previous event
-                                for key_buf in key_buffer:
+                                for key_buf in key_list:
                                         output_series[key_buf] = 0
                                 skip = True
                                 continue
@@ -271,8 +251,7 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                                 w.FindPulsesAndComputeAQs(fit_pulse_flag=fit_pulse_flag)
                         except IndexError:
                                 print('Null waveform found in channel {}, event {} skipped'.format(ch_num,event_counter))
-                                key_buffer = output_df[row_counter-1].keys() # Grab keys from previous event
-                                for key_buf in key_buffer:
+                                for key_buf in key_list:
                                         output_series[key_buf] = 0
                                 skip = True
                                 continue
@@ -345,7 +324,8 @@ def FillH5Reduced(filetitle, input_df, analysis_config, event_counter,\
                 # Append this event to the output dataframe
                 output_series['File'] = filetitle
                 output_series['Event'] = event_counter
-                output_df = output_df.append(output_series,ignore_index=True)
+                output_df.append(output_series)
                 event_counter += 1
                 row_counter += 1
-        return output_df
+                key_list = output_series.keys()
+        return pd.DataFrame(output_df,columns=key_list)

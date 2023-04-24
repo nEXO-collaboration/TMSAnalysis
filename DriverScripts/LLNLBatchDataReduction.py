@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 #################################################################################################
 #												#
@@ -43,6 +43,9 @@ if path_to_tier1[-1] != '/':
 if path_to_reduced[-1] != '/':
 	path_to_reduced += '/'
 
+if path_to_config[-1] == '/':
+	path_to_config = path_to_config[:-1]
+
 if not os.path.exists(path_to_reduced):
 	print('No output directory found - Creating a new one')
 	os.makedirs(path_to_reduced)
@@ -57,13 +60,14 @@ for i,fname in enumerate(flist):
 	if i > max_files_to_submit: break
 	fname_stripped = (fname.split('/')[-1]).split('.')[0]
 	outfile = '{}{}_reduced.h5'.format(path_to_reduced,fname_stripped)
-#	print(outfile)
+	path_to_driver = os.path.dirname(os.path.abspath(__file__))
+	stanford_folder = '/'.join(path_to_driver.split('/')[:-1])
 	if os.path.exists(outfile):
 		print('file {}_reduced.h5 already exists'.format(fname_stripped))
 		continue
-	activate_venv = 'source $HOME/StanfordTPCAnalysis/setup.sh'
-	cmd_options = '--export=ALL -p pbatch -t 1-06:00:00 -n 1 -J {} -o {}{}.out'.format(i,path_to_reduced,fname_stripped)
-	exe = 'python $HOME/StanfordTPCAnalysis/DriverScripts/reduce_data.py {} {} {}'.format(fname,path_to_reduced,path_to_config)
+	activate_venv = 'source {}/setup.sh'.format(stanford_folder)
+	cmd_options = '--export=ALL -p pbatch -t 5-10:00:00 -n 1 -J {} -o {}{}.out'.format(i,path_to_reduced,fname_stripped)
+	exe = 'python {}/DriverScripts/reduce_data.py {} {} {}'.format(stanford_folder,fname,path_to_reduced,path_to_config)
 	if args.sim:
 		exe += ' --sim'
 	if args.save_raw:

@@ -251,51 +251,28 @@ class Waveform:
 				charge_energy = np.mean(self.corrected_data[-1*charge_energy_samples:])
 
 				# ^Charge energy calculated from the last 5us of the smoothed, corrected wfm
-				t10 = None
-				t25 = None
-				t50 = None
-				t90 = None
-				drift_time = None
-				# Compute timing/position if charge energy is positive and above noise.
+
+                                # Compute timing/position if charge energy is positive and above noise.
 				# One adjustment has been made by Evan on 1/27/23, that I would like
 				# to find the threshold crossing that happens closest to the maximum
 				# of the charge signal. I'll make a separate list that goes from the peak
 				#of the corrected charge signal and steps backwards in time to find the treshold
 				#crossing. If none is found, it sets the timing variable to none.
 				self.analysis_quantities['Passes Threshold'] = False
-				if charge_energy > self.conf['Strip Threshold [sigma]']*self.baseline_rms: 
-					max_idx = np.argmax(self.corrected_data)
-					#reverse the wave starting with the peak sample. 
-					trunc_reversed_wave = self.corrected_data[:max_idx+1][::-1]
-					t10 = np.where(trunc_reversed_wave < 0.1*charge_energy)[0]
-					#if none are found, then no crossing and the waveform is strange
-					if(len(t10) == 0): 
-						t10 = None
-					else:
-						t10 = max_idx - t10[0] #the threshold crossing happens a few samples before max index
-					t25 = np.where(trunc_reversed_wave < 0.25*charge_energy)[0] 
-					if(len(t25) == 0): 
-						t25 = None
-					else:
-						t25 = max_idx - t25[0]
-					t50 = np.where(trunc_reversed_wave < 0.5*charge_energy)[0] 
-					if(len(t50) == 0): 
-						t50 = None
-					else:
-						t50 = max_idx - t50[0]
-					t90 = np.where(trunc_reversed_wave < 0.9*charge_energy)[0] 
-					if(len(t90) == 0): 
-						t90 = None
-					else:
-						t90 = max_idx - t90[0]
-					
-
-					if(t90 != None):
-						# Compute drift time in microseconds, provided these indices
-						drift_time = (t90 - self.conf['Charge Pretrigger Length [samples]']) * (self.conf['Sampling Period [ns]'] / 1.e3)
-						self.analysis_quantities['Passes Threshold'] = True
-						#note that if for some reason the t90 is not found, the channel "doesnt pass thresh"
-					
+				t10 = None
+				t25 = None
+				t50 = None
+				t90 = None
+				drift_time = None
+				if charge_energy > self.conf['Strip Threshold [sigma]']*self.baseline_rms:
+                                        self.analysis_quantities['Passes Threshold'] = True
+                                        t10 = float( np.where( self.corrected_data > 0.1*charge_energy)[0][0] )
+                                        t25 = float( np.where( self.corrected_data > 0.25*charge_energy)[0][0] )
+                                        t50 = float( np.where( self.corrected_data > 0.5*charge_energy)[0][0] )
+                                        t90 = float( np.where( self.corrected_data > 0.9*charge_energy)[0][0] )
+                                        # Compute drift time in microseconds (sampling is given in ns)
+                                        drift_time = (t90 - trigger_idx) * (self.conf['Sampling Period [ns]'] / 1.e3)
+                                
 				#only now we apply calibration constant to charge energy
 				cal = self.analysis_config.GetCalibrationConstantForSoftwareChannel(self.sw_ch)
 				self.analysis_quantities['Baseline'] = self.baseline
@@ -529,8 +506,11 @@ class Event:
                                                         sw_ch = i,\
 						        detector_type = ch_type)
 
-                        #same as for Waveform class, (Jacopo 2023/04/17) only SiPM Baseline Length is taken to avoid to make different cases
-			self.baseline.append(np.mean(ch_waveform[:int(analysis_config.run_parameters['SiPM Baseline Length [samples]'])]))
+			if ch_type == 'SiPM':
+				self.baseline.append(np.mean(ch_waveform[:int(analysis_config.run_parameters['SiPM Baseline Length [samples]'])]))
+
+			elif ch_type == 'TileStrip':
+				self.baseline.append(np.mean(ch_waveform[:int(analysis_config.run_parameters['Charge Baseline Length [samples]'])]))
 
 
 
@@ -552,6 +532,7 @@ class Event:
 		plt.tight_layout()
 		return(plt)
 
+#This class has been maintained in a long time, it would be surprising if it works as is (Jacopo 2023/04/24)
 class Simulated_Event:
 
 	def __init__( self, reduced, path_to_tier1, event_number,\

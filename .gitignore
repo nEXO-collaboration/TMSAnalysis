@@ -15,7 +15,7 @@ WaveformAnalysis/event_driver.py
 *.pyc
 .ipynb_checkpoints/
 DriverScripts/.ipynb_checkpoints/
-DriverScripts/Untitled.ipynb
+DriverScripts/*.ipynb
 WaveformAnalysis/bin_event_driver.py
 WaveformAnalysis/sipm_event_driver.py
 config/32th/

@@ -35,9 +35,9 @@ class NEXOOfflineFile:
                  print('WARNING! The data and simulation sampling rates are not exact multiples.\n'+\
                        '         This may cause issues, specifically with adding noise to the\n'+\
                        '         simulated waveforms.')
-            self.sim_wfm_length = int( self.analysis_config.run_parameters['Waveform Length [samples]']\
+            self.sim_wfm_length = int( self.analysis_config.run_parameters['Charge Waveform Length [samples]']\
                                        / self.wfm_sampling_ratio )
-            self.sim_pretrigger_length = int( self.analysis_config.run_parameters['Pretrigger Length [samples]']\
+            self.sim_pretrigger_length = int( self.analysis_config.run_parameters['Charge Pretrigger Length [samples]']\
                                               / self.wfm_sampling_ratio )
             self.verbose = verbose
 
@@ -151,7 +151,9 @@ class NEXOOfflineFile:
                print('\nERROR: File not properly loaded. See error message below:\n');
                print(e)
             if start_stop is not None:
-                  self.start_stop = start_stop  
+                  self.start_stop = start_stop
+            else:
+                  self.start_stop = [0,self.GetTotalEntries()]
 
             start_time = time.time()
             global_evt_counter = 0
@@ -313,5 +315,3 @@ class NEXOOfflineFile:
         ####################################################################
         def GetTotalEntries( self ):
             return self.electree.num_entries
-
-

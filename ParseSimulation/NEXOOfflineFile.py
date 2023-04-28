@@ -35,9 +35,9 @@ class NEXOOfflineFile:
                  print('WARNING! The data and simulation sampling rates are not exact multiples.\n'+\
                        '         This may cause issues, specifically with adding noise to the\n'+\
                        '         simulated waveforms.')
-            self.sim_wfm_length = int( self.analysis_config.run_parameters['Waveform Length [samples]']\
+            self.sim_wfm_length = int( self.analysis_config.run_parameters['Charge Waveform Length [samples]']\
                                        / self.wfm_sampling_ratio )
-            self.sim_pretrigger_length = int( self.analysis_config.run_parameters['Pretrigger Length [samples]']\
+            self.sim_pretrigger_length = int( self.analysis_config.run_parameters['Charge Pretrigger Length [samples]']\
                                               / self.wfm_sampling_ratio )
             self.verbose = verbose
 
@@ -151,7 +151,9 @@ class NEXOOfflineFile:
                print('\nERROR: File not properly loaded. See error message below:\n');
                print(e)
             if start_stop is not None:
-                  self.start_stop = start_stop  
+                  self.start_stop = start_stop
+            else:
+                  self.start_stop = [0,self.GetTotalEntries()]
 
             start_time = time.time()
             global_evt_counter = 0
@@ -173,22 +175,21 @@ class NEXOOfflineFile:
                                              'fElecChannels.fChannelLocalId'],\
                                             entry_start=self.start_stop[0],\
                                             entry_stop=self.start_stop[1],\
-                                            step_size=1):
+                                            step_size=1, library='np'):
                 #print('Event {}'.format(counter))
                 simdata = [thisdata for thisdata in self.simtree.iterate(['fNTE','fInitNOP','fGenX','fGenY','fGenZ'],\
                                                                          step_size=1,\
                                                                          entry_start=self.start_stop[0]+counter,\
-                                                                         entry_stop=self.start_stop[0]+counter+1)][0]
+                                                                         entry_stop=self.start_stop[0]+counter+1, library='np')][0]
                 counter += 1
                 if nevents > 0:
                    if global_evt_counter > nevents:
                       break
-
                 data_series = pd.Series(data)
                 simdata_series = pd.Series(simdata)
                 channel_ids, channel_waveforms, \
                 channel_types, channel_positions = self.GroupSimChannelsIntoDataChannels( data_series)
-                output_series = pd.Series()
+                output_series = {}
                 output_series['Channels'] = channel_ids
                 output_series['Timestamp'] = np.zeros(len(channel_ids))
                 output_series['Data'] = channel_waveforms
@@ -203,7 +204,7 @@ class NEXOOfflineFile:
                 self.global_noise_file_counter = None
                 self.noise_file_event_counter  = None
 
-                df = df.append(output_series,ignore_index=True)
+                df = pd.concat( [df, pd.Series(output_series)],ignore_index=True)
 
                 global_evt_counter += 1
                 local_evt_counter += 1
@@ -267,7 +268,7 @@ class NEXOOfflineFile:
                 else:
                    channels_mask = np.array( [True if int(channel) in mc_channels_in_data_channel else False\
                                                 for channel in data_series['fElecChannels.fChannelLocalId'][0] ] )
-                   summed_wfm = np.sum( np.array(data_series['fElecChannels.fWFAmplitude'][0])[channels_mask], axis=0 )
+                   summed_wfm = np.sum( np.array( [np.array(wfm) for wfm in data_series['fElecChannels.fWFAmplitude'][0] ] )[channels_mask], axis=0 )
 
                 summed_wfm = np.array(summed_wfm) * 9. # This scales the waveform to units of electrons. 
                 summed_wfm = summed_wfm / self.analysis_config.run_parameters['Electrons/ADC [electrons]']

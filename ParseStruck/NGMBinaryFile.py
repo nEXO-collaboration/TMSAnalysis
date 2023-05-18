@@ -537,7 +537,7 @@ class NGMBinaryFile:
      
          event['format_bits'] = 0xf & word
          event['channel_id'] = 0xff0 & word
-         event['timestamp_47_to_32'] = 0xffff0000 & word
+         event['timestamp_47_to_32'] = (0xffff0000 & word) >> 16
      
          word = struct.unpack("<I", infile.read(4))[0]
          bytes_read += 4
@@ -649,7 +649,7 @@ class NGMBinaryFile:
          # First word contains format bits, chan ID, and beginning of timestamp
          event['format_bits'] = 0xf & file_content_array[fileidx]
          event['channel_id'] = 0xff0 & file_content_array[fileidx]
-         event['timestamp_47_to_32'] = 0xffff0000 & file_content_array[fileidx]
+         event['timestamp_47_to_32'] = (0xffff0000 & file_content_array[fileidx]) >> 16
          fileidx += 1
  
          # Next word completes the timestamp

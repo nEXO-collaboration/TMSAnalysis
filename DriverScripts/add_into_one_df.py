@@ -29,8 +29,7 @@ for i,fname in enumerate(sorted(glob.glob(path_to_folder + '*reduced.h5'))):
 	if i%100 == 0:
 		print('{} files appended in {:.1f}'.format(i,(time.time() - start_time)))
 	df_list.append(pd.read_hdf(fname))
-	if i == 411:
-		break	
+	    
 df = pd.concat(df_list,ignore_index=True)
 df.to_pickle( path_to_folder + 'reduced_added.p')
 

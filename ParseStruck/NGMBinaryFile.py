@@ -8,7 +8,6 @@
 
 import pandas as pd
 import numpy as np
-import uproot as up
 import time
 import os
 import sys
@@ -279,7 +278,7 @@ class NGMBinaryFile:
      ####################################################################
      def ReadSpillFast( self, file_content_array, fileidx ):
 
-         debug = False
+         debug = True
  
          spill_dict = {}
          spill_words_read = 0

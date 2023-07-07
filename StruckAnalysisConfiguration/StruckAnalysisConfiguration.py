@@ -257,15 +257,17 @@ class StruckAnalysisConfiguration:
       #     Decay Guess [us]
       #     Sampling Rate [MHz]
       #     Sampling Period [ns]
-      #     Waveform Length [samples]
-      #     Pretrigger Length [samples]
-      #     Baseline Length [samples]
+      #     Charge Waveform Length [samples]
+      #     Charge Pretrigger Length [samples]
+      #     Charge Baseline Length [samples]
+      #     SiPM Waveform Length [samples]
+      #     SiPM Pretrigger Length [samples]
+      #     SiPM Baseline Length [samples]
       #     Num Struck Boards
 
       # The input file needs two columns: 'Parameter' and 'Value'
       # We will end up with a dict called run_parameters
 
-      print(input_file)
       if input_file.split('.')[-1] == 'csv':
           temp_dataframe = pd.read_csv( input_file, delimiter=',' )
       else:
@@ -275,39 +277,26 @@ class StruckAnalysisConfiguration:
 
       self.run_parameters = dict(zip(temp_dataframe['Parameter'],temp_dataframe['Value']))
 
-
+      #reformat string to bool for fixed_trigger
+      self.run_parameters['Fixed Trigger'] = bool(self.run_parameters['Fixed Trigger'])
+      self.run_parameters['Is Simulation'] = bool(self.run_parameters['Is Simulation'])
       # Here we actually need to calculate some stuff.
       self.run_parameters['Max Drift Time [us]'] = self.run_parameters['Drift Length [mm]'] / \
                                                    self.run_parameters['Drift Velocity [mm/us]']
 
       self.run_parameters['Sampling Period [ns]'] = 1.e9/(self.run_parameters['Sampling Rate [MHz]']*1.e6)
 
-
-      self.run_parameters['Baseline Average Time [us]'] = self.run_parameters['Baseline Length [samples]'] * \
-                                                          self.run_parameters['Sampling Period [ns]'] / 1.e3
-
-      self.run_parameters['Energy Start Time [us]'] = (self.run_parameters['Waveform Length [samples]'] - \
-                                                       self.run_parameters['Baseline Length [samples]'] ) * \
-                                                      self.run_parameters['Sampling Period [ns]'] / 1.e3
-                                                      # Energy is calculated using the last N samples of the waveform
-
-      self.run_parameters['Decay Start Time [us]'] = self.run_parameters['Energy Start Time [us]']
-      self.run_parameters['Decay End Time [us]'] = self.run_parameters['Decay Start Time [us]'] + \
-                                                   self.run_parameters['Baseline Length [samples]']
-
-      self.run_parameters['Decay Guess [us]'] = 200.
-
       # Finally, set the inversion flag
       if self.run_parameters['Sampling Rate [MHz]'] == 125:
-         self.run_parameters['DoInvert'] = True
+        self.run_parameters['DoInvert'] = True
       elif self.run_parameters['Sampling Rate [MHz]'] == 62.5:
-         self.run_parameters['DoInvert'] = False
+        self.run_parameters['DoInvert'] = False
       else:
-         self.run_parameters['DoInvert'] = False
+        self.run_parameters['DoInvert'] = False
     
       if DEBUG:
-         print('\nrun_parameters:')
-         print(self.run_parameters)      
+        print('\nrun_parameters:')
+        print(self.run_parameters)      
 
 
  

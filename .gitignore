@@ -1,6 +1,5 @@
 notebook/
 ChargeSim/
-config/
 DriverScripts/check_incoming_data.sh
 DriverScripts/check_tier1_incoming.py
 DriverScripts/lightmap_driver.py
@@ -14,3 +13,12 @@ WaveformAnalysis/event_driver.py
 *.pkl
 *.root
 *.pyc
+.ipynb_checkpoints/
+DriverScripts/.ipynb_checkpoints/
+DriverScripts/*.ipynb
+WaveformAnalysis/bin_event_driver.py
+WaveformAnalysis/sipm_event_driver.py
+config/32th/
+config/35th/
+config/sipm_test/
+

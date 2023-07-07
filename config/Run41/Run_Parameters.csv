@@ -1,0 +1,22 @@
+Parameter,Value
+Sampling Rate [MHz],25
+Is Simulation,0
+Simulation Sampling Rate [MHz],20
+Electrons/ADC [electrons],11.9
+Drift Length [mm],21.0
+Drift Velocity [mm/us],1.89
+Num Struck Boards,3
+Charge Pretrigger Length [samples],500
+Charge Baseline Length [samples],400
+Charge Baseline Start [samples],0
+Charge Waveform Length [samples],1000
+Charge Energy Calculation Time [us],5
+Strip Threshold [sigma],2
+SiPM Pretrigger Length [samples],50
+SiPM Baseline Length [samples],30
+SiPM Baseline Start [samples],0
+SiPM Waveform Length [samples],100
+SiPM Threshold [sigma],2
+SiPM Integral Start [samples],0
+SiPM Integral End [samples],80
+Fixed Trigger,1

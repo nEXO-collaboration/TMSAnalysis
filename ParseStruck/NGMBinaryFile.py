@@ -113,6 +113,7 @@ class NGMBinaryFile:
 
                          # Strip out 'Off' channels
                          if self.channel_map['ChannelType'].loc[chan_mask].values[0] != 'Off':
+                              #if for some reason, this channel is missing from this event. 
                               if(len(channel_data['data']['events']) <= i):
                                    continue
 
@@ -740,7 +741,6 @@ class NGMBinaryFile:
              self.spills_list
          except NameError:
              self.LoadBinaryFile( self.filename )
-
          # Note: this code assumes that the data is acquired in a way that records
          # all the active channels simultaneously. This is the typical operating mode
          # for the Stanford TPC, but may not be transferrable to other setups using the
@@ -749,7 +749,6 @@ class NGMBinaryFile:
          global_evt_counter = 0
          last_spills_max_event = 0
          for spill_dict in self.spills_list:
-
              spill_data = spill_dict['spill_data']
              num_channels = len(spill_data)
 
@@ -763,7 +762,7 @@ class NGMBinaryFile:
              global_evt_counter += num_events #total number of events indexed so far
              #if the event number is less than the current spill/event index, continue to next spill
              if(event_no > global_evt_counter):
-                 last_spills_max_event
+                 last_spills_max_event = global_evt_counter
                  continue
 
              #otherwise, the event index is within this spill,
@@ -776,8 +775,6 @@ class NGMBinaryFile:
                  waveforms[ch] = channel_data["data"]["events"][spill_evt_idx]["samples"]
 
              break #end the loop here, we found the event we needed. 
-
-
          if(waveforms == {}):
              print("Could not find the event " + str(event_no) + " within the binary file. Maybe you've listed the wrong filename")
              return None

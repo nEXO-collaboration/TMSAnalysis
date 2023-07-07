@@ -35,9 +35,9 @@ class NEXOOfflineFile:
                  print('WARNING! The data and simulation sampling rates are not exact multiples.\n'+\
                        '         This may cause issues, specifically with adding noise to the\n'+\
                        '         simulated waveforms.')
-            self.sim_wfm_length = int( self.analysis_config.run_parameters['Waveform Length [samples]']\
+            self.sim_wfm_length = int( self.analysis_config.run_parameters['Charge Waveform Length [samples]']\
                                        / self.wfm_sampling_ratio )
-            self.sim_pretrigger_length = int( self.analysis_config.run_parameters['Pretrigger Length [samples]']\
+            self.sim_pretrigger_length = int( self.analysis_config.run_parameters['Charge Pretrigger Length [samples]']\
                                               / self.wfm_sampling_ratio )
             self.verbose = verbose
 
@@ -151,59 +151,53 @@ class NEXOOfflineFile:
                print('\nERROR: File not properly loaded. See error message below:\n');
                print(e)
             if start_stop is not None:
-                  self.start_stop = start_stop  
+                  self.start_stop = start_stop
+            else:
+                  self.start_stop = [0,self.GetTotalEntries()]
 
             start_time = time.time()
             global_evt_counter = 0
             local_evt_counter = 0
             file_counter = 0
-            df = pd.DataFrame(columns=['Channels',\
-                                       'Timestamp',\
-                                       'Data',\
-                                       'ChannelTypes',\
-                                       'ChannelPositions',\
-                                       'MCElectrons',\
-                                       'MCPhotons'])
+            output_df = []
             
             # loop over events in the ElecEvent tree
             if self.verbose:
                 print('Beginning data loop.')
             counter = 0
-            for data in self.electree.iterate(['fElecChannels.fWFAmplitude',\
+            for data_series in self.electree.iterate(['fElecChannels.fWFAmplitude',\
                                              'fElecChannels.fChannelLocalId'],\
                                             entry_start=self.start_stop[0],\
                                             entry_stop=self.start_stop[1],\
-                                            step_size=1):
+                                            step_size=1, library="pd"):
                 #print('Event {}'.format(counter))
-                simdata = [thisdata for thisdata in self.simtree.iterate(['fNTE','fInitNOP','fGenX','fGenY','fGenZ'],\
-                                                                         step_size=1,\
-                                                                         entry_start=self.start_stop[0]+counter,\
-                                                                         entry_stop=self.start_stop[0]+counter+1)][0]
+                simdata_series = [simdata for simdata in self.simtree.iterate(['fNTE','fInitNOP','fGenX','fGenY','fGenZ'],\
+                                                       step_size=1,\
+                                                       entry_start=self.start_stop[0]+counter,\
+                                                       entry_stop=self.start_stop[0]+counter+1, library="pd")]
                 counter += 1
                 if nevents > 0:
                    if global_evt_counter > nevents:
                       break
-
-                data_series = pd.Series(data)
-                simdata_series = pd.Series(simdata)
                 channel_ids, channel_waveforms, \
                 channel_types, channel_positions = self.GroupSimChannelsIntoDataChannels( data_series)
-                output_series = pd.Series()
+                output_series = {}
                 output_series['Channels'] = channel_ids
                 output_series['Timestamp'] = np.zeros(len(channel_ids))
                 output_series['Data'] = channel_waveforms
                 output_series['ChannelTypes'] = channel_types
                 output_series['ChannelPositions'] = channel_positions
                 output_series['NoiseIndex'] = (self.global_noise_file_counter , self.noise_file_event_counter)
-                output_series['MCElectrons'] = float(simdata_series['fNTE'][0])
-                output_series['MCPhotons'] = float(simdata_series['fInitNOP'][0])
-                output_series['MC_GenX'] = float(simdata_series['fGenX'][0])
-                output_series['MC_GenY'] = float(simdata_series['fGenY'][0])
-                output_series['MC_GenZ'] = float(simdata_series['fGenZ'][0])
+                output_series['MCElectrons'] = float(simdata_series[0]['fNTE'].iloc[0])
+                output_series['MCPhotons'] = float(simdata_series[0]['fInitNOP'].iloc[0])
+                output_series['MC_GenX'] = float(simdata_series[0]['fGenX'].iloc[0])
+                output_series['MC_GenY'] = float(simdata_series[0]['fGenY'].iloc[0])
+                output_series['MC_GenZ'] = float(simdata_series[0]['fGenZ'].iloc[0])
                 self.global_noise_file_counter = None
                 self.noise_file_event_counter  = None
-
-                df = df.append(output_series,ignore_index=True)
+                output_df.append(output_series)
+                key_list = output_series.keys()
+                df = pd.DataFrame(output_df,columns=key_list)
 
                 global_evt_counter += 1
                 local_evt_counter += 1
@@ -261,13 +255,12 @@ class NEXOOfflineFile:
                    mc_channels_in_data_channel = np.array( row['ChargeMCChannelMap'].split(','), dtype=int )
                 except ValueError:
                    mc_channels_in_data_channel = None
-
-                if mc_channels_in_data_channel is None or len(data_series['fElecChannels.fWFAmplitude'][0]) == 0:
+                if mc_channels_in_data_channel is None or len(data_series['fElecChannels.fWFAmplitude'].iloc[0]) == 0:
                    summed_wfm = np.zeros( 10 )
                 else:
                    channels_mask = np.array( [True if int(channel) in mc_channels_in_data_channel else False\
-                                                for channel in data_series['fElecChannels.fChannelLocalId'][0] ] )
-                   summed_wfm = np.sum( np.array(data_series['fElecChannels.fWFAmplitude'][0])[channels_mask], axis=0 )
+                                                for channel in data_series['fElecChannels.fChannelLocalId'].iloc[0] ] )
+                   summed_wfm = np.sum( np.array( [np.array(wfm) for wfm in data_series['fElecChannels.fWFAmplitude'].iloc[0] ] )[channels_mask], axis=0 )
 
                 summed_wfm = np.array(summed_wfm) * 9. # This scales the waveform to units of electrons. 
                 summed_wfm = summed_wfm / self.analysis_config.run_parameters['Electrons/ADC [electrons]']
@@ -313,5 +306,3 @@ class NEXOOfflineFile:
         ####################################################################
         def GetTotalEntries( self ):
             return self.electree.num_entries
-
-

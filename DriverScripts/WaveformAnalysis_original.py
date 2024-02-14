@@ -224,14 +224,6 @@ class Waveform:
                                 baseline_start_idx = int(self.conf['Charge Baseline Start [samples]'])
                                 baseline_end_idx = baseline_start_idx + int(self.conf['Charge Baseline Length [samples]'])
                                 trigger_idx = int(self.conf['Charge Pretrigger Length [samples]'])
-                                if self.is_simulation:
-                                    baseline_start_idx *= self.conf['Simulation Sampling Rate [MHz]'] / self.conf['Sampling Rate [MHz]']
-                                    baseline_end_idx *= self.conf['Simulation Sampling Rate [MHz]'] / self.conf['Sampling Rate [MHz]']
-                                    trigger_idx *= self.conf['Simulation Sampling Rate [MHz]'] / self.conf['Sampling Rate [MHz]']
-                                    baseline_start_idx = int(baseline_start_idx)
-                                    baseline_end_idx = int( baseline_end_idx)
-                                    trigger_idx = int(trigger_idx)
-
                                 print(len(self.data),trigger_idx,baseline_end_idx,baseline_start_idx)
 
                                 #check to make sure that all of these sample indices are in the data

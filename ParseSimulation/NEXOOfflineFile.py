@@ -35,7 +35,7 @@ class NEXOOfflineFile:
                  print('WARNING! The data and simulation sampling rates are not exact multiples.\n'+\
                        '         This may cause issues, specifically with adding noise to the\n'+\
                        '         simulated waveforms.')
-            self.sim_wfm_length = int( self.analysis_config.run_parameters['Charge Waveform Length [samples]']\
+            self.sim_wfm_length = int( self.analysis_config.run_parameters['Waveform Length [samples]']\
                                        / self.wfm_sampling_ratio )
             self.sim_pretrigger_length = int( self.analysis_config.run_parameters['Charge Pretrigger Length [samples]']\
                                               / self.wfm_sampling_ratio )

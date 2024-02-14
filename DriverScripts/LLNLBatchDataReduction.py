@@ -51,7 +51,7 @@ if not os.path.exists(path_to_reduced):
 	os.makedirs(path_to_reduced)
 
 
-flist = glob.glob('{}*.bin'.format(path_to_tier1))
+flist = glob.glob('{}*.root'.format(path_to_tier1))
 print(len(flist))
 max_files_to_submit = 2500
 

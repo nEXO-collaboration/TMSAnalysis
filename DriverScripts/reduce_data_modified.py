@@ -21,7 +21,7 @@ args = parser.parse_args()
 this_file  = args.inputfile
 output_dir = args.outputdir
 config_dir = args.configdir
-save_hdf5 = args.save_raw
+#save_hdf5 = args.save_raw
 input_foldername = os.path.dirname(this_file)
 print('\n\nInput foldername:')
 print(input_foldername)

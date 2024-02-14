@@ -56,4 +56,5 @@ DataReduction.ReduceFile( this_file,\
                           fixed_trigger = True,\
                           fit_pulse_flag = False,\
                           num_events = -1,\
-                          is_simulation = args.sim)
+                          is_simulation = args.sim,\
+                          save_hdf5=save_hdf5)
